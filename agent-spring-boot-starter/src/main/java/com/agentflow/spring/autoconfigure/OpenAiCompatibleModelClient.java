@@ -1,27 +1,43 @@
 package com.agentflow.spring.autoconfigure;
 
+import com.agentflow.core.chat.ChatCompletionRequest;
+import com.agentflow.core.chat.ChatCompletionResponse;
+import com.agentflow.core.chat.ChatMessage;
+import com.agentflow.core.chat.ChatModelClient;
+import com.agentflow.core.chat.TokenUsage;
 import com.agentflow.core.model.AgentModelClient;
 import com.agentflow.core.model.EmbeddingClient;
 import com.agentflow.core.model.ModelPrompt;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
-public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingClient {
+public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingClient, ChatModelClient {
+
+    private static final String DEEPSEEK_BASE_URL = "https://api.deepseek.com";
+    private static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
 
     private final AgentFlowProperties properties;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public OpenAiCompatibleModelClient(AgentFlowProperties properties, RestClient.Builder builder) {
         this.properties = properties;
-        RestClient.Builder configured = builder.baseUrl(trimTrailingSlash(properties.model().getBaseUrl()));
+        RestClient.Builder configured = builder.baseUrl(resolveBaseUrl());
         if (hasApiKey()) {
             configured.defaultHeader("Authorization", "Bearer " + properties.model().getApiKey());
         }
@@ -30,27 +46,75 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
 
     @Override
     public String generate(ModelPrompt prompt) {
+        return complete(new ChatCompletionRequest(List.of(
+                ChatMessage.system(prompt.system()),
+                ChatMessage.user(prompt.user())
+        ), null, null, null)).content();
+    }
+
+    @Override
+    public ChatCompletionResponse complete(ChatCompletionRequest request) {
         if (!hasApiKey()) {
-            return fallbackAnswer(prompt);
+            return fallbackAnswer(request);
         }
-        Map<String, Object> body = Map.of(
-                "model", properties.model().getChatModel(),
-                "messages", List.of(
-                        Map.of("role", "system", "content", prompt.system()),
-                        Map.of("role", "user", "content", prompt.user())
-                )
-        );
         JsonNode response = restClient.post()
                 .uri("/chat/completions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
+                .body(chatBody(request, false))
                 .retrieve()
                 .body(JsonNode.class);
         if (response == null) {
-            return fallbackAnswer(prompt);
+            return fallbackAnswer(request);
         }
         String content = response.path("choices").path(0).path("message").path("content").asText();
-        return content == null || content.isBlank() ? fallbackAnswer(prompt) : content;
+        if (content == null || content.isBlank()) {
+            return fallbackAnswer(request);
+        }
+        return new ChatCompletionResponse(provider(), response.path("model").asText(resolveModel(request.model())),
+                content, parseUsage(response.path("usage")), false);
+    }
+
+    @Override
+    public ChatCompletionResponse stream(ChatCompletionRequest request, Consumer<String> deltaConsumer) {
+        if (!hasApiKey()) {
+            ChatCompletionResponse fallback = fallbackAnswer(request);
+            if (deltaConsumer != null) {
+                deltaConsumer.accept(fallback.content());
+            }
+            return fallback;
+        }
+        StringBuilder content = new StringBuilder();
+        AtomicReference<String> responseModel = new AtomicReference<>(resolveModel(request.model()));
+        AtomicReference<TokenUsage> usage = new AtomicReference<>(TokenUsage.empty());
+        return restClient.post()
+                .uri("/chat/completions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .body(chatBody(request, true))
+                .exchange((httpRequest, response) -> {
+                    if (response.getStatusCode().isError()) {
+                        throw new IllegalStateException("Chat completion stream failed: " + response.getStatusCode());
+                    }
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = reader.readLine()) != null) {
+                            if (!line.startsWith("data:")) {
+                                continue;
+                            }
+                            String payload = line.substring("data:".length()).trim();
+                            if (payload.isBlank()) {
+                                continue;
+                            }
+                            if ("[DONE]".equals(payload)) {
+                                break;
+                            }
+                            handleStreamPayload(payload, content, responseModel, usage, deltaConsumer);
+                        }
+                    } catch (IOException ex) {
+                        throw new IllegalStateException("Failed to read chat completion stream", ex);
+                    }
+                    return new ChatCompletionResponse(provider(), responseModel.get(), content.toString(), usage.get(), false);
+                });
     }
 
     @Override
@@ -58,24 +122,86 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
         if (!hasApiKey()) {
             return deterministicEmbedding(text, properties.model().getEmbeddingDimensions());
         }
-        Map<String, Object> body = Map.of(
-                "model", properties.model().getEmbeddingModel(),
-                "input", text,
-                "dimensions", properties.model().getEmbeddingDimensions()
-        );
-        JsonNode response = restClient.post()
-                .uri("/embeddings")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .body(JsonNode.class);
-        JsonNode embedding = response == null ? null : response.path("data").path(0).path("embedding");
-        if (embedding == null || !embedding.isArray()) {
+        try {
+            Map<String, Object> body = Map.of(
+                    "model", properties.model().getEmbeddingModel(),
+                    "input", text,
+                    "dimensions", properties.model().getEmbeddingDimensions()
+            );
+            JsonNode response = restClient.post()
+                    .uri("/embeddings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+            JsonNode embedding = response == null ? null : response.path("data").path(0).path("embedding");
+            if (embedding == null || !embedding.isArray()) {
+                return deterministicEmbedding(text, properties.model().getEmbeddingDimensions());
+            }
+            List<Double> vector = new ArrayList<>(embedding.size());
+            embedding.forEach(value -> vector.add(value.asDouble()));
+            return vector;
+        } catch (RuntimeException ex) {
             return deterministicEmbedding(text, properties.model().getEmbeddingDimensions());
         }
-        List<Double> vector = new ArrayList<>(embedding.size());
-        embedding.forEach(value -> vector.add(value.asDouble()));
-        return vector;
+    }
+
+    private Map<String, Object> chatBody(ChatCompletionRequest request, boolean stream) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", resolveModel(request.model()));
+        body.put("messages", request.messages().stream()
+                .map(message -> Map.of("role", message.role(), "content", message.content()))
+                .toList());
+        if (request.temperature() != null) {
+            body.put("temperature", request.temperature());
+        }
+        if (request.maxTokens() != null) {
+            body.put("max_tokens", request.maxTokens());
+        }
+        if (stream) {
+            body.put("stream", true);
+        }
+        return body;
+    }
+
+    private void handleStreamPayload(String payload, StringBuilder content, AtomicReference<String> responseModel,
+                                     AtomicReference<TokenUsage> usage, Consumer<String> deltaConsumer) {
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            String model = node.path("model").asText();
+            if (model != null && !model.isBlank()) {
+                responseModel.set(model);
+            }
+            JsonNode usageNode = node.path("usage");
+            if (usageNode.isObject()) {
+                usage.set(parseUsage(usageNode));
+            }
+            JsonNode deltaNode = node.path("choices").path(0).path("delta").get("content");
+            if (deltaNode == null || deltaNode.isNull()) {
+                return;
+            }
+            String delta = deltaNode.asText();
+            if (delta == null || delta.isEmpty()) {
+                return;
+            }
+            content.append(delta);
+            if (deltaConsumer != null) {
+                deltaConsumer.accept(delta);
+            }
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to parse chat completion stream payload", ex);
+        }
+    }
+
+    private TokenUsage parseUsage(JsonNode usage) {
+        if (usage == null || !usage.isObject()) {
+            return TokenUsage.empty();
+        }
+        return new TokenUsage(
+                usage.path("prompt_tokens").asInt(0),
+                usage.path("completion_tokens").asInt(0),
+                usage.path("total_tokens").asInt(0)
+        );
     }
 
     private boolean hasApiKey() {
@@ -83,19 +209,47 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
         return apiKey != null && !apiKey.isBlank() && !"change-me".equals(apiKey);
     }
 
-    private String fallbackAnswer(ModelPrompt prompt) {
-        return """
+    private ChatCompletionResponse fallbackAnswer(ChatCompletionRequest request) {
+        String lastUserMessage = request.messages().stream()
+                .filter(message -> "user".equals(message.role()))
+                .reduce((left, right) -> right)
+                .map(ChatMessage::content)
+                .orElse("");
+        String content = """
                 当前未配置真实 LLM API Key，已使用本地兜底回答。
 
-                建议方案：
-                1. 使用 Spring MVC 暴露 REST 接口，Controller 只做参数校验和请求转发。
-                2. Service 层通过 Redis 预扣减库存，并用 MySQL 乐观锁或唯一流水保证最终一致性。
-                3. 对扣减链路记录业务流水，失败时通过补偿任务回滚 Redis 或修正 MySQL。
-                4. AgentFlow 已完成本次任务的规划、知识检索、工具调用和步骤记录。
+                你已经打通了 OpenAI-compatible 对话接口骨架。配置 DeepSeek 或 OpenAI 的 API Key 后，
+                系统会通过 /chat/completions 发起真实模型调用，并支持多轮上下文和 SSE 流式输出。
 
-                原始提示摘要：
+                用户消息：
                 %s
-                """.formatted(prompt.user().lines().limit(8).reduce("", (left, right) -> left + "\n" + right));
+                """.formatted(lastUserMessage);
+        return new ChatCompletionResponse(provider(), resolveModel(request.model()), content, TokenUsage.empty(), true);
+    }
+
+    private String provider() {
+        String provider = properties.model().getProvider();
+        return provider == null || provider.isBlank() ? "deepseek" : provider;
+    }
+
+    private String resolveModel(String requestModel) {
+        if (requestModel != null && !requestModel.isBlank()) {
+            return requestModel;
+        }
+        String configured = properties.model().getChatModel();
+        return configured == null || configured.isBlank() ? "deepseek-v4-pro" : configured;
+    }
+
+    private String resolveBaseUrl() {
+        String configured = properties.model().getBaseUrl();
+        if (configured != null && !configured.isBlank()) {
+            return trimTrailingSlash(configured);
+        }
+        return switch (provider()) {
+            case "openai" -> OPENAI_BASE_URL;
+            case "deepseek" -> DEEPSEEK_BASE_URL;
+            default -> DEEPSEEK_BASE_URL;
+        };
     }
 
     private List<Double> deterministicEmbedding(String text, int dimensions) {
@@ -118,9 +272,6 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
     }
 
     private String trimTrailingSlash(String value) {
-        if (value == null || value.isBlank()) {
-            return "https://dashscope.aliyuncs.com/compatible-mode/v1";
-        }
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 }

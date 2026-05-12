@@ -29,10 +29,10 @@ public class AgentFlowProperties {
     }
 
     public static class Model {
-        private String provider = "openai-compatible";
-        private String baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        private String provider = "deepseek";
+        private String baseUrl = "";
         private String apiKey = "";
-        private String chatModel = "qwen-plus";
+        private String chatModel = "deepseek-v4-pro";
         private String embeddingModel = "text-embedding-v4";
         private int embeddingDimensions = 2048;
         private Duration timeout = Duration.ofSeconds(60);

@@ -2,6 +2,7 @@ package com.agentflow.spring.autoconfigure;
 
 import com.agentflow.core.AgentRuntime;
 import com.agentflow.core.DefaultAgentRuntime;
+import com.agentflow.core.chat.ChatModelClient;
 import com.agentflow.core.memory.InMemoryShortTermMemory;
 import com.agentflow.core.memory.ShortTermMemory;
 import com.agentflow.core.model.AgentModelClient;
@@ -36,6 +37,12 @@ public class AgentFlowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(AgentModelClient.class)
     AgentModelClient agentModelClient(OpenAiCompatibleModelClient client) {
+        return client;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ChatModelClient.class)
+    ChatModelClient chatModelClient(OpenAiCompatibleModelClient client) {
         return client;
     }
 

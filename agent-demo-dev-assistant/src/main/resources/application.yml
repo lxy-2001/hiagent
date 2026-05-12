@@ -29,10 +29,10 @@ springdoc:
 
 agentflow:
   model:
-    provider: openai-compatible
-    base-url: ${AGENTFLOW_MODEL_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    provider: ${AGENTFLOW_MODEL_PROVIDER:deepseek}
+    base-url: ${AGENTFLOW_MODEL_BASE_URL:}
     api-key: ${AGENTFLOW_MODEL_API_KEY:}
-    chat-model: ${AGENTFLOW_MODEL_CHAT_MODEL:qwen-plus}
+    chat-model: ${AGENTFLOW_MODEL_CHAT_MODEL:deepseek-v4-pro}
     embedding-model: ${AGENTFLOW_MODEL_EMBEDDING_MODEL:text-embedding-v4}
     embedding-dimensions: 2048
   tools:
