@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: agent-demo-dev-assistant
+  datasource:
+    url: jdbc:mysql://localhost:3307/agentflow?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: agentflow
+    password: agentflow
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 3s
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+agentflow:
+  model:
+    provider: openai-compatible
+    base-url: ${AGENTFLOW_MODEL_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api-key: ${AGENTFLOW_MODEL_API_KEY:}
+    chat-model: ${AGENTFLOW_MODEL_CHAT_MODEL:qwen-plus}
+    embedding-model: ${AGENTFLOW_MODEL_EMBEDDING_MODEL:text-embedding-v4}
+    embedding-dimensions: 2048
+  tools:
+    max-steps: 6
+  security:
+    jwt:
+      secret: ${AGENTFLOW_JWT_SECRET:agentflow-development-secret-must-be-at-least-32-bytes}
+      access-token-ttl: 30m
+    refresh-token-ttl: 7d
+  mcp:
+    enabled: false
+
+app:
+  qdrant:
+    base-url: ${QDRANT_BASE_URL:http://localhost:6333}
+    collection: agentflow_knowledge

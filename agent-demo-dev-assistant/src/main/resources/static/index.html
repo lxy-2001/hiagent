@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentFlow Java</title>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: #f6f7f9;
+            color: #172033;
+        }
+
+        body {
+            margin: 0;
+        }
+
+        header {
+            background: #18263b;
+            color: #fff;
+            padding: 20px 32px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 0;
+        }
+
+        header p {
+            margin: 6px 0 0;
+            color: #d8e1ef;
+            font-size: 14px;
+        }
+
+        main {
+            max-width: 1180px;
+            margin: 24px auto;
+            padding: 0 20px 40px;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 20px;
+        }
+
+        section {
+            background: #fff;
+            border: 1px solid #dde3ec;
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        h2 {
+            margin: 0 0 14px;
+            font-size: 17px;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 6px;
+            font-size: 13px;
+            color: #526176;
+        }
+
+        input, textarea {
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #cdd6e3;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font: inherit;
+            background: #fff;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        button {
+            border: 0;
+            border-radius: 6px;
+            background: #1f6feb;
+            color: #fff;
+            padding: 10px 14px;
+            margin-top: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button.secondary {
+            background: #42526b;
+            margin-left: 8px;
+        }
+
+        button:disabled {
+            background: #aeb9c8;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #526176;
+            min-height: 20px;
+        }
+
+        .output {
+            white-space: pre-wrap;
+            background: #0f1724;
+            color: #dbeafe;
+            border-radius: 8px;
+            padding: 14px;
+            min-height: 280px;
+            overflow: auto;
+            font-family: "JetBrains Mono", Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .steps {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .step {
+            border: 1px solid #dde3ec;
+            border-radius: 8px;
+            padding: 10px;
+            background: #fbfcfe;
+        }
+
+        .step strong {
+            color: #172033;
+        }
+
+        .step pre {
+            white-space: pre-wrap;
+            margin: 8px 0 0;
+            color: #36465d;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 860px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>AgentFlow-Java</h1>
+    <p>Spring Boot Agent Runtime MVP</p>
+</header>
+<main>
+    <section>
+        <h2>控制台</h2>
+        <label for="username">用户名</label>
+        <input id="username" value="admin" autocomplete="username">
+        <label for="password">密码</label>
+        <input id="password" value="agentflow123" type="password" autocomplete="current-password">
+        <button id="loginBtn">登录</button>
+        <button id="reloadBtn" class="secondary" disabled>重载知识库</button>
+        <div id="loginStatus" class="status"></div>
+
+        <label for="taskInput">任务</label>
+        <textarea id="taskInput">帮我设计一个秒杀库存扣减接口，要求考虑 Redis 缓存、MySQL 一致性和并发安全。</textarea>
+        <button id="runBtn" disabled>运行 Agent</button>
+        <div id="taskStatus" class="status"></div>
+    </section>
+
+    <section>
+        <h2>执行结果</h2>
+        <div id="output" class="output"></div>
+        <div id="steps" class="steps"></div>
+    </section>
+</main>
+
+<script>
+    let accessToken = "";
+    let refreshToken = "";
+    let currentTaskId = "";
+
+    const output = document.querySelector("#output");
+    const steps = document.querySelector("#steps");
+
+    document.querySelector("#loginBtn").addEventListener("click", async () => {
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                username: document.querySelector("#username").value,
+                password: document.querySelector("#password").value
+            })
+        });
+        if (!response.ok) {
+            document.querySelector("#loginStatus").textContent = "登录失败";
+            return;
+        }
+        const data = await response.json();
+        accessToken = data.accessToken;
+        refreshToken = data.refreshToken;
+        document.querySelector("#loginStatus").textContent = "已登录";
+        document.querySelector("#runBtn").disabled = false;
+        document.querySelector("#reloadBtn").disabled = false;
+    });
+
+    document.querySelector("#reloadBtn").addEventListener("click", async () => {
+        const data = await authedFetch("/api/knowledge/reload", {method: "POST"}).then(r => r.json());
+        document.querySelector("#loginStatus").textContent = `知识库导入 ${data.importedCount} 个文件`;
+    });
+
+    document.querySelector("#runBtn").addEventListener("click", async () => {
+        output.textContent = "";
+        steps.innerHTML = "";
+        document.querySelector("#taskStatus").textContent = "任务已提交";
+        const response = await authedFetch("/api/agent/tasks", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({input: document.querySelector("#taskInput").value})
+        });
+        const task = await response.json();
+        currentTaskId = task.taskId;
+        document.querySelector("#taskStatus").textContent = `运行中：${currentTaskId}`;
+        subscribe(currentTaskId);
+    });
+
+    async function authedFetch(url, options = {}) {
+        options.headers = Object.assign({}, options.headers || {}, {Authorization: `Bearer ${accessToken}`});
+        return fetch(url, options);
+    }
+
+    function subscribe(taskId) {
+        const source = new EventSource(`/api/agent/tasks/${taskId}/events`);
+        source.addEventListener("message", appendEvent);
+        ["PLANNER", "RAG", "TOOL", "LLM", "FINAL", "REPLAY"].forEach(name => source.addEventListener(name, appendEvent));
+        source.onerror = async () => {
+            source.close();
+            await loadFinalState(taskId);
+        };
+    }
+
+    function appendEvent(event) {
+        const data = JSON.parse(event.data);
+        output.textContent += `\n[${data.type}] ${data.name}\n${data.content || ""}\n`;
+        output.scrollTop = output.scrollHeight;
+    }
+
+    async function loadFinalState(taskId) {
+        const task = await authedFetch(`/api/agent/tasks/${taskId}`).then(r => r.json());
+        document.querySelector("#taskStatus").textContent = `${task.status}：${task.taskId}`;
+        if (task.finalAnswer) {
+            output.textContent += `\n[FINAL ANSWER]\n${task.finalAnswer}\n`;
+        }
+        const data = await authedFetch(`/api/agent/tasks/${taskId}/steps`).then(r => r.json());
+        steps.innerHTML = data.map(step => `
+            <div class="step">
+                <strong>#${step.stepNo} ${step.stepType}${step.toolName ? " / " + step.toolName : ""}</strong>
+                <span>${step.status}</span>
+                <pre>${escapeHtml(step.output || step.errorMessage || "")}</pre>
+            </div>
+        `).join("");
+    }
+
+    function escapeHtml(value) {
+        return value.replace(/[&<>"']/g, char => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            "\"": "&quot;",
+            "'": "&#39;"
+        })[char]);
+    }
+</script>
+</body>
+</html>
