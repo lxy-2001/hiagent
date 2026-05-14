@@ -20,8 +20,11 @@
 
     <modules>
         <module>agent-core</module>
-        <module>agent-spring-boot-starter</module>
-        <module>agent-demo-dev-assistant</module>
+        <module>agent-llm</module>
+        <module>agent-tool</module>
+        <module>agent-rag</module>
+        <module>agent-web</module>
+        <module>agent-demo</module>
     </modules>
 
     <properties>
