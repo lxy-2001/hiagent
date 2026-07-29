@@ -51,18 +51,22 @@ TDD Implement → Debug → Code Review → Verification → Converge
 
 ## 4. 阶段一：理解当前项目
 
-在设计新能力前，优先使用已经生成的 `.ua/knowledge-graph.json`，不需要每次重新扫描整个仓库。
+在设计新能力前，先检查本地是否存在 `.ua/knowledge-graph.json`。已有且源码未变化时可直接复用，不需要每次重新扫描。新克隆仓库或图谱缺失时，先运行：
+
+```text
+$understand-anything:understand <仓库路径> --language zh
+```
 
 推荐问题：
 
 ```text
-$understand-chat 当前项目已经具备哪些完整能力，哪些只是占位实现？
+$understand-anything:understand-chat 当前项目已经具备哪些完整能力，哪些只是占位实现？
 
-$understand-chat 当前项目的模块依赖方向和主要架构问题是什么？
+$understand-anything:understand-chat 当前项目的模块依赖方向和主要架构问题是什么？
 
-$understand-chat 如果改造 Agent Runtime，会影响哪些文件和模块？
+$understand-anything:understand-chat 如果改造 Agent Runtime，会影响哪些文件和模块？
 
-$understand-explain agent-web/src/main/java/com/agentflow/web/DefaultAgentRuntime.java
+$understand-anything:understand-explain agent-web/src/main/java/com/agentflow/web/DefaultAgentRuntime.java
 ```
 
 本阶段至少需要得到：
@@ -404,8 +408,8 @@ Implement → Review → Verification → Converge
 
 ```text
 # 了解影响范围
-$understand-chat ...
-$understand-explain ...
+$understand-anything:understand-chat ...
+$understand-anything:understand-explain ...
 
 # 规格与方案
 $speckit-specify

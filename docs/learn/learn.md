@@ -59,7 +59,7 @@
 
   可以直接使用：
 
-  $understand-anything:understand-explain /root/hiagent/agent-web/src/main/java/com/agentflow/web/DefaultAgentRuntime.java --language zh
+  $understand-anything:understand-explain agent-web/src/main/java/com/agentflow/web/DefaultAgentRuntime.java --language zh
 
   ### 第 4 步：从 HTTP 接口追踪到 Runtime
 

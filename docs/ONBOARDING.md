@@ -289,7 +289,7 @@ $understand-anything:understand-explain
 建议第一个讲解目标：
 
 ```text
-/root/hiagent/agent-web/src/main/java/com/agentflow/web/DefaultAgentRuntime.java
+agent-web/src/main/java/com/agentflow/web/DefaultAgentRuntime.java
 ```
 
 ### 围绕整个项目提问
