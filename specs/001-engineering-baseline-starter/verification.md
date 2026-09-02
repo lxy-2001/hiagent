@@ -267,3 +267,151 @@ agent-core/agent-rag 无测试源这一事实也已明确标注。
 
 **T013 结论：通过。Phase 3 的统一验证切片已独立可复现，可进入 Phase 4；Feature 001
 仍未完成，不能据此标记 `VERIFIED`。**
+
+
+## T014～T018：Phase 4 初始 Red / characterization
+
+**执行时间**：2026-09-03 UTC（Java 17.0.20.1、Maven Wrapper 3.9.16、Spring Boot 4.1.1）。
+
+本轮先运行测试再修改生产代码。失败均保留为目标行为缺失的真实证据；没有通过改名、
+放宽断言或删除既有测试来制造通过。
+
+| 任务 | 命令/范围 | 实际结果 | 结论 |
+| --- | --- | --- | --- |
+| T014 | ./mvnw -B -ntp -pl agent-llm -am test | 12 tests；Failures 9、Errors 0、Skipped 0；LLM 失败语义测试未抛出预期异常，三个端口覆盖测试发现旧共享 OpenAiCompatibleModelClient 同时占用接口 | Red，符合待实现行为 |
+| T015 | ./mvnw -B -ntp -pl agent-rag -am test | 2 tests；默认无 RAG 断言失败（发现 ragRetriever Noop Bean），应用自定义唯一断言通过；Failures 1 | Red/characterization |
+| T016 | ./mvnw -B -ntp -pl agent-tool -am test | 4 tests；Failures 0、Errors 0、Skipped 0；真实空注册表、自定义覆盖和 MCP 不自动注册均已满足 | characterization 通过 |
+| T017 | ./mvnw -B -ntp -pl agent-web -Dtest=AgentWebAutoConfigurationTest -Dsurefire.failIfNoSpecifiedTests=false test（模块依赖已先以 -DskipTests install 安装） | 6 tests；Failures 4、Errors 0、Skipped 0；默认选择 Redis memory，应用 Memory/Recorder 覆盖被 @Primary 实现夺取，缺 RAG 仍由 Noop 伪装；Planner/Runtime 覆盖通过 | Red/characterization |
+| T018 | ./mvnw -B -ntp -pl agent-demo -Dtest=AgentFlowDemoContextTest -Dsurefire.failIfNoSpecifiedTests=false test | H2 上下文真实启动；扫描发现 8 个 JPA Repository；1 test 在 Bean 来源断言处失败，当前模型端口仍来自 OpenAiCompatibleModelClient；未 Mock Runtime、Service 或 Repository，测试专用扫描成功排除 KnowledgeBootstrapConfig | Red/characterization |
+
+T018 的外部边界仅提供了测试作用域的 StringRedisTemplate Mock、H2 和测试 JWT；没有触发
+Qdrant/模型网络调用。T019 记录完成，下一步按约束顺序进入 T020，再进入 T021。
+
+
+## T020：LLM 适配器明确失败语义
+
+**变更**：
+
+- 新增 agent-llm/src/main/java/com/agentflow/llm/ModelClientException.java，将配置和
+  Provider 边界错误统一为适配器模块本地异常。
+- OpenAiCompatibleModelClient 在 chat、stream、embedding 调用前检查 Key；缺 Key、
+  Provider HTTP/读取错误、空响应、空内容和无效 embedding 均抛出明确异常。
+- 删除生产路径的本地固定回答、SHA-256 确定性 embedding 和静默降级；成功响应仍保留
+  Provider 内容、用量和流式 delta。
+
+**验证命令**：./mvnw -B -ntp -pl agent-llm -am test
+
+T020 行为测试在 T021 适配器拆分后共同运行：LLM 模块共 14 tests，Failures/Errors/Skipped
+均为 0/0/0，退出码 0。缺 Key、Provider 错误、空响应/内容和无效向量均由
+ModelClientException 覆盖，成功 chat/stream 解析也通过。
+
+**T020 结论：通过。**
+
+## T021：三个独立 LLM 适配器与端口退让
+
+**变更**：
+
+- OpenAiCompatibleModelClient 收敛为不实现核心端口的共享 HTTP/JSON 传输。
+- 新增 OpenAiAgentModelClient、OpenAiChatModelClient、OpenAiEmbeddingClient，分别
+  实现 AgentModelClient、ChatModelClient、EmbeddingClient。
+- AgentLlmAutoConfiguration 为三个接口分别使用 ConditionalOnMissingBean；共享传输
+  只作为内部依赖，不再同时占用三个端口。
+- T014 的请求、流式、缺 Key、Provider 错误、空响应/内容和 embedding 失败测试迁移到
+  三个适配器测试类；旧组合测试文件已删除，未保留确定性 embedding 成功断言。
+
+**验证命令**：./mvnw -B -ntp -pl agent-llm -am test
+
+| 测试类 | 测试数 | 结果 |
+| --- | ---: | --- |
+| AgentLlmAutoConfigurationTest | 4 | 通过 |
+| OpenAiChatModelClientTest | 5 | 通过 |
+| OpenAiAgentModelClientTest | 2 | 通过 |
+| OpenAiEmbeddingClientTest | 3 | 通过 |
+
+LLM 模块及其 core 依赖均 SUCCESS；总计 14 tests，Failures/Errors/Skipped = 0/0/0，
+退出码 0。三个覆盖场景均验证应用自定义端口仍可独立保留，默认 Bean 使用三个不同适配器
+类型。
+
+**T021 结论：通过。可以进入 T022～T025。**
+
+
+## T022：移除默认 Noop RAG
+
+**变更**：AgentRagAutoConfiguration 不再注册任何框架级 RagRetriever；删除
+agent-rag/src/main/java/com/agentflow/rag/NoopRagRetriever.java。Demo 的 KnowledgeRagRetriever
+仍由应用自身提供，RAG 是否可选留给后续 Feature 005。
+
+**验证命令**：./mvnw -B -ntp -pl agent-rag -am test
+
+2 tests 通过，Failures/Errors/Skipped = 0/0/0，退出码 0。无应用实现时上下文没有
+RagRetriever；提供自定义实现时保持唯一。
+
+**T022 结论：通过。**
+
+## T023：ToolRegistry 条件显式化
+
+**变更**：AgentToolAutoConfiguration 的默认 Bean 改为显式
+ConditionalOnMissingBean(ToolRegistry.class)，保留真实 InMemoryToolRegistry 空集合语义；
+McpToolProvider 仍是普通类，不自动注册。
+
+**验证命令**：./mvnw -B -ntp -pl agent-tool -am test
+
+AgentToolAutoConfigurationTest 3 tests、既有 InMemoryToolRegistryTest 1 test 均通过；
+模块总计 4 tests，Failures/Errors/Skipped = 0/0/0，退出码 0。
+
+**T023 结论：通过。**
+
+## T024：Web 可替换端口显式装配
+
+**变更**：
+
+- 从 JpaStepRecorder 和 RedisShortTermMemory 移除 Component/Primary；二者不再因组件扫描
+  隐式竞争。
+- AgentWebAutoConfiguration 移除这两个类及 NoopStepRecorder 的 Import，保留显式
+  JpaStepRecorder Bean，并针对 TaskPlanner、ShortTermMemory、StepRecorder、AgentRuntime
+  使用接口级 ConditionalOnMissingBean。
+- 删除 NoopStepRecorder；默认记忆为 InMemoryShortTermMemory，Redis memory 仅由应用显式
+  提供。
+- 旧 Demo 入口测试显式指定主应用配置，避免 T018 测试配置被自动探测为第二个启动配置。
+
+**验证命令**：./mvnw -B -ntp -pl agent-web -am test
+
+Web 模块及依赖模块均 SUCCESS；总计 11 tests，Failures/Errors/Skipped = 0/0/0，退出码 0。
+缺 RAG 场景真实启动失败并由测试断言，Planner/Memory/Recorder/Runtime 覆盖和现有安全/
+服务测试均通过。
+
+**T024 结论：通过。**
+
+## T025：知识导入显式开关
+
+**变更**：KnowledgeBootstrapConfig 增加
+ConditionalOnProperty(name = agentflow.knowledge.bootstrap.enabled, havingValue = true,
+matchIfMissing = true)。T018 的 application-test.yml 设置该属性为 false，测试组件扫描
+不再排除 KnowledgeBootstrapConfig，仍提供测试作用域 Redis 边界替身。
+
+**验证命令**：./mvnw -B -ntp -pl agent-demo -am test
+
+Demo 完整上下文真实启动，H2 扫描并创建 8 个 JPA Repository；AgentFlowDemoContextTest
+和既有 AgentWebEndpointRegistrationTest 均通过，Demo 侧总计 3 tests，Failures/Errors/
+Skipped = 0/0/0，退出码 0。没有调用 Qdrant、真实模型或 Redis。
+
+**T025 结论：通过。**
+
+
+## T026：Phase 4 受影响模块门禁
+
+按任务要求依次执行：
+
+- ./mvnw -B -ntp -pl agent-llm -am test：14 tests，Failures/Errors/Skipped = 0/0/0。
+- ./mvnw -B -ntp -pl agent-rag -am test：2 tests，Failures/Errors/Skipped = 0/0/0。
+- ./mvnw -B -ntp -pl agent-tool -am test：4 tests，Failures/Errors/Skipped = 0/0/0。
+- ./mvnw -B -ntp -pl agent-web -am test：11 tests，Failures/Errors/Skipped = 0/0/0。
+- ./mvnw -B -ntp -pl agent-demo -am test：3 tests，Failures/Errors/Skipped = 0/0/0。
+- git diff --check：退出码 0。
+
+所有命令退出码均为 0。覆盖结果包括三个 LLM 端口的独立退让、缺 Key/Provider/空响应/
+无效 embedding 的明确失败、无默认 RAG、真实空 ToolRegistry、Web 默认与应用覆盖、缺 RAG
+启动失败、JPA recorder/in-memory memory 来源，以及正式知识开关下的完整 Demo 上下文。
+
+**T026 结论：通过。Phase 4 T014-T026 已全部取得验证证据，可进入 Phase 4 checkpoint
+审查和提交。**

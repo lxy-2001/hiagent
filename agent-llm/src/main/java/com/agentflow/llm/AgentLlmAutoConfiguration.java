@@ -14,26 +14,27 @@ import org.springframework.web.client.RestClient;
 public class AgentLlmAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
-    OpenAiCompatibleModelClient openAiCompatibleModelClient(AgentFlowProperties properties, RestClient.Builder builder) {
+    @ConditionalOnMissingBean(OpenAiCompatibleModelClient.class)
+    OpenAiCompatibleModelClient openAiCompatibleModelClient(
+            AgentFlowProperties properties, RestClient.Builder builder) {
         return new OpenAiCompatibleModelClient(properties, builder);
     }
 
     @Bean
     @ConditionalOnMissingBean(AgentModelClient.class)
-    AgentModelClient agentModelClient(OpenAiCompatibleModelClient client) {
-        return client;
+    OpenAiAgentModelClient agentModelClient(OpenAiCompatibleModelClient transport) {
+        return new OpenAiAgentModelClient(transport);
     }
 
     @Bean
     @ConditionalOnMissingBean(ChatModelClient.class)
-    ChatModelClient chatModelClient(OpenAiCompatibleModelClient client) {
-        return client;
+    OpenAiChatModelClient chatModelClient(OpenAiCompatibleModelClient transport) {
+        return new OpenAiChatModelClient(transport);
     }
 
     @Bean
     @ConditionalOnMissingBean(EmbeddingClient.class)
-    EmbeddingClient embeddingClient(OpenAiCompatibleModelClient client) {
-        return client;
+    OpenAiEmbeddingClient embeddingClient(OpenAiCompatibleModelClient transport) {
+        return new OpenAiEmbeddingClient(transport);
     }
 }

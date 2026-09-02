@@ -2,11 +2,7 @@ package com.agentflow.web.agent;
 
 import com.agentflow.core.AgentStepRecord;
 import com.agentflow.core.step.StepRecorder;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
 
-@Component
-@Primary
 public class JpaStepRecorder implements StepRecorder {
 
     private final AgentStepRepository stepRepository;

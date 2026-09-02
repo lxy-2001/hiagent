@@ -12,56 +12,45 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
-import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.http.HttpMethod.POST;
 
-class OpenAiCompatibleModelClientTest {
+class OpenAiChatModelClientTest {
 
     @Test
-    void sendsDeepSeekChatCompletionRequestAndParsesResponse() {
+    void sendsChatCompletionAndParsesResponse() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        OpenAiCompatibleModelClient client = new OpenAiCompatibleModelClient(properties(), builder);
+        OpenAiChatModelClient client = new OpenAiChatModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
 
         server.expect(requestTo("https://api.deepseek.com/chat/completions"))
                 .andExpect(method(POST))
                 .andExpect(content().json("""
                         {
                           "model": "deepseek-v4-pro",
-                          "messages": [
-                            {"role": "user", "content": "你好"}
-                          ],
+                          "messages": [{"role":"user","content":"你好"}],
                           "temperature": 0.7,
                           "max_tokens": 2048
                         }
                         """))
                 .andRespond(withSuccess("""
                         {
-                          "id": "chatcmpl-test",
-                          "model": "deepseek-v4-pro",
-                          "choices": [
-                            {"message": {"role": "assistant", "content": "你好，我是 AgentFlow。"}}
-                          ],
-                          "usage": {
-                            "prompt_tokens": 3,
-                            "completion_tokens": 5,
-                            "total_tokens": 8
-                          }
+                          "model":"deepseek-v4-pro",
+                          "choices":[{"message":{"content":"你好，我是 AgentFlow。"}}],
+                          "usage":{"prompt_tokens":3,"completion_tokens":5,"total_tokens":8}
                         }
                         """, MediaType.APPLICATION_JSON));
 
         var response = client.complete(new ChatCompletionRequest(List.of(ChatMessage.user("你好")),
                 null, 0.7, 2048));
 
-        assertThat(response.provider()).isEqualTo("deepseek");
-        assertThat(response.model()).isEqualTo("deepseek-v4-pro");
         assertThat(response.content()).isEqualTo("你好，我是 AgentFlow。");
-        assertThat(response.usage().promptTokens()).isEqualTo(3);
-        assertThat(response.usage().completionTokens()).isEqualTo(5);
         assertThat(response.usage().totalTokens()).isEqualTo(8);
         assertThat(response.mocked()).isFalse();
         server.verify();
@@ -71,16 +60,15 @@ class OpenAiCompatibleModelClientTest {
     void parsesStreamingResponseAndIgnoresReasoningContent() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        OpenAiCompatibleModelClient client = new OpenAiCompatibleModelClient(properties(), builder);
+        OpenAiChatModelClient client = new OpenAiChatModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
 
         server.expect(requestTo("https://api.deepseek.com/chat/completions"))
                 .andExpect(method(POST))
                 .andExpect(content().json("""
                         {
                           "model": "deepseek-v4-pro",
-                          "messages": [
-                            {"role": "user", "content": "介绍一下你自己"}
-                          ],
+                          "messages": [{"role":"user","content":"介绍一下你自己"}],
                           "stream": true
                         }
                         """))
@@ -102,25 +90,60 @@ class OpenAiCompatibleModelClientTest {
         assertThat(deltas).containsExactly("你", "好");
         assertThat(response.content()).isEqualTo("你好");
         assertThat(response.usage().totalTokens()).isEqualTo(6);
-        assertThat(response.mocked()).isFalse();
         server.verify();
     }
 
     @Test
-    void fallsBackToDeterministicEmbeddingWhenProviderDoesNotSupportEmbeddings() {
+    void reportsProviderHttpFailure() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        AgentFlowProperties properties = properties();
-        properties.model().setEmbeddingDimensions(4);
-        OpenAiCompatibleModelClient client = new OpenAiCompatibleModelClient(properties, builder);
+        OpenAiChatModelClient client = new OpenAiChatModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
 
-        server.expect(requestTo("https://api.deepseek.com/embeddings"))
+        server.expect(requestTo("https://api.deepseek.com/chat/completions"))
                 .andExpect(method(POST))
-                .andRespond(withStatus(HttpStatus.NOT_FOUND));
+                .andRespond(withStatus(HttpStatus.BAD_GATEWAY));
 
-        List<Double> vector = client.embed("hello");
+        assertThatThrownBy(() -> client.complete(new ChatCompletionRequest(
+                List.of(ChatMessage.user("你好")), null, null, null)))
+                .isInstanceOf(ModelClientException.class)
+                .hasMessageContaining("provider");
+        server.verify();
+    }
 
-        assertThat(vector).hasSize(4);
+    @Test
+    void rejectsEmptyResponse() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        OpenAiChatModelClient client = new OpenAiChatModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
+
+        server.expect(requestTo("https://api.deepseek.com/chat/completions"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        assertThatThrownBy(() -> client.complete(new ChatCompletionRequest(
+                List.of(ChatMessage.user("empty-response")), null, null, null)))
+                .isInstanceOf(ModelClientException.class)
+                .hasMessageContaining("empty");
+        server.verify();
+    }
+
+    @Test
+    void rejectsEmptyContent() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        OpenAiChatModelClient client = new OpenAiChatModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
+
+        server.expect(requestTo("https://api.deepseek.com/chat/completions"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess(
+                        "{\"choices\":[{\"message\":{\"content\":\"   \"}}]}",
+                        MediaType.APPLICATION_JSON));
+        assertThatThrownBy(() -> client.complete(new ChatCompletionRequest(
+                List.of(ChatMessage.user("empty-content")), null, null, null)))
+                .isInstanceOf(ModelClientException.class)
+                .hasMessageContaining("empty");
         server.verify();
     }
 

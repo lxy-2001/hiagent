@@ -1,15 +1,11 @@
 package com.agentflow.web.agent;
 
 import com.agentflow.core.memory.ShortTermMemory;
-import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
 
-@Component
-@Primary
 public class RedisShortTermMemory implements ShortTermMemory {
 
     private final StringRedisTemplate redisTemplate;

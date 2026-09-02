@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:agentflow-context;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  flyway:
+    enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
+
+agentflow:
+  knowledge:
+    bootstrap:
+      enabled: false
+  model:
+    provider: deepseek
+    base-url: http://127.0.0.1:18080
+    api-key: test-only-key
+    chat-model: test-chat-model
+    embedding-model: test-embedding-model
+    embedding-dimensions: 4
+  security:
+    jwt:
+      secret: test-only-jwt-secret-which-is-long-enough-32
+      access-token-ttl: 30m
+    refresh-token-ttl: 7d
+
+app:
+  qdrant:
+    base-url: http://127.0.0.1:16333
+    collection: agentflow_test

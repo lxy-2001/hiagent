@@ -12,7 +12,7 @@ import java.util.List;
 public class AgentToolAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(ToolRegistry.class)
     ToolRegistry toolRegistry(List<AgentTool> tools) {
         return new InMemoryToolRegistry(tools);
     }

@@ -18,8 +18,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,7 +25,14 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
-public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingClient, ChatModelClient {
+/**
+ * Shared OpenAI-compatible HTTP/JSON transport.
+ *
+ * This class deliberately does not implement a core model port. The three
+ * adapter beans are separate so an application can replace one capability
+ * without changing the other two.
+ */
+public class OpenAiCompatibleModelClient {
 
     private static final String DEEPSEEK_BASE_URL = "https://api.deepseek.com";
     private static final String OPENAI_BASE_URL = "https://api.openai.com/v1";
@@ -45,7 +50,6 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
         this.restClient = configured.build();
     }
 
-    @Override
     public String generate(ModelPrompt prompt) {
         return complete(new ChatCompletionRequest(List.of(
                 ChatMessage.system(prompt.system()),
@@ -53,98 +57,134 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
         ), null, null, null)).content();
     }
 
-    @Override
     public ChatCompletionResponse complete(ChatCompletionRequest request) {
-        if (!hasApiKey()) {
-            return fallbackAnswer(request);
+        requireApiKey("chat completion");
+        JsonNode response;
+        try {
+            response = restClient.post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(chatBody(request, false))
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RuntimeException ex) {
+            throw providerFailure("Chat completion provider request failed", ex);
         }
-        JsonNode response = restClient.post()
-                .uri("/chat/completions")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(chatBody(request, false))
-                .retrieve()
-                .body(JsonNode.class);
-        if (response == null) {
-            return fallbackAnswer(request);
+        if (response == null || response.isNull() || response.isMissingNode()) {
+            throw new ModelClientException("Chat completion returned an empty response");
         }
-        String content = response.path("choices").path(0).path("message").path("content").asText();
-        if (content == null || content.isBlank()) {
-            return fallbackAnswer(request);
+        JsonNode contentNode = response.path("choices").path(0).path("message").path("content");
+        if (!contentNode.isTextual() || contentNode.asText().isBlank()) {
+            throw new ModelClientException("Chat completion returned empty content");
         }
-        return new ChatCompletionResponse(provider(), response.path("model").asText(resolveModel(request.model())),
-                content, parseUsage(response.path("usage")), false);
+        return new ChatCompletionResponse(provider(),
+                response.path("model").asText(resolveModel(request.model())),
+                contentNode.asText(), parseUsage(response.path("usage")), false);
     }
 
-    @Override
     public ChatCompletionResponse stream(ChatCompletionRequest request, Consumer<String> deltaConsumer) {
-        if (!hasApiKey()) {
-            ChatCompletionResponse fallback = fallbackAnswer(request);
-            if (deltaConsumer != null) {
-                deltaConsumer.accept(fallback.content());
-            }
-            return fallback;
-        }
-        StringBuilder content = new StringBuilder();
-        AtomicReference<String> responseModel = new AtomicReference<>(resolveModel(request.model()));
-        AtomicReference<TokenUsage> usage = new AtomicReference<>(TokenUsage.empty());
-        return restClient.post()
-                .uri("/chat/completions")
-                .contentType(MediaType.APPLICATION_JSON)
-                .accept(MediaType.TEXT_EVENT_STREAM)
-                .body(chatBody(request, true))
-                .exchange((httpRequest, response) -> {
-                    if (response.getStatusCode().isError()) {
-                        throw new IllegalStateException("Chat completion stream failed: " + response.getStatusCode());
-                    }
-                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
-                        String line;
-                        while ((line = reader.readLine()) != null) {
-                            if (!line.startsWith("data:")) {
-                                continue;
-                            }
-                            String payload = line.substring("data:".length()).trim();
-                            if (payload.isBlank()) {
-                                continue;
-                            }
-                            if ("[DONE]".equals(payload)) {
-                                break;
-                            }
-                            handleStreamPayload(payload, content, responseModel, usage, deltaConsumer);
+        requireApiKey("chat completion stream");
+        try {
+            ChatCompletionResponse response = restClient.post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+                    .body(chatBody(request, true))
+                    .exchange((httpRequest, clientResponse) -> {
+                        if (clientResponse.getStatusCode().isError()) {
+                            throw new ModelClientException(
+                                    "Chat completion stream provider request failed: "
+                                            + clientResponse.getStatusCode());
                         }
-                    } catch (IOException ex) {
-                        throw new IllegalStateException("Failed to read chat completion stream", ex);
-                    }
-                    return new ChatCompletionResponse(provider(), responseModel.get(), content.toString(), usage.get(), false);
-                });
+                        StringBuilder content = new StringBuilder();
+                        AtomicReference<String> responseModel =
+                                new AtomicReference<>(resolveModel(request.model()));
+                        AtomicReference<TokenUsage> usage =
+                                new AtomicReference<>(TokenUsage.empty());
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                                clientResponse.getBody(), StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                if (!line.startsWith("data:")) {
+                                    continue;
+                                }
+                                String payload = line.substring("data:".length()).trim();
+                                if (payload.isBlank()) {
+                                    continue;
+                                }
+                                if ("[DONE]".equals(payload)) {
+                                    break;
+                                }
+                                handleStreamPayload(payload, content, responseModel, usage, deltaConsumer);
+                            }
+                        } catch (IOException ex) {
+                            throw new ModelClientException(
+                                    "Failed to read chat completion stream", ex);
+                        }
+                        if (content.isEmpty()) {
+                            throw new ModelClientException(
+                                    "Chat completion stream returned empty content");
+                        }
+                        return new ChatCompletionResponse(provider(), responseModel.get(),
+                                content.toString(), usage.get(), false);
+                    });
+            if (response == null) {
+                throw new ModelClientException("Chat completion stream returned an empty response");
+            }
+            return response;
+        } catch (ModelClientException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw providerFailure("Chat completion stream provider request failed", ex);
+        }
     }
 
-    @Override
     public List<Double> embed(String text) {
-        if (!hasApiKey()) {
-            return deterministicEmbedding(text, properties.model().getEmbeddingDimensions());
-        }
+        requireApiKey("embedding");
+        JsonNode response;
         try {
             Map<String, Object> body = Map.of(
                     "model", properties.model().getEmbeddingModel(),
                     "input", text,
                     "dimensions", properties.model().getEmbeddingDimensions()
             );
-            JsonNode response = restClient.post()
+            response = restClient.post()
                     .uri("/embeddings")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
                     .body(JsonNode.class);
-            JsonNode embedding = response == null ? null : response.path("data").path(0).path("embedding");
-            if (embedding == null || !embedding.isArray()) {
-                return deterministicEmbedding(text, properties.model().getEmbeddingDimensions());
-            }
-            List<Double> vector = new ArrayList<>(embedding.size());
-            embedding.forEach(value -> vector.add(value.asDouble()));
-            return vector;
         } catch (RuntimeException ex) {
-            return deterministicEmbedding(text, properties.model().getEmbeddingDimensions());
+            throw providerFailure("Embedding provider request failed", ex);
         }
+        JsonNode embedding = response == null ? null : response.path("data").path(0).path("embedding");
+        if (embedding == null || !embedding.isArray() || embedding.isEmpty()) {
+            throw new ModelClientException("Embedding provider returned an empty or invalid response");
+        }
+        List<Double> vector = new ArrayList<>(embedding.size());
+        for (JsonNode value : embedding) {
+            if (!value.isNumber() || !Double.isFinite(value.asDouble())) {
+                throw new ModelClientException("Embedding provider returned an invalid vector");
+            }
+            vector.add(value.asDouble());
+        }
+        return vector;
+    }
+
+    private void requireApiKey(String operation) {
+        if (!hasApiKey()) {
+            throw new ModelClientException(
+                    "LLM API key is required before invoking " + operation);
+        }
+    }
+
+    private ModelClientException providerFailure(String message, RuntimeException cause) {
+        return new ModelClientException(message + ": " + safeMessage(cause), cause);
+    }
+
+    private String safeMessage(Throwable throwable) {
+        String message = throwable.getMessage();
+        return message == null || message.isBlank() ? throwable.getClass().getSimpleName() : message;
     }
 
     private Map<String, Object> chatBody(ChatCompletionRequest request, boolean stream) {
@@ -165,8 +205,10 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
         return body;
     }
 
-    private void handleStreamPayload(String payload, StringBuilder content, AtomicReference<String> responseModel,
-                                     AtomicReference<TokenUsage> usage, Consumer<String> deltaConsumer) {
+    private void handleStreamPayload(String payload, StringBuilder content,
+                                     AtomicReference<String> responseModel,
+                                     AtomicReference<TokenUsage> usage,
+                                     Consumer<String> deltaConsumer) {
         try {
             JsonNode node = objectMapper.readTree(payload);
             String model = node.path("model").asText();
@@ -190,7 +232,7 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
                 deltaConsumer.accept(delta);
             }
         } catch (JacksonException ex) {
-            throw new IllegalStateException("Failed to parse chat completion stream payload", ex);
+            throw new ModelClientException("Failed to parse chat completion stream payload", ex);
         }
     }
 
@@ -208,24 +250,6 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
     private boolean hasApiKey() {
         String apiKey = properties.model().getApiKey();
         return apiKey != null && !apiKey.isBlank() && !"change-me".equals(apiKey);
-    }
-
-    private ChatCompletionResponse fallbackAnswer(ChatCompletionRequest request) {
-        String lastUserMessage = request.messages().stream()
-                .filter(message -> "user".equals(message.role()))
-                .reduce((left, right) -> right)
-                .map(ChatMessage::content)
-                .orElse("");
-        String content = """
-                当前未配置真实 LLM API Key，已使用本地兜底回答。
-
-                你已经打通了 OpenAI-compatible 对话接口骨架。配置 DeepSeek 或 OpenAI 的 API Key 后，
-                系统会通过 /chat/completions 发起真实模型调用，并支持多轮上下文和 SSE 流式输出。
-
-                用户消息：
-                %s
-                """.formatted(lastUserMessage);
-        return new ChatCompletionResponse(provider(), resolveModel(request.model()), content, TokenUsage.empty(), true);
     }
 
     private String provider() {
@@ -251,25 +275,6 @@ public class OpenAiCompatibleModelClient implements AgentModelClient, EmbeddingC
             case "deepseek" -> DEEPSEEK_BASE_URL;
             default -> DEEPSEEK_BASE_URL;
         };
-    }
-
-    private List<Double> deterministicEmbedding(String text, int dimensions) {
-        byte[] hash = sha256(text == null ? "" : text);
-        List<Double> vector = new ArrayList<>(dimensions);
-        for (int i = 0; i < dimensions; i++) {
-            int unsigned = hash[i % hash.length] & 0xff;
-            vector.add((unsigned - 128) / 128.0d);
-        }
-        return vector;
-    }
-
-    private byte[] sha256(String text) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return digest.digest(text.getBytes(StandardCharsets.UTF_8));
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 is required by the JDK", ex);
-        }
     }
 
     private String trimTrailingSlash(String value) {
