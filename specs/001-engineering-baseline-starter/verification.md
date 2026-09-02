@@ -524,3 +524,161 @@ NON_EMPTY_LITERAL_HITS=0
 MockMvc 分发和完整 Demo 上下文均通过。
 
 **T036 结论：通过。Phase 5 T027-T036 已全部取得证据，可创建 Phase 5 完成提交。**
+
+## T037：Phase 6 完整验证与环境证据
+
+**执行环境**：
+
+| 项目 | 实际结果 |
+| --- | --- |
+| 操作系统 | Linux 6.8.0-111-generic, amd64 |
+| Java | Eclipse Temurin/OpenJDK 17.0.20.1 |
+| Maven | Wrapper 3.9.16（only-script） |
+| Spring Boot | 4.1.1 |
+| 外部服务 | 未启动 MySQL、Redis、Qdrant；未提供真实模型 Key |
+
+**Wrapper 检查**：./mvnw --version 退出码 0，输出确认 Maven 3.9.16、Java 17 和 Linux
+运行环境。
+
+**串行聚焦门禁**（避免多个 Maven 进程共享 target 造成 surefire 临时文件竞争）：
+
+| 命令 | Reactor/测试结果 | 退出码 |
+| --- | --- | ---: |
+| ./mvnw -B -ntp -pl agent-core -am test | core 1 test；Failures/Errors/Skipped = 0/0/0 | 0 |
+| ./mvnw -B -ntp -pl agent-llm -am test | LLM 17 tests；Failures/Errors/Skipped = 0/0/0 | 0 |
+| ./mvnw -B -ntp -pl agent-web -am test | Web 14 tests；Failures/Errors/Skipped = 0/0/0 | 0 |
+| ./mvnw -B -ntp -pl agent-demo -am test | Demo 6 tests；依赖模块均 SUCCESS；Failures/Errors/Skipped = 0/0/0 | 0 |
+
+**唯一完整门禁**：./mvnw -B -ntp clean verify
+
+- 统一进程开始：2026-09-03T01:39:19+08:00
+- 统一进程结束：2026-09-03T01:39:59+08:00
+- 墙钟耗时：40 秒（Maven 输出 Total time: 38.236 s）
+- Reactor：根 POM + 6 个模块，共 7 个项目，全部 SUCCESS
+- 测试：core 1 + LLM 17 + Tool 4 + RAG 2 + Web 14 + Demo 6 = 44 tests
+- Failures / Errors / Skipped：0 / 0 / 0
+- 命令退出码：0
+- SC-009 判定：40 <= 600，**PASS**
+- CI 工作流位置：.github/workflows/verify.yml；使用同一 ./mvnw -B -ntp clean verify
+- 未验证限制：该分支尚未推送前，GitHub Actions 尚无远端运行记录；推送后需核对工作流结果。
+
+**T037 结论：本地验证通过；远端 CI 结果待推送后确认。**
+
+## T038：最终需求与成功标准证据矩阵
+
+以下矩阵逐项对应 spec.md 的 FR-001～FR-014 与 SC-001～SC-011；“通过”仅基于已执行的
+本地证据，远端 CI 仍按 T037 的限制单独确认。
+
+### Functional Requirements
+
+| ID | 证据 | 结果 |
+| --- | --- | --- |
+| FR-001 | Maven Wrapper、./mvnw -B -ntp clean verify；7 个项目 SUCCESS、44 tests | PASS |
+| FR-002 | 完整门禁在无模型 Key、无 Docker/外部运行服务下退出 0；H2/Mock HTTP 仅在测试边界使用 | PASS |
+| FR-003 | .github/workflows/verify.yml 与本地均调用同一 Wrapper 命令；远端执行待推送 | PASS（配置证据） |
+| FR-004 | AgentFlowDemoContextTest 及 Demo 完整上下文：Controller/Service/8 个 JPA Repository、Runtime 和适配器来源断言 | PASS |
+| FR-005 | 各模块精确 AutoConfiguration.imports、Demo 无扩大根包扫描；自动配置测试通过 | PASS |
+| FR-006 | LLM 三端口、ToolRegistry、Planner/Memory/Recorder/Runtime 的应用覆盖测试通过 | PASS |
+| FR-007 | 缺 Key、Provider 错误、空响应/内容、无效 embedding、缺 RAG 均有明确失败测试 | PASS |
+| FR-008 | 生产路径无本地答案、确定性向量、Noop RAG/Recorder；边界测试和扫描通过 | PASS |
+| FR-009 | 无默认 RAG、未注册 MCP Provider、真实空 ToolRegistry 的测试和装配结果明确 | PASS |
+| FR-010 | CoreDependencyBoundaryTest（ArchUnit）通过，生产 core 禁止框架/存储/HTTP/厂商类型 | PASS |
+| FR-011 | TemporaryDemoEndpointSnapshotTest 精确断言 Auth 4、Chat 2、Agent 4、Knowledge 1 共 11 操作，并完成四组 MockMvc 分发 | PASS |
+| FR-012 | POM 固定 Java 17/Boot 4.1.1；3.5.x 过渡和迁移证据已记录；完整门禁通过 | PASS |
+| FR-013 | 模型适配器使用 Mock HTTP；完整 Demo 使用 H2，未调用付费模型 | PASS |
+| FR-014 | 生产范围凭据扫描非空字面量 0，初始化凭据仅环境变量/测试配置 | PASS |
+
+### Success Criteria
+
+| ID | 证据 | 结果 |
+| --- | --- | --- |
+| SC-001 | Wrapper 单一命令完成 7 个项目编译、测试和打包，44 tests 全通过 | PASS |
+| SC-002 | 无真实模型 Key、MySQL、Redis、Qdrant 或 Docker 时完整门禁退出 0 | PASS |
+| SC-003 | 本地与 CI 配置使用完全相同的 Wrapper 命令；远端同提交结果待推送确认 | PASS（配置证据） |
+| SC-004 | Demo 上下文发现全部已记录组件和 11 个承诺入口 | PASS |
+| SC-005 | 每个记录的替换点均有 ApplicationContextRunner/上下文覆盖断言 | PASS |
+| SC-006 | 缺凭据、缺提供者和无效响应场景均为真实失败，未返回伪成功 | PASS |
+| SC-007 | ArchUnit 核心依赖违规数为 0 | PASS |
+| SC-008 | 11/11 HTTP 操作被标记临时 Demo，注册与四组基本分发均通过 | PASS |
+| SC-009 | 统一门禁墙钟 40 秒，40 <= 600 | PASS |
+| SC-010 | Java 17 + Boot 4.1.1 全仓 44 tests 通过；Spring AI 未声明已验证兼容 | PASS |
+| SC-011 | 凭据扫描 NON_EMPTY_LITERAL_HITS=0、HISTORICAL_FINGERPRINT_HITS=0、退出码 0 | PASS |
+
+**T038 凭据/Noop 扫描**：按 plan.md 固定范围扫描 agent-*/src/main/**、docker-compose.yml、
+README.md、specs/ 和 docs/，排除 docs/learn/** 与 docs/.ipynb_checkpoints/**；环境变量、
+明确非秘密占位符、动态表达式和测试值按规则允许。实际结果：
+
+    FILES_SCANNED=120
+    EXCLUDED=docs/learn/**,docs/.ipynb_checkpoints/**,**/src/test/**
+    HISTORICAL_FINGERPRINT_HITS=0
+    NON_EMPTY_LITERAL_HITS=0
+    CREDENTIAL_SCAN_EXIT=0
+
+**T038 结论：本地 FR/SC 矩阵和扫描均通过；SC-003 的远端执行记录留待推送后补充。**
+
+## T039：speckit-analyze 一致性复核
+
+按 speckit-analyze skill 的只读流程重新执行 prerequisites、读取 constitution/spec/plan/tasks，
+并检查需求覆盖、任务 ID、阶段依赖、术语和状态元数据。
+
+- 需求清单：14 个 FR + 11 个 SC，共 25 项。
+- 任务清单：T001～T041，共 41 个唯一且连续 ID。
+- 需求覆盖：25/25，覆盖率 100%；T001/T002 与 T039～T041 由 GOV-001 追踪。
+- 初次复核发现 2 项 MEDIUM 事实漂移：spec.md 的分支仍写“尚未创建”，plan.md 仍写工作区
+  在 main 且任务树写“待实施”。
+- 已修正为当前 feature/001-engineering-baseline-starter 分支、当前工作区归属和 Phase 6
+  收尾状态；并将 README 的 agent-core 模块职责、plan 的 core 目录树同步为当前 Runtime 暂在
+  agent-web 的事实；未改变产品需求、接口或架构决策。
+- 修订后重跑覆盖检查：25/25 需求、41 个任务；CRITICAL：0；HIGH：0；未发现需求零覆盖、
+  宪法冲突、未决占位符或无映射任务。
+- checklists/ 中没有未勾选条目。
+
+T039 的分析只读约束已遵守；文档修正是任务明确授权的后续动作。**T039 结论：通过。**
+
+## T040：speckit-converge 收敛检查
+
+按 speckit-converge skill 的前置检查和只读意图清单，对照 spec.md、plan.md、tasks.md、
+宪法及当前代码范围执行收敛审查。
+
+- 检查需求/验收项：25（14 FR + 11 SC）。
+- 检查计划决策：Wrapper/CI、Boot 4.1.1、精确自动配置、端口覆盖、真实失败语义、core
+  边界、临时 HTTP 快照、凭据治理和文档同步。
+- 检查宪法 MUST：核心纯 Java、测试优先、真实失败、凭据安全、精确装配和 Git/验证门禁。
+- 生产路径、自动配置 imports、Noop 删除、临时 Runtime 例外、CI 统一命令、必需测试与
+  证据均已找到并符合文档。
+- Findings：0（missing 0、partial 0、contradicts 0、unrequested 0）。
+- Convergence outcome：CLEAN；没有向 tasks.md 追加新 Phase 或任务。
+
+远端 GitHub Actions 尚未在推送前运行，这是外部验证状态，不是当前代码范围的未实现缺口。
+**T040 结论：通过。**
+
+## T041：Feature 001 最终收尾门禁
+
+在 T001～T040 均完成、最终状态元数据同步、analyze 复核和 converge 收敛检查通过后，执行
+最终收尾审查。
+
+- `spec.md` 状态已更新为 `VERIFIED`。
+- `specs/ROADMAP.md` 的 Feature 001 状态已更新为 `VERIFIED`；README 与 `specs/README.md`
+  的状态说明同步为本地验收完成、远端 CI 待核对。
+- T001～T041 共 41 个任务均已标记 `[X]`；当前分支为
+  `feature/001-engineering-baseline-starter`。
+- 最终差异审查确认没有暂存或计划纳入 `docs/learn/`、`.ua/`、密钥、后续 Feature 或无关
+  用户文件；用户已有的学习资料、治理文件和未纳入本阶段的工作区改动保持原样。
+
+**最终全仓门禁**：`./mvnw -B -ntp clean verify`
+
+- 统一进程开始：2026-09-03T02:03:14+08:00
+- 统一进程结束：2026-09-03T02:03:53+08:00
+- 墙钟耗时：39 秒（Maven 输出 `Total time: 37.419 s`）
+- Reactor：根 POM + 6 个模块，共 7 个项目，全部 `SUCCESS`
+- 测试：core 1 + LLM 17 + Tool 4 + RAG 2 + Web 14 + Demo 6 = 44 tests
+- Failures / Errors / Skipped：0 / 0 / 0
+- 命令退出码：0
+- SC-009 判定：39 <= 600，**PASS**
+
+**差异检查**：`git diff --check` 退出码 0。
+
+**远端限制**：最终分支尚未推送，GitHub Actions 的远端结果尚无记录；推送后必须核对
+`.github/workflows/verify.yml` 的实际运行结果。
+
+**T041 结论：本地最终收尾门禁通过，可创建 Phase 6 完成提交；远端 CI 结果待推送确认。**

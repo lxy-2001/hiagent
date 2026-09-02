@@ -125,11 +125,11 @@
 
 **Purpose**: 只收尾 Feature 001，证明全部需求，不新增后续 Agent 能力。
 
-- [ ] T037 按 specs/001-engineering-baseline-starter/quickstart.md 从头执行 Wrapper、core、LLM、Web、Demo 和完整门禁，将操作系统、Java/Maven 版本、实际测试数、开始/结束时间、墙钟秒数、命令退出码、CI 工作流位置及未验证限制完整写入 specs/001-engineering-baseline-starter/verification.md；依赖已缓存且未启动外部服务时，SC-009 仅在 elapsed_seconds <= 600 时通过，超过 600 秒必须标记为未通过并说明原因
-- [ ] T038 依据 spec.md 的 FR-001 至 FR-014 和 SC-001 至 SC-011 在 specs/001-engineering-baseline-starter/verification.md 逐项建立最终证据矩阵，并运行 ./mvnw -B -ntp clean verify、git diff --check 和 plan.md 规定的生产凭据/Noop 扫描；明确记录 SC-009 的 600 秒判定和 SC-011 的扫描退出码，任何失败必须保留真实原因
-- [ ] T039 重新运行 speckit-analyze，修正 specs/001-engineering-baseline-starter/spec.md、specs/001-engineering-baseline-starter/plan.md 和 specs/001-engineering-baseline-starter/tasks.md 中全部 CRITICAL/HIGH 不一致，再重跑受影响验证
-- [ ] T040 运行 speckit-converge 对照代码与 Feature 文档；若向 specs/001-engineering-baseline-starter/tasks.md 追加任务，先按依赖完成并验证所有新增任务，直到没有剩余未实现工作
-- [ ] T041 在全部任务、全仓门禁、analyze、converge 和证据通过后，将 specs/001-engineering-baseline-starter/spec.md 状态更新为 VERIFIED、将 specs/ROADMAP.md 的 Feature 001 更新为 VERIFIED，审查最终 diff 不含 docs/learn/、.ua/、密钥、后续 Feature 或用户无关改动，并再次运行 ./mvnw -B -ntp clean verify 与 git diff --check
+- [X] T037 按 specs/001-engineering-baseline-starter/quickstart.md 从头执行 Wrapper、core、LLM、Web、Demo 和完整门禁，将操作系统、Java/Maven 版本、实际测试数、开始/结束时间、墙钟秒数、命令退出码、CI 工作流位置及未验证限制完整写入 specs/001-engineering-baseline-starter/verification.md；依赖已缓存且未启动外部服务时，SC-009 仅在 elapsed_seconds <= 600 时通过，超过 600 秒必须标记为未通过并说明原因
+- [X] T038 依据 spec.md 的 FR-001 至 FR-014 和 SC-001 至 SC-011 在 specs/001-engineering-baseline-starter/verification.md 逐项建立最终证据矩阵，并运行 ./mvnw -B -ntp clean verify、git diff --check 和 plan.md 规定的生产凭据/Noop 扫描；明确记录 SC-009 的 600 秒判定和 SC-011 的扫描退出码，任何失败必须保留真实原因
+- [X] T039 重新运行 speckit-analyze，修正 specs/001-engineering-baseline-starter/spec.md、specs/001-engineering-baseline-starter/plan.md 和 specs/001-engineering-baseline-starter/tasks.md 中全部 CRITICAL/HIGH 不一致，再重跑受影响验证
+- [X] T040 运行 speckit-converge 对照代码与 Feature 文档；若向 specs/001-engineering-baseline-starter/tasks.md 追加任务，先按依赖完成并验证所有新增任务，直到没有剩余未实现工作
+- [X] T041 在全部任务、全仓门禁、analyze、converge 和证据通过后，将 specs/001-engineering-baseline-starter/spec.md 状态更新为 VERIFIED、将 specs/ROADMAP.md 的 Feature 001 更新为 VERIFIED，审查最终 diff 不含 docs/learn/、.ua/、密钥、后续 Feature 或用户无关改动，并再次运行 ./mvnw -B -ntp clean verify 与 git diff --check
 
 **Phase 6 checkpoint**: 创建最终文档/状态完成提交；按 AGENTS.md 推送 feature/001-engineering-baseline-starter，等待 .github/workflows/verify.yml 对该提交给出真实结果。远端失败时不得报告 Feature 完成或直接合并 main。
 
