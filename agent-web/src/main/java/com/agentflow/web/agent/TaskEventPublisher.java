@@ -1,8 +1,8 @@
 package com.agentflow.web.agent;
 
 import com.agentflow.core.AgentEvent;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -84,7 +84,7 @@ public class TaskEventPublisher {
     private String toJson(AgentEvent event) {
         try {
             return objectMapper.writeValueAsString(event);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException("Failed to serialize event", ex);
         }
     }

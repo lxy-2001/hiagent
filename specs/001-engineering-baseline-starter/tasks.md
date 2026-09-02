@@ -37,11 +37,11 @@
 
 **CRITICAL**: 本 Phase 只恢复现有编译、测试和应用行为；不得修改 Runtime、Tool、RAG、记忆或 HTTP 语义。
 
-- [ ] T006 将 pom.xml 的 Spring Boot 过渡版本更新为 3.5.16，运行 ./mvnw -B -ntp clean verify，并把过渡结果和迁移警告记录到 specs/001-engineering-baseline-starter/verification.md 后再进入 Boot 4
-- [ ] T007 在 pom.xml 固定 Spring Boot 4.1.1 与 springdoc-openapi 3.1.0，删除未被源码使用的 Spring AI BOM/version，并校验 dependency:tree 不再声明 org.springframework.ai 依赖
-- [ ] T008 按 Boot 4 上游依赖/Starter、测试和 Flyway 规则调整 agent-core/pom.xml、agent-llm/pom.xml、agent-tool/pom.xml、agent-rag/pom.xml、agent-web/pom.xml 和 agent-demo/pom.xml，仅保留当前六模块编译与测试需要的依赖；不得创建或拆分 HiAgent Starter/模块
-- [ ] T009 仅依据编译错误迁移已知受影响的 agent-llm/src/main/java/com/agentflow/llm/OpenAiCompatibleModelClient.java、agent-web/src/main/java/com/agentflow/web/agent/TaskEventPublisher.java、agent-demo/src/main/java/com/agentflow/demo/knowledge/QdrantClient.java；若编译错误直接指向其他现有文件，允许一并迁移该文件中的 Boot 4、Jackson 3 或测试 API，并在 verification.md 记录路径，禁止借机重构
-- [ ] T010 依次运行 ./mvnw -pl agent-core -am test、./mvnw -pl agent-llm -am test、./mvnw -pl agent-web -am test、./mvnw -pl agent-demo -am test 和 ./mvnw -B -ntp clean verify，将最终 Java 17/Boot 4.1.1 证据及无 Agent 行为变更的 diff 审查结论记录到 specs/001-engineering-baseline-starter/verification.md
+- [X] T006 将 pom.xml 的 Spring Boot 过渡版本更新为 3.5.16，运行 ./mvnw -B -ntp clean verify，并把过渡结果和迁移警告记录到 specs/001-engineering-baseline-starter/verification.md 后再进入 Boot 4
+- [X] T007 在 pom.xml 固定 Spring Boot 4.1.1 与 springdoc-openapi 3.1.0，删除未被源码使用的 Spring AI BOM/version，并校验 dependency:tree 不再声明 org.springframework.ai 依赖
+- [X] T008 按 Boot 4 上游依赖/Starter、测试和 Flyway 规则调整 agent-core/pom.xml、agent-llm/pom.xml、agent-tool/pom.xml、agent-rag/pom.xml、agent-web/pom.xml 和 agent-demo/pom.xml，仅保留当前六模块编译与测试需要的依赖；不得创建或拆分 HiAgent Starter/模块
+- [X] T009 仅依据编译错误迁移已知受影响的 agent-llm/src/main/java/com/agentflow/llm/OpenAiCompatibleModelClient.java、agent-web/src/main/java/com/agentflow/web/agent/TaskEventPublisher.java、agent-demo/src/main/java/com/agentflow/demo/knowledge/QdrantClient.java；若编译错误直接指向其他现有文件，允许一并迁移该文件中的 Boot 4、Jackson 3 或测试 API，并在 verification.md 记录路径，禁止借机重构
+- [X] T010 依次运行 ./mvnw -pl agent-core -am test、./mvnw -pl agent-llm -am test、./mvnw -pl agent-web -am test、./mvnw -pl agent-demo -am test 和 ./mvnw -B -ntp clean verify，将最终 Java 17/Boot 4.1.1 证据及无 Agent 行为变更的 diff 审查结论记录到 specs/001-engineering-baseline-starter/verification.md
 
 **Phase 2 checkpoint**: Boot 4.1.1 全仓门禁通过且迁移 diff 不含功能修改后，创建独立的 Phase 2 完成提交。
 
