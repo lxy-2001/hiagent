@@ -228,3 +228,42 @@ Errors 0、Skipped 0）。Flyway、H2 和外部服务隔离均按现有测试配
 数据模型修改。Phase 2 的 Wrapper、版本门禁和 `git diff --check` 均保持通过。
 
 **T010 结论：通过。Phase 2 T006-T010 已全部取得证据，可进入 Phase 3。**
+## T011：GitHub Actions 统一验证工作流
+
+**文件**：`.github/workflows/verify.yml`。
+
+工作流在 `push` 和 `pull_request` 触发，顶层和 Job 级权限均为只读 `contents: read`；使用
+`ubuntu-latest`、Temurin Java 17、Maven 缓存和 15 分钟 Job 超时。唯一运行步骤为
+`./mvnw -B -ntp clean verify`，没有 `secrets`、`services`、Docker 或模型调用配置。
+
+**T011 结论：通过（工作流文件已加入仓库，远端执行结果待推送后由 GitHub Actions 产生）。**
+
+## T012：README 与测试文档同步
+
+更新 `README.md` 和 `docs/testing.md`，移除 Boot 3、未使用系统 Maven、固定管理员密码、
+本地模型兜底、旧测试数量和启动外部服务等过时说明；文档现在明确 Java 17、Maven Wrapper
+3.9.16、Spring Boot 4.1.1、6 个模块、首次 Maven Central 下载要求、默认外部服务隔离、
+唯一完整门禁和当前临时 Demo 边界。当前观测值记录为 7 个测试类、11 个测试方法；
+agent-core/agent-rag 无测试源这一事实也已明确标注。
+
+**T012 结论：通过。**
+
+## T013：Phase 3 独立验证
+
+**静态工作流检查**：通过。已确认 `push`/`pull_request`、只读权限、Temurin 17、Maven
+缓存、15 分钟超时、唯一统一命令均存在；未发现 `secrets`、`services`、Docker 或模型 Key
+配置。
+
+**本地门禁**：在未设置模型凭据、未启动 Docker/MySQL/Redis/Qdrant 的环境运行
+`./mvnw -B -ntp clean verify`。
+
+| 项目 | 实际结果 |
+| --- | --- |
+| 模块 | 根 POM + 6 个模块全部 `SUCCESS` |
+| 测试 | 11；Failures 0、Errors 0、Skipped 0 |
+| Maven 报告耗时 | `26.693 s` |
+| 退出码 | `0` |
+| CI 工作流路径 | `.github/workflows/verify.yml`（远端结果待推送后产生） |
+
+**T013 结论：通过。Phase 3 的统一验证切片已独立可复现，可进入 Phase 4；Feature 001
+仍未完成，不能据此标记 `VERIFIED`。**

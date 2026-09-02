@@ -1,387 +1,130 @@
 # 测试与质量保障说明
 
-## 1. 测试概览
-
-### 1.1 测试统计
-
-| 指标 | 值 |
-|------|-----|
-| 测试类数量 | 6 |
-| 测试框架 | JUnit 5 + AssertJ + Mockito |
-| 测试类型 | 单元测试 + 组件测试 |
-| 覆盖率工具 | 无（待集成） |
-
-### 1.2 测试文件清单
-
-| 测试类 | 模块 | 测试内容 |
-|--------|------|---------|
-| `OpenAiCompatibleModelClientTest` | agent-llm | LLM 客户端 |
-| `InMemoryToolRegistryTest` | agent-tool | 工具注册表 |
-| `ChatServiceTest` | agent-web | 聊天服务 |
-| `ChatControllerSecurityTest` | agent-web | 聊天控制器安全 |
-| `SimpleTaskPlannerTest` | agent-web | 任务规划器 |
-| `DefaultAgentRuntimeTest` | agent-web | Agent 运行时 |
-
-## 2. 测试详情
-
-### 2.1 OpenAiCompatibleModelClientTest
-
-**文件**：`agent-llm/src/test/java/com/agentflow/llm/OpenAiCompatibleModelClientTest.java`
-
-**测试框架**：JUnit 5 + AssertJ + MockRestServiceServer
-
-**测试内容**：
-- 同步对话调用
-- 流式对话调用
-- 无 API Key 时的兜底回答
-- Embedding 调用
-
-**测试方式**：
-- 使用 `MockRestServiceServer` 模拟 HTTP 请求
-- 验证请求体和响应解析
-
-### 2.2 InMemoryToolRegistryTest
-
-**文件**：`agent-tool/src/test/java/com/agentflow/tool/InMemoryToolRegistryTest.java`
-
-**测试框架**：JUnit 5
-
-**测试内容**：
-- 工具注册
-- 工具查找
-- 启用/禁用工具
-
-### 2.3 ChatServiceTest
-
-**文件**：`agent-web/src/test/java/com/agentflow/web/chat/ChatServiceTest.java`
-
-**测试框架**：JUnit 5 + AssertJ
-
-**测试内容**：
-- 同步对话
-- 流式对话
-- 会话历史管理
-
-### 2.4 ChatControllerSecurityTest
-
-**文件**：`agent-web/src/test/java/com/agentflow/web/chat/ChatControllerSecurityTest.java`
-
-**测试框架**：JUnit 5 + MockMvc + @WebMvcTest + Mockito
-
-**测试内容**：
-- 未认证请求返回 401
-- 认证后正常访问
-
-**测试方式**：
-- 使用 `@WebMvcTest` 切片测试
-- 使用 `@MockitoBean` 模拟依赖
-- 使用 `MockMvc` 发送请求
-
-### 2.5 SimpleTaskPlannerTest
-
-**文件**：`agent-web/src/test/java/com/agentflow/web/autoconfigure/SimpleTaskPlannerTest.java`
-
-**测试框架**：JUnit 5
-
-**测试内容**：
-- 关键词匹配规则
-- 工具选择逻辑
-
-### 2.6 DefaultAgentRuntimeTest
-
-**文件**：`agent-web/src/test/java/com/agentflow/web/autoconfigure/DefaultAgentRuntimeTest.java`
-
-**测试框架**：JUnit 5
-
-**测试内容**：
-- Agent 执行循环
-- 步骤记录
-- 事件发布
-
-## 3. 测试类型
-
-### 3.1 单元测试
-
-**定义**：测试单个类或方法，不依赖外部系统。
-
-**示例**：
-- `InMemoryToolRegistryTest`：测试工具注册表的内存操作
-- `SimpleTaskPlannerTest`：测试关键词匹配逻辑
-
-**特点**：
-- 执行速度快
-- 不需要启动 Spring 容器
-- 使用 Mock 替代依赖
-
-### 3.2 组件测试
-
-**定义**：测试 Spring 组件的集成行为。
-
-**示例**：
-- `ChatControllerSecurityTest`：测试 Spring Security 配置
-- `ChatServiceTest`：测试 Service 层逻辑
-
-**特点**：
-- 需要启动部分 Spring 容器
-- 使用 `@WebMvcTest`、`@SpringBootTest` 等注解
-- 可以测试依赖注入和配置
-
-### 3.3 集成测试
-
-**定义**：测试多个组件的协作。
-
-**当前状态**：无
-
-**建议**：
-- 测试完整的 Agent 执行流程
-- 测试数据库操作
-- 测试外部服务调用
-
-### 3.4 端到端测试
-
-**定义**：测试完整的用户场景。
-
-**当前状态**：无
-
-**建议**：
-- 测试完整的 API 调用链
-- 使用 Testcontainers 启动真实基础设施
-
-## 4. 测试框架
-
-### 4.1 JUnit 5
-
-**依赖**：
-
-```xml
-<dependency>
-    <groupId>org.junit.jupiter</groupId>
-    <artifactId>junit-jupiter</artifactId>
-    <scope>test</scope>
-</dependency>
-```
-
-**使用方式**：
-
-```java
-@Test
-void testSomething() {
-    // given
-    // when
-    // then
-}
-
-@ParameterizedTest
-@ValueSource(strings = {"sql", "表", "mysql"})
-void testKeywordMatching(String keyword) {
-    // ...
-}
-```
-
-### 4.2 AssertJ
-
-**依赖**：
-
-```xml
-<dependency>
-    <groupId>org.assertj</groupId>
-    <artifactId>assertj-core</artifactId>
-    <scope>test</scope>
-</dependency>
-```
-
-**使用方式**：
-
-```java
-assertThat(result).isNotNull();
-assertThat(result.toolNames()).containsExactly("interface-draft", "sql-draft");
-assertThat(response.getStatus()).isEqualTo(200);
-```
-
-### 4.3 Mockito
-
-**依赖**：
-
-```xml
-<dependency>
-    <groupId>org.mockito</groupId>
-    <artifactId>mockito-core</artifactId>
-    <scope>test</scope>
-</dependency>
-```
-
-**使用方式**：
-
-```java
-@MockitoBean
-private ChatModelClient chatModelClient;
-
-when(chatModelClient.complete(any())).thenReturn(mockResponse);
-verify(chatModelClient).complete(any());
-```
-
-### 4.4 Spring Boot Test
-
-**依赖**：
-
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-test</artifactId>
-    <scope>test</scope>
-</dependency>
-```
-
-**使用方式**：
-
-```java
-@WebMvcTest(ChatController.class)
-class ChatControllerSecurityTest {
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockitoBean
-    private ChatService chatService;
-}
-```
-
-## 5. 测试覆盖率
-
-### 5.1 当前状态
-
-未集成覆盖率工具。
-
-### 5.2 建议集成 JaCoCo
-
-**pom.xml**：
-
-```xml
-<plugin>
-    <groupId>org.jacoco</groupId>
-    <artifactId>jacoco-maven-plugin</artifactId>
-    <version>0.8.11</version>
-    <executions>
-        <execution>
-            <goals>
-                <goal>prepare-agent</goal>
-            </goals>
-        </execution>
-        <execution>
-            <id>report</id>
-            <phase>test</phase>
-            <goals>
-                <goal>report</goal>
-            </goals>
-        </execution>
-    </executions>
-</plugin>
-```
-
-**运行**：
+本文档描述当前 Feature 001 已验证的测试入口和边界。它不把未来 Feature 的测试能力
+（例如 Runtime 新语义、真实 RAG、MCP 或端到端基础设施）提前算作完成。
+
+## 1. 当前工程基线
+
+| 项目 | 已验证值 |
+| --- | --- |
+| Java | 17 |
+| Spring Boot | 4.1.1 |
+| Maven | Wrapper 3.9.16 |
+| Maven 模块 | 6 个：agent-core、agent-llm、agent-tool、agent-rag、agent-web、agent-demo |
+| 最近一次完整门禁 | 11 个测试通过；Failures/Errors/Skipped = 0/0/0 |
+| 完整门禁 | `./mvnw -B -ntp clean verify` |
+
+首次使用 Wrapper 或本地缓存为空时，需要访问 Maven Central 下载 Maven 发行包和项目
+依赖。依赖缓存完成后，默认测试不需要 Docker、MySQL、Redis、Qdrant、真实模型 API Key
+或其他外部运行服务。
+
+## 2. 唯一完整验证入口
+
+在仓库根目录运行：
 
 ```bash
-mvn test jacoco:report
+./mvnw --version
+./mvnw -B -ntp clean verify
 ```
 
-**报告位置**：`target/site/jacoco/index.html`
+第一条命令应显示 Maven 3.9.16 和 Java 17。第二条命令由本地和 GitHub Actions 共用，
+会构建六个模块并执行可发现的测试；任一失败都返回非零状态。
 
-### 5.3 覆盖率目标
+当前已验证的 Phase 2 结果：
 
-| 模块 | 目标覆盖率 |
-|------|-----------|
-| agent-core | 90%+ |
-| agent-llm | 80%+ |
-| agent-tool | 80%+ |
-| agent-rag | 80%+ |
-| agent-web | 70%+ |
-| agent-demo | 60%+ |
+- 根 POM 和六个模块均构建成功。
+- 11 个测试通过，Failures、Errors、Skipped 均为 0。
+- agent-core 与 agent-rag 当前没有测试源，构建仍纳入完整门禁。
+- Demo 上下文使用 H2 测试数据库；模型 HTTP 使用 Mock；不访问真实付费服务。
+- 详细命令、耗时和迁移证据见 [Feature 001 验证记录](../specs/001-engineering-baseline-starter/verification.md)。
 
-## 6. 测试最佳实践
+开发单个模块时可先运行聚焦门禁：
 
-### 6.1 命名规范
-
-```java
-// 推荐：方法名_场景_预期结果
-@Test
-void login_withValidCredentials_returnsToken() { ... }
-
-@Test
-void login_withInvalidPassword_throwsException() { ... }
+```bash
+./mvnw -pl agent-core -am test
+./mvnw -pl agent-llm -am test
+./mvnw -pl agent-web -am test
+./mvnw -pl agent-demo -am test
 ```
 
-### 6.2 测试结构
+聚焦命令用于缩短反馈时间，不能替代 Phase 或 Feature 收尾时的 `clean verify`。
 
-```java
-@Test
-void testSomething() {
-    // given - 准备数据
-    String input = "test";
+## 3. 当前测试清单
 
-    // when - 执行操作
-    Result result = service.doSomething(input);
+当前有 7 个测试类、11 个测试方法：
 
-    // then - 验证结果
-    assertThat(result).isNotNull();
-    assertThat(result.getValue()).isEqualTo("expected");
-}
-```
+| 测试类 | 模块 | 已验证内容 |
+| --- | --- | --- |
+| `OpenAiCompatibleModelClientTest` | agent-llm | 受控 Mock HTTP 下的同步、流式和 embedding 请求 |
+| `InMemoryToolRegistryTest` | agent-tool | 工具注册、查找和启用/禁用 |
+| `ChatControllerSecurityTest` | agent-web | Chat 入口未认证请求的 401 安全行为 |
+| `ChatServiceTest` | agent-web | Chat Service 的当前同步/流式协作 |
+| `SimpleTaskPlannerTest` | agent-web | 当前规划器规则 |
+| `DefaultAgentRuntimeTest` | agent-web | 当前 Runtime 循环、步骤记录和事件发布 |
+| `AgentWebEndpointRegistrationTest` | agent-demo | H2 完整上下文、Web 入口注册和认证任务分发 |
 
-### 6.3 Mock 使用原则
+测试文件位于各模块的 `src/test` 目录。测试名称和覆盖范围以源代码为准；文件存在不等于
+未来 Agent 能力已经实现。
 
-- 只 Mock 外部依赖（数据库、外部服务）
-- 不 Mock 被测试类的内部逻辑
-- 使用 `@Spy` 部分 Mock
+## 4. 测试类型与边界
 
-## 7. CI/CD 集成
+### 4.1 单元测试
 
-### 7.1 当前状态
+单元测试在不启动完整 Spring 应用的情况下验证一个类或一个协作边界，例如
+`InMemoryToolRegistryTest`、`SimpleTaskPlannerTest` 和当前 LLM 客户端测试中的
+请求解析。外部 HTTP 使用 Mock，不发送真实模型请求。
 
-未配置 CI/CD。
+### 4.2 Spring 组件/切片测试
 
-### 7.2 建议的 GitHub Actions
+`ChatControllerSecurityTest` 使用 Boot 4 的 `@WebMvcTest` 和 `MockMvc`，只加载
+Web MVC 测试切片与测试专用安全配置。它验证当前 Chat 入口的安全响应，不冻结最终 Run/SSE
+契约。
 
-```yaml
-# .github/workflows/test.yml
-name: Test
+### 4.3 完整应用上下文测试
 
-on: [push, pull_request]
+`AgentWebEndpointRegistrationTest` 使用 `@SpringBootTest`、H2 和测试替身启动
+Demo 上下文，检查当前模块自动配置、Controller、Repository 和接口分发。测试不会连接
+生产数据库、Redis、Qdrant 或真实模型。
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
+### 4.4 尚未纳入本基线的测试
 
-    steps:
-      - uses: actions/checkout@v4
+agent-core 的架构依赖检查、各端口条件装配覆盖、真实失败语义、11 个临时操作完整快照、
+凭据扫描和后续 Agent 能力测试，会在 Feature 001 的后续 Phase 或路线图 Feature 中按
+任务单独加入。当前不能用本节的 11 个测试代表这些内容已完成。
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+## 5. 测试编写规则
 
-      - name: Start infrastructure
-        run: docker-compose up -d
+- 行为变更先写一个在现状下失败的测试，再实现最小行为，最后在测试保护下重构。
+- 默认测试只使用确定性 Fixture、Mock HTTP 或 H2；不得读取真实 Key、生产数据或付费服务。
+- 不删除、跳过或弱化失败测试来获得绿色构建。
+- 失败、取消、超时、预算耗尽和未配置能力必须有可观察结果，不能用 Noop、Fake 或固定
+  成功内容掩盖问题。
+- 测试应说明被验证的需求或边界；纯构建、Wrapper 和文档变更使用直接命令校验。
+- Phase 完成时扩大到受影响模块及依赖模块；Feature 完成时运行全仓 `clean verify`。
 
-      - name: Wait for services
-        run: sleep 30
+## 6. GitHub Actions
 
-      - name: Run tests
-        run: mvn clean test
+工作流文件为 `.github/workflows/verify.yml`，当前配置：
 
-      - name: Generate coverage report
-        run: mvn jacoco:report
+- 在 `push` 和 `pull_request` 触发。
+- 使用只读 `contents` 权限。
+- 使用 Temurin Java 17 和 Maven 缓存。
+- 单个 Job 超时 15 分钟。
+- 只运行 `./mvnw -B -ntp clean verify`。
+- 不配置模型 secrets、数据库/Redis/Qdrant service container，也不执行真实模型调用。
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-```
+本地与 CI 使用同一个 Wrapper 命令，避免两套不一致的测试清单。远端工作流是否通过，以
+GitHub Actions 的实际运行结果为准。
 
-## 8. 待确认项
+## 7. 覆盖率和端到端测试状态
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | 覆盖率工具 | 待确认 | 是否集成 JaCoCo？ |
-| 2 | 集成测试 | 待确认 | 是否需要集成测试？ |
-| 3 | 端到端测试 | 待确认 | 是否需要 E2E 测试？ |
-| 4 | CI/CD | 待确认 | 是否需要 GitHub Actions？ |
-| 5 | 测试数据库 | 待确认 | 是否使用 H2 内存数据库？ |
-| 6 | 性能测试 | 待确认 | 是否需要 JMeter/Gatling？ |
+当前 Feature 001 尚未引入覆盖率门槛、Testcontainers 或产品级端到端环境。它们是否需要、
+以及适用的指标，应在对应 Feature 的规格中单独决定；不能把未运行的报告写成当前质量
+证据。
+
+## 8. 相关文档
+
+- [Feature 001 快速验证](../specs/001-engineering-baseline-starter/quickstart.md)
+- [Feature 001 规格](../specs/001-engineering-baseline-starter/spec.md)
+- [项目宪法](../.specify/memory/constitution.md)
+- [代理实施规则](../AGENTS.md)

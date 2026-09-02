@@ -53,9 +53,9 @@
 
 **Independent Test**: 在未配置模型凭据且未启动 MySQL、Redis、Qdrant 的环境运行 ./mvnw -B -ntp clean verify，六模块成功且工作流调用同一命令。
 
-- [ ] T011 [P] [US1] 创建 .github/workflows/verify.yml，使其在 push 和 pull_request 事件触发，使用只读 contents 权限、Temurin 17、Maven 缓存、15 分钟超时和 ./mvnw -B -ntp clean verify，且不配置 secrets、service containers 或真实模型调用
-- [ ] T012 [P] [US1] 更新 README.md 和 docs/testing.md，只声明已验证的 Wrapper、Java 17、Boot 4.1.1、六模块测试入口、首次 Maven Central 下载要求及默认外部服务隔离，不保留错误测试数量或本地模型兜底说明
-- [ ] T013 [US1] 静态校验 .github/workflows/verify.yml 具有 push/pull_request 触发、只调用统一门禁且无 secrets/services，再在清除模型凭据且不启动 Docker 的环境执行 ./mvnw -B -ntp clean verify，将本地命令、退出码、测试数、耗时和 CI 工作流路径记录到 specs/001-engineering-baseline-starter/verification.md
+- [X] T011 [P] [US1] 创建 .github/workflows/verify.yml，使其在 push 和 pull_request 事件触发，使用只读 contents 权限、Temurin 17、Maven 缓存、15 分钟超时和 ./mvnw -B -ntp clean verify，且不配置 secrets、service containers 或真实模型调用
+- [X] T012 [P] [US1] 更新 README.md 和 docs/testing.md，只声明已验证的 Wrapper、Java 17、Boot 4.1.1、六模块测试入口、首次 Maven Central 下载要求及默认外部服务隔离，不保留错误测试数量或本地模型兜底说明
+- [X] T013 [US1] 静态校验 .github/workflows/verify.yml 具有 push/pull_request 触发、只调用统一门禁且无 secrets/services，再在清除模型凭据且不启动 Docker 的环境执行 ./mvnw -B -ntp clean verify，将本地命令、退出码、测试数、耗时和 CI 工作流路径记录到 specs/001-engineering-baseline-starter/verification.md
 
 **Phase 3 checkpoint**: US1 可独立复现，README 与 CI 使用同一入口后，创建 Phase 3 完成提交。此时只是最小可演示构建切片，不代表整个 Feature 完成。
 
