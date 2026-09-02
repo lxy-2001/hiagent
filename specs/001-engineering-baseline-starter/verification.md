@@ -415,3 +415,112 @@ Skipped = 0/0/0，退出码 0。没有调用 Qdrant、真实模型或 Redis。
 
 **T026 结论：通过。Phase 4 T014-T026 已全部取得验证证据，可进入 Phase 4 checkpoint
 审查和提交。**
+
+
+## T027～T030：Phase 5 初始边界、入口与凭据测试
+
+**执行时间**：2026-09-03 UTC（Java 17.0.20.1、Maven Wrapper 3.9.16、Spring Boot 4.1.1）。
+行为测试均先于对应生产改动运行；失败内容对应目标行为缺失，不通过放宽断言或删除测试制造通过。
+
+| 任务 | 命令/范围 | 实际结果 | 结论 |
+| --- | --- | --- | --- |
+| T027 | `./mvnw -B -ntp -pl agent-core -am test` | ArchUnit 1 条边界测试通过，Failures/Errors/Skipped = 0/0/0 | characterization，通过 |
+| T028 | `./mvnw -B -ntp -pl agent-demo -am -Dtest=TemporaryDemoEndpointSnapshotTest -Dsurefire.failIfNoSpecifiedTests=false test` | 2 tests 通过；精确发现 Auth 4、Chat 2、Agent 4、Knowledge 1 共 11 个操作，并完成四组受控 MockMvc 分发 | characterization，通过 |
+| T029（LLM） | `./mvnw -B -ntp -pl agent-llm -am -Dtest=AgentFlowPropertiesTest -Dsurefire.failIfNoSpecifiedTests=false test` | 2 tests，Failures 1、Errors 0、Skipped 0；`AgentFlowProperties` 仍返回通用开发 JWT secret | Red，符合待实现行为 |
+| T029（Demo） | `./mvnw -B -ntp -pl agent-demo -am -Dtest=InitialDataConfigTest -Dsurefire.failIfNoSpecifiedTests=false test` | 3 tests，Failures 3、Errors 0、Skipped 0；无凭据仍查询/创建 `admin`，半配置不失败，完整显式配置未被使用 | Red，符合待实现行为 |
+| T029（Web） | `./mvnw -B -ntp -pl agent-web -am -Dtest=SecurityConfigCredentialTest -Dsurefire.failIfNoSpecifiedTests=false test` | 3 tests，Failures 2、Errors 0、Skipped 0；缺失或少于 32 字节的 JWT secret 当前未拒绝，显式长 secret 场景通过 | Red，符合待实现行为 |
+
+T030 汇总结论：上述失败均能追溯到生产默认凭据或缺少校验；T027/T028 的通过结果记录为
+既有边界/入口 characterization。下一步按 T031 实施凭据来源和明确失败语义，测试值只保留在
+`src/test`。
+
+
+## T031：生产凭据来源与明确失败语义
+
+**变更**：
+
+- `AgentFlowProperties` 的 JWT secret 生产默认值改为空，并补齐标准 JavaBean getter，确保
+  Boot 4 配置绑定与显式环境变量一致。
+- `SecurityConfig` 在 JWT secret 缺失或 UTF-8 长度小于 32 字节时抛出明确配置错误。
+- `InitialDataConfig` 只有在 `AGENTFLOW_INITIAL_ADMIN_USERNAME` 和
+  `AGENTFLOW_INITIAL_ADMIN_PASSWORD` 同时显式提供时才创建用户；半配置直接失败，未配置
+  时不访问用户仓库。
+- `agent-demo/src/main/resources/application.yml` 的数据库和 JWT 配置不再含通用默认值；
+  `OpenAiCompatibleModelClient` 同时移除残留的历史 `change-me` sentinel。
+
+**验证命令及结果**：
+
+| 命令 | 实际结果 |
+| --- | --- |
+| `./mvnw -B -ntp -pl agent-llm -am -Dtest=AgentFlowPropertiesTest -Dsurefire.failIfNoSpecifiedTests=false test` | 3 tests，Failures/Errors/Skipped = 0/0/0，退出码 0 |
+| `./mvnw -B -ntp -pl agent-web -am -Dtest=SecurityConfigCredentialTest,AgentWebAutoConfigurationTest -Dsurefire.failIfNoSpecifiedTests=false test` | 9 tests，Failures/Errors/Skipped = 0/0/0，退出码 0 |
+| `./mvnw -B -ntp -pl agent-demo -am -Dtest=InitialDataConfigTest,TemporaryDemoEndpointSnapshotTest,AgentFlowDemoContextTest -Dsurefire.failIfNoSpecifiedTests=false test` | 6 tests，Failures/Errors/Skipped = 0/0/0，退出码 0 |
+
+**T031 结论：通过。** 测试值只位于 `src/test` 配置或测试代码，生产启动不再依赖通用
+JWT、数据库或管理员凭据。
+
+## T032：非秘密环境变量示例与 Compose/页面治理
+
+**变更**：新增根目录 `.env.example`；Compose 的 MySQL root/application 密码改为必填环境
+变量引用；登录页面移除固定管理员用户名/密码并改为配置提示。`.env.example` 只包含
+`CHANGE_ME_*` 占位符、连接地址和变量名，不含可用密钥。
+
+**静态检查结果**：
+
+- `docker-compose.yml` 仅使用 `${MYSQL_ROOT_PASSWORD:?...}`、`${MYSQL_PASSWORD:?...}`
+  和其他环境引用；健康检查通过容器环境变量读取密码。
+- `agent-demo/src/main/resources/static/index.html` 不含固定 `admin`、通用密码或默认 Key。
+- `git diff --check` 退出码 `0`。
+
+**T032 结论：通过。**
+
+## T033～T035：正式文档与当前边界同步
+
+已更新 README、SDD 使用说明、测试、架构、模块、配置、REST API、数据库和部署文档：
+
+- 当前 Feature 001 状态、唯一 Wrapper 门禁和外部服务隔离均改为当前事实；移除无激活 Feature
+  和旧测试统计。
+- 自动配置表、三个 LLM 端口、无默认 RAG/Recorder、Runtime 暂留 Web 的批准例外及
+  Feature 002/003/005/006/008 的退出点与源码一致。
+- 固定登录/数据库/JWT/模型凭据全部改为环境变量或非秘密占位符；模型缺 Key 的行为写为
+  明确失败，不再描述本地成功兜底。
+- 11 个 HTTP 操作标记为临时 Demo 快照；SSE 回放/缓存只作为当前实现观察，不作稳定协议或
+  高可用承诺。
+- `docs/learn/` 学习快照未纳入本阶段修改；其中已有工作区改动按用户文件原样保留。
+
+**T033、T034、T035 结论：通过。**
+
+## T036：Phase 5 边界、入口和凭据门禁
+
+**目标测试**：
+
+- 串行执行 `./mvnw -B -ntp -pl agent-core -am test`：1 test，Failures/Errors/Skipped =
+  0/0/0，退出码 0。
+- 串行执行 `./mvnw -B -ntp -pl agent-demo -am test`：6 个 Demo 测试，Reactor 总计
+  44 tests，Failures/Errors/Skipped = 0/0/0，退出码 0；六个模块均 SUCCESS。
+- `git diff --check`：退出码 0。
+
+曾尝试并行启动 core 和 Demo 门禁，因两个 Maven 进程同时写共享 `agent-core/target/surefire`
+而出现一次 surefire 临时包启动错误（Demo 路径退出码 1）；这是并行构建竞争，不是测试
+断言失败。随后清理并串行重跑成功，最终证据只采用串行结果。
+
+**凭据扫描**：按 `plan.md` 固定范围扫描 `agent-*/src/main/**`、`docker-compose.yml`、
+`README.md`、`specs/` 和 `docs/`，排除 `docs/learn/**` 及 Git 忽略的
+`docs/.ipynb_checkpoints/**` 生成检查点；检查 API key、JWT secret、数据库/管理员 password
+的非空字面量以及已知历史默认指纹。环境变量引用、`CHANGE_ME_*`/`<...>` 等明确非秘密占位符、
+动态表达式和 `src/test/**` 测试值允许。
+
+实际扫描输出：
+
+```text
+CREDENTIAL_SCAN_EXIT=0
+FILES_SCANNED=125
+EXCLUDED=docs/.ipynb_checkpoints/**,docs/learn/**
+HISTORICAL_FINGERPRINT_HITS=0
+NON_EMPTY_LITERAL_HITS=0
+```
+
+临时入口证据仍为 Auth 4、Chat 2、Agent 4、Knowledge 1，共 11 个操作；四组代表性
+MockMvc 分发和完整 Demo 上下文均通过。
+
+**T036 结论：通过。Phase 5 T027-T036 已全部取得证据，可创建 Phase 5 完成提交。**

@@ -59,7 +59,15 @@ public class SecurityConfig {
 
     @Bean
     SecretKey jwtSecretKey(AgentFlowProperties properties) {
-        byte[] bytes = properties.security().jwt().getSecret().getBytes(StandardCharsets.UTF_8);
+        String secret = properties.security().jwt().getSecret();
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "agentflow.security.jwt.secret must be configured through an environment or test property");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < 32) {
+            throw new IllegalStateException("agentflow.security.jwt.secret must contain at least 32 UTF-8 bytes");
+        }
         return new SecretKeySpec(bytes, "HmacSHA256");
     }
 

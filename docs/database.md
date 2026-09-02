@@ -1,5 +1,8 @@
 # 数据库设计说明
 
+> 本页描述当前 Demo 使用的持久化表和迁移文件，不代表 Feature 001 已完成生产级高可用、
+> 读写分离、备份或多租户数据隔离。
+
 ## 1. 概述
 
 ### 1.1 数据库选型
@@ -13,9 +16,9 @@
 ### 1.2 数据库配置
 
 **MySQL**：
-- URL: `jdbc:mysql://localhost:3307/agentflow`
-- 用户: `agentflow`
-- DDL 管理: Flyway（`ddl-auto: none`）
+- URL、用户名和密码由 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME`、
+  `SPRING_DATASOURCE_PASSWORD` 显式提供；本文不固化连接凭据。
+- DDL 管理：Flyway（`ddl-auto: none`）
 
 **Redis**：
 - 地址: `localhost:6379`
@@ -193,11 +196,12 @@ CREATE TABLE sys_user (
 **JPA Entity**：`com.agentflow.web.auth.SysUser`
 
 **初始数据**：
-- 用户名: `admin`
-- 密码: `agentflow123`
-- 由 `InitialDataConfig` 启动时创建
+- 默认不创建任何管理员用户。
+- 只有同时显式提供 `AGENTFLOW_INITIAL_ADMIN_USERNAME` 和
+  `AGENTFLOW_INITIAL_ADMIN_PASSWORD` 时，`InitialDataConfig` 才创建一条用户记录。
+- 密码只以 BCrypt 哈希写入 `password_hash`；原始密码不写入数据库文档、日志或 Git。
 
-**代码依据**：`InitialDataConfig.java`
+**代码依据**：`InitialDataConfig.java`、`agent-demo/src/main/resources/application.yml`
 
 ---
 
@@ -616,13 +620,8 @@ TTL:    2 小时
 
 ---
 
-## 6. 待确认项
+## 6. 当前范围与延期
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | `sys_role` / `sys_user_role` | 待确认 | 预留表，何时实现角色管理？ |
-| 2 | `agent_memory` | 待确认 | 预留表，何时实现持久化记忆？ |
-| 3 | 数据库连接池 | 待确认 | 是否配置 HikariCP？ |
-| 4 | 读写分离 | 待确认 | 是否需要主从分离？ |
-| 5 | 数据备份 | 待确认 | 是否有备份策略？ |
-| 6 | 索引优化 | 待确认 | 是否需要更多索引？ |
+当前只验证 Flyway 迁移、JPA 映射和 H2 测试上下文的可启动性。角色管理、持久化长期记忆、
+连接池调优、读写分离、备份和索引优化需在实际需求出现时单独规格化；本页不对这些能力作
+已实现或高可用承诺。

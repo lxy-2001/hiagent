@@ -5,9 +5,9 @@ spring:
   application:
     name: agent-demo-dev-assistant
   datasource:
-    url: jdbc:mysql://localhost:3307/agentflow?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: agentflow
-    password: agentflow
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: none
@@ -39,11 +39,14 @@ agentflow:
     max-steps: 6
   security:
     jwt:
-      secret: ${AGENTFLOW_JWT_SECRET:agentflow-development-secret-must-be-at-least-32-bytes}
+      secret: ${AGENTFLOW_JWT_SECRET}
       access-token-ttl: 30m
     refresh-token-ttl: 7d
   mcp:
     enabled: false
+  initial-admin:
+    username: ${AGENTFLOW_INITIAL_ADMIN_USERNAME:}
+    password: ${AGENTFLOW_INITIAL_ADMIN_PASSWORD:}
 
 app:
   qdrant:

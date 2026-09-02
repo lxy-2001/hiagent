@@ -16,7 +16,15 @@ public class AgentFlowProperties {
         return model;
     }
 
+    public Model getModel() {
+        return model;
+    }
+
     public Tools tools() {
+        return tools;
+    }
+
+    public Tools getTools() {
         return tools;
     }
 
@@ -24,7 +32,15 @@ public class AgentFlowProperties {
         return security;
     }
 
+    public Security getSecurity() {
+        return security;
+    }
+
     public Mcp mcp() {
+        return mcp;
+    }
+
+    public Mcp getMcp() {
         return mcp;
     }
 
@@ -131,7 +147,7 @@ public class AgentFlowProperties {
         }
 
         public static class Jwt {
-            private String secret = "agentflow-development-secret-must-be-at-least-32-bytes";
+            private String secret = "";
             private Duration accessTokenTtl = Duration.ofMinutes(30);
 
             public String getSecret() {

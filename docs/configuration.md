@@ -14,9 +14,9 @@ spring:
   application:
     name: agent-demo-dev-assistant
   datasource:
-    url: jdbc:mysql://localhost:3307/agentflow
-    username: agentflow
-    password: agentflow
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: none
@@ -33,19 +33,22 @@ agentflow:
   model:
     provider: deepseek
     base-url: ${AGENTFLOW_MODEL_BASE_URL:}
-    api-key: ${AGENTFLOW_MODEL_API_KEY:change-me}
+    api-key: ${AGENTFLOW_MODEL_API_KEY}
     chat-model: deepseek-v4-pro
-    embedding-model: text-embedding-v3
+    embedding-model: ${AGENTFLOW_MODEL_EMBEDDING_MODEL:text-embedding-v4}
     embedding-dimensions: 2048
   tools:
     max-steps: 6
   security:
     refresh-token-ttl: 7d
     jwt:
-      secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+      secret: ${AGENTFLOW_JWT_SECRET}
       access-token-ttl: 30m
   mcp:
     enabled: false
+  initial-admin:
+    username: ${AGENTFLOW_INITIAL_ADMIN_USERNAME:}
+    password: ${AGENTFLOW_INITIAL_ADMIN_PASSWORD:}
 
 app:
   qdrant:
@@ -74,16 +77,16 @@ spring:
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3307/agentflow
-    username: agentflow
-    password: agentflow
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
 ```
 
 | 配置项 | 默认值 | 环境变量 | 说明 |
 |--------|--------|----------|------|
-| `spring.datasource.url` | `jdbc:mysql://localhost:3307/agentflow` | `SPRING_DATASOURCE_URL` | MySQL 连接 URL |
-| `spring.datasource.username` | `agentflow` | `SPRING_DATASOURCE_USERNAME` | 数据库用户名 |
-| `spring.datasource.password` | `agentflow` | `SPRING_DATASOURCE_PASSWORD` | 数据库密码 |
+| `spring.datasource.url` | 无（必须显式配置） | `SPRING_DATASOURCE_URL` | MySQL 连接 URL |
+| `spring.datasource.username` | 无（必须显式配置） | `SPRING_DATASOURCE_USERNAME` | 数据库用户名 |
+| `spring.datasource.password` | 无（必须显式配置） | `SPRING_DATASOURCE_PASSWORD` | 数据库密码 |
 
 #### 3.1.3 JPA 配置
 
@@ -128,9 +131,9 @@ agentflow:
   model:
     provider: deepseek
     base-url: ${AGENTFLOW_MODEL_BASE_URL:}
-    api-key: ${AGENTFLOW_MODEL_API_KEY:change-me}
+    api-key: ${AGENTFLOW_MODEL_API_KEY}
     chat-model: deepseek-v4-pro
-    embedding-model: text-embedding-v3
+    embedding-model: ${AGENTFLOW_MODEL_EMBEDDING_MODEL:text-embedding-v4}
     embedding-dimensions: 2048
 ```
 
@@ -138,12 +141,12 @@ agentflow:
 |--------|--------|----------|------|
 | `agentflow.model.provider` | `deepseek` | `AGENTFLOW_MODEL_PROVIDER` | 模型提供商（deepseek/openai） |
 | `agentflow.model.base-url` | 空 | `AGENTFLOW_MODEL_BASE_URL` | 自定义 API 地址 |
-| `agentflow.model.api-key` | `change-me` | `AGENTFLOW_MODEL_API_KEY` | API Key |
+| `agentflow.model.api-key` | 无（调用前必须显式配置） | `AGENTFLOW_MODEL_API_KEY` | API Key |
 | `agentflow.model.chat-model` | `deepseek-v4-pro` | `AGENTFLOW_MODEL_CHAT_MODEL` | 对话模型 |
-| `agentflow.model.embedding-model` | `text-embedding-v3` | `AGENTFLOW_MODEL_EMBEDDING_MODEL` | Embedding 模型 |
+| `agentflow.model.embedding-model` | `text-embedding-v4` | `AGENTFLOW_MODEL_EMBEDDING_MODEL` | Embedding 模型 |
 | `agentflow.model.embedding-dimensions` | `2048` | - | 向量维度 |
 
-**代码依据**：`AgentFlowProperties.java` 内部 `Model` record
+**代码依据**：`AgentFlowProperties.java` 的 `Model` JavaBean 配置对象
 
 #### 3.2.2 工具配置
 
@@ -157,7 +160,7 @@ agentflow:
 |--------|--------|------|
 | `agentflow.tools.max-steps` | `6` | Agent 最大工具执行步数 |
 
-**代码依据**：`AgentFlowProperties.java` 内部 `Tools` record
+**代码依据**：`AgentFlowProperties.java` 的 `Tools` JavaBean 配置对象
 
 #### 3.2.3 安全配置
 
@@ -166,17 +169,17 @@ agentflow:
   security:
     refresh-token-ttl: 7d
     jwt:
-      secret: ${JWT_SECRET:change-me-change-me-change-me-change-me}
+      secret: ${AGENTFLOW_JWT_SECRET}
       access-token-ttl: 30m
 ```
 
 | 配置项 | 默认值 | 环境变量 | 说明 |
 |--------|--------|----------|------|
 | `agentflow.security.refresh-token-ttl` | `7d` | - | Refresh Token 有效期 |
-| `agentflow.security.jwt.secret` | `change-me...` | `JWT_SECRET` | JWT 签名密钥（至少 32 字节） |
+| `agentflow.security.jwt.secret` | 无（启动安全组件前必须显式配置） | `AGENTFLOW_JWT_SECRET` | JWT 签名密钥（至少 32 字节） |
 | `agentflow.security.jwt.access-token-ttl` | `30m` | - | Access Token 有效期 |
 
-**代码依据**：`AgentFlowProperties.java` 内部 `Security` 和 `Jwt` record
+**代码依据**：`AgentFlowProperties.java` 的 `Security.Jwt` JavaBean 配置对象
 
 #### 3.2.4 MCP 配置
 
@@ -188,7 +191,7 @@ agentflow:
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `agentflow.mcp.enabled` | `false` | 是否启用 MCP（当前未实现） |
+| `agentflow.mcp.enabled` | `false` | 是否启用 MCP（当前未自动装配，Feature 006 负责） |
 
 ### 3.3 应用自定义配置
 
@@ -210,17 +213,22 @@ app:
 
 | 环境变量 | 必填 | 默认值 | 说明 |
 |----------|------|--------|------|
-| `AGENTFLOW_MODEL_API_KEY` | 是 | `change-me` | LLM API Key |
-| `AGENTFLOW_MODEL_PROVIDER` | 否 | `deepseek` | 模型提供商 |
-| `AGENTFLOW_MODEL_BASE_URL` | 否 | 空 | 自定义 API 地址 |
-| `AGENTFLOW_MODEL_CHAT_MODEL` | 否 | `deepseek-v4-pro` | 对话模型 |
-| `AGENTFLOW_MODEL_EMBEDDING_MODEL` | 否 | `text-embedding-v3` | Embedding 模型 |
-| `JWT_SECRET` | 是 | `change-me...` | JWT 签名密钥 |
-| `SPRING_DATASOURCE_URL` | 否 | `jdbc:mysql://localhost:3307/agentflow` | MySQL URL |
-| `SPRING_DATASOURCE_USERNAME` | 否 | `agentflow` | MySQL 用户名 |
-| `SPRING_DATASOURCE_PASSWORD` | 否 | `agentflow` | MySQL 密码 |
-| `SPRING_DATA_REDIS_HOST` | 否 | `localhost` | Redis 地址 |
+| `AGENTFLOW_MODEL_API_KEY` | 调用模型时必填 | 无 | LLM API Key；缺少时首次调用明确失败 |
+| `AGENTFLOW_MODEL_PROVIDER` | 否 | `deepseek` | 模型提供商标识 |
+| `AGENTFLOW_MODEL_BASE_URL` | 否 | 空 | 自定义 OpenAI-compatible API 地址 |
+| `AGENTFLOW_MODEL_CHAT_MODEL` | 否 | `deepseek-v4-pro` | 对话模型名称 |
+| `AGENTFLOW_MODEL_EMBEDDING_MODEL` | 否 | `text-embedding-v4` | Embedding 模型名称 |
+| `AGENTFLOW_JWT_SECRET` | 启用 Web 安全时必填 | 无 | JWT 签名密钥，UTF-8 至少 32 字节 |
+| `AGENTFLOW_INITIAL_ADMIN_USERNAME` | 否 | 空 | 与密码同时配置才创建初始用户 |
+| `AGENTFLOW_INITIAL_ADMIN_PASSWORD` | 否 | 空 | 与用户名同时配置；只接受本地/部署密钥注入 |
+| `SPRING_DATASOURCE_URL` | 启动 Demo 时必填 | 无 | MySQL 连接 URL |
+| `SPRING_DATASOURCE_USERNAME` | 启动 Demo 时必填 | 无 | MySQL 用户名 |
+| `SPRING_DATASOURCE_PASSWORD` | 启动 Demo 时必填 | 无 | MySQL 密码 |
+| `SPRING_DATA_REDIS_HOST` | 启动涉及 Redis 的功能时必填 | `localhost` | Redis 地址 |
 | `SPRING_DATA_REDIS_PORT` | 否 | `6379` | Redis 端口 |
+| `QDRANT_BASE_URL` | 启用 Demo RAG 时必填 | `http://localhost:6333` | Qdrant 地址 |
+
+`.env.example` 只包含上述名称和非秘密占位符；真实值不得写入仓库、日志或提交历史。
 
 ## 5. 多环境配置
 
@@ -258,11 +266,8 @@ Spring Boot 配置优先级（从高到低）：
 4. `application.yml`
 5. 默认值
 
-## 7. 待确认项
+## 7. 当前范围与延期
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | 多环境配置 | 待确认 | 是否需要 application-prod.yml？ |
-| 2 | 配置加密 | 待确认 | 敏感配置是否需要加密？ |
-| 3 | 配置中心 | 待确认 | 是否需要 Nacos Config？ |
-| 4 | 密钥管理 | 待确认 | 是否需要 Vault/AWS Secrets Manager？ |
+当前配置文件只提供单进程 Demo 所需的环境变量入口。配置中心、密钥托管、多环境文件和
+生产级配置加密不属于 Feature 001；需要时应在部署或对应后续 Feature 中单独设计，不能把
+未实现能力写成当前保证。

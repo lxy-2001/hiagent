@@ -1,5 +1,8 @@
 # 部署与运行手册
 
+> 本页是当前单进程 Demo 的本地运行参考，不是 Feature 001 对生产部署、高可用、Kubernetes
+> 或稳定 SSE 的承诺。默认验收仍以 `./mvnw -B -ntp clean verify` 为准，不需要启动这些服务。
+
 ## 1. 环境要求
 
 ### 1.1 开发环境
@@ -54,22 +57,26 @@ agentflow-qdrant    Up                  0.0.0.0:6333->6333/tcp
 **Windows (PowerShell)**：
 
 ```powershell
-$env:AGENTFLOW_MODEL_API_KEY = "your-api-key"
-$env:JWT_SECRET = "your-jwt-secret-at-least-32-chars"
+$env:AGENTFLOW_MODEL_API_KEY = "<local-model-key>"
+$env:AGENTFLOW_JWT_SECRET = "<random-secret-at-least-32-bytes>"
+$env:AGENTFLOW_INITIAL_ADMIN_USERNAME = "<local-admin-username>"
+$env:AGENTFLOW_INITIAL_ADMIN_PASSWORD = "<local-admin-password>"
 ```
 
 **Linux/macOS**：
 
 ```bash
-export AGENTFLOW_MODEL_API_KEY=your-api-key
-export JWT_SECRET=your-jwt-secret-at-least-32-chars
+export AGENTFLOW_MODEL_API_KEY=<local-model-key>
+export AGENTFLOW_JWT_SECRET=<random-secret-at-least-32-bytes>
+export AGENTFLOW_INITIAL_ADMIN_USERNAME=<local-admin-username>
+export AGENTFLOW_INITIAL_ADMIN_PASSWORD=<local-admin-password>
 ```
 
 ### 2.4 启动应用
 
 ```bash
-mvn clean verify
-mvn spring-boot:run -pl agent-demo
+./mvnw -B -ntp clean verify
+./mvnw spring-boot:run -pl agent-demo
 ```
 
 **预期输出**：
@@ -92,7 +99,7 @@ Started AgentFlowDemoApplication in X.XXX seconds
 # 测试登录
 curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"agentflow123"}'
+  -d '{"username":"<configured-username>","password":"<configured-password>"}'
 
 # 测试对话（使用返回的 accessToken）
 curl -X POST http://localhost:8080/api/chat \
@@ -112,16 +119,16 @@ services:
     image: mysql:8.4
     container_name: agentflow-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: agentflow_root
-      MYSQL_DATABASE: agentflow
-      MYSQL_USER: agentflow
-      MYSQL_PASSWORD: agentflow
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-agentflow}
+      MYSQL_USER: ${MYSQL_USER:-agentflow}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}
     ports:
       - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uagentflow", "-pagentflow"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u$${MYSQL_USER} -p$${MYSQL_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -188,19 +195,19 @@ docker-compose up -d
 
 ```bash
 # 编译
-mvn clean compile
+./mvnw -B -ntp compile
 
 # 运行测试
-mvn test
+./mvnw -B -ntp test
 
 # 打包
-mvn clean package -DskipTests
+./mvnw -B -ntp clean package -DskipTests
 
 # 运行
-mvn spring-boot:run -pl agent-demo
+./mvnw spring-boot:run -pl agent-demo
 
 # 清理
-mvn clean
+./mvnw -B -ntp clean
 ```
 
 ### 4.2 模块构建顺序
@@ -271,7 +278,7 @@ agentflow:
     provider: deepseek
     api-key: ${AGENTFLOW_MODEL_API_KEY}
     chat-model: deepseek-v4-pro
-    embedding-model: text-embedding-v3
+    embedding-model: text-embedding-v4
 ```
 
 **OpenAI**：
@@ -299,7 +306,7 @@ agentflow:
 ### 6.1 打包
 
 ```bash
-mvn clean package -DskipTests
+./mvnw -B -ntp clean package -DskipTests
 ```
 
 生成文件：`agent-demo/target/agent-demo-0.1.0-SNAPSHOT.jar`
@@ -310,7 +317,7 @@ mvn clean package -DskipTests
 java -jar agent-demo-0.1.0-SNAPSHOT.jar \
   --spring.profiles.active=prod \
   --agentflow.model.api-key=$AGENTFLOW_MODEL_API_KEY \
-  --jwt-secret=$JWT_SECRET
+  --agentflow.security.jwt.secret=$AGENTFLOW_JWT_SECRET
 ```
 
 ### 6.3 Systemd 服务
@@ -326,8 +333,8 @@ User=agentflow
 Group=agentflow
 WorkingDirectory=/opt/agentflow
 ExecStart=/usr/bin/java -jar agent-demo-0.1.0-SNAPSHOT.jar
-Environment=AGENTFLOW_MODEL_API_KEY=your-key
-Environment=JWT_SECRET=your-secret
+EnvironmentFile=/etc/agentflow/agentflow.env
+# agentflow.env must be permission-restricted and contain the required environment names.
 SuccessExitStatus=143
 Restart=always
 RestartSec=10
@@ -368,7 +375,7 @@ curl http://localhost:8080/actuator/health
 
 ```bash
 # MySQL
-docker exec agentflow-mysql mysqladmin ping -uagentflow -pagentflow
+docker exec agentflow-mysql sh -c 'mysqladmin ping -h localhost -u"$MYSQL_USER" -p"$MYSQL_PASSWORD"'
 
 # Redis
 docker exec agentflow-redis redis-cli ping
@@ -406,7 +413,7 @@ docker-compose logs -f qdrant
 | 连接 MySQL 失败 | MySQL 未启动 | `docker-compose up -d mysql` |
 | 连接 Redis 失败 | Redis 未启动 | `docker-compose up -d redis` |
 | Qdrant 连接超时 | Qdrant 未启动 | `docker-compose up -d qdrant` |
-| JWT 验证失败 | JWT_SECRET 不一致 | 检查环境变量 |
+| JWT 验证失败 | `AGENTFLOW_JWT_SECRET` 不一致或长度不足 | 检查受限环境变量 |
 | LLM 调用失败 | API Key 无效 | 检查 AGENTFLOW_MODEL_API_KEY |
 | 429 Too Many Requests | 超过限流 | 等待或调整限流配置 |
 
@@ -419,13 +426,7 @@ logging:
     org.springframework.security: DEBUG
 ```
 
-## 10. 待确认项
+## 10. 当前范围与延期
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | Dockerfile | 待确认 | 是否需要创建？ |
-| 2 | CI/CD | 待确认 | 是否需要 GitHub Actions？ |
-| 3 | Kubernetes | 待确认 | 是否需要 K8s 部署？ |
-| 4 | 监控告警 | 待确认 | 是否需要 Prometheus/Grafana？ |
-| 5 | 日志收集 | 待确认 | 是否需要 ELK？ |
-| 6 | 链路追踪 | 待确认 | 是否需要 Sleuth/Micrometer？ |
+当前只提供本地单进程 Demo 的启动参考。Dockerfile、生产密钥托管、监控告警、Kubernetes、
+微服务和高可用均未在 Feature 001 中实现或验证；如纳入项目，应先建立独立规格和验收条件。

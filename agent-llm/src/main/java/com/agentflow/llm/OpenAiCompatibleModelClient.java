@@ -249,7 +249,7 @@ public class OpenAiCompatibleModelClient {
 
     private boolean hasApiKey() {
         String apiKey = properties.model().getApiKey();
-        return apiKey != null && !apiKey.isBlank() && !"change-me".equals(apiKey);
+        return apiKey != null && !apiKey.isBlank();
     }
 
     private String provider() {

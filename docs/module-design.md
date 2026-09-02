@@ -6,12 +6,12 @@ AgentFlow-Java 由 6 个 Maven 模块组成，每个模块职责单一，通过�
 
 | 模块 | 包名 | 职责 | 文件数 |
 |------|------|------|--------|
-| agent-core | `com.agentflow.core` | 纯接口定义 | 28 |
-| agent-llm | `com.agentflow.llm` | LLM 通信 | 3 |
-| agent-tool | `com.agentflow.tool` | 工具框架 | 3 |
-| agent-rag | `com.agentflow.rag` | RAG 检索 | 2 |
-| agent-web | `com.agentflow.web` | 运行时组装 | 32 |
-| agent-demo | `com.agentflow.demo` | 演示应用 | 16 |
+| agent-core | `com.agentflow.core` | 纯 Java 端口、值对象和枚举 | 以源码为准 |
+| agent-llm | `com.agentflow.llm` | LLM 传输与三个端口适配器 | 以源码为准 |
+| agent-tool | `com.agentflow.tool` | 工具注册与条件装配 | 以源码为准 |
+| agent-rag | `com.agentflow.rag` | RAG 自动配置入口（不提供默认检索器） | 以源码为准 |
+| agent-web | `com.agentflow.web` | Web、持久化和当前临时 Runtime 组装 | 以源码为准 |
+| agent-demo | `com.agentflow.demo` | 组合根、Demo 工具和知识实现 | 以源码为准 |
 
 ## 2. agent-core 模块
 
@@ -42,7 +42,7 @@ public interface AgentEventSink {
 }
 ```
 
-**职责**：发布 Agent 执行过程中的事件，支持 NOOP 空实现。
+**职责**：发布 Agent 执行过程中的事件。`NOOP` 仅是调用方明确选择时的核心工具值，不能作为生产自动配置的成功替身。
 
 #### 2.2.3 聊天模型客户端
 
@@ -202,25 +202,9 @@ LLM 通信适配器层，提供 OpenAI 兼容的模型客户端。
 ```java
 // 文件：agent-llm/.../AgentFlowProperties.java
 @ConfigurationProperties(prefix = "agentflow")
-public record AgentFlowProperties(
-    Model model,
-    Tools tools,
-    Security security,
-    Mcp mcp
-) {
-    public record Model(
-        String provider, String baseUrl, String apiKey,
-        String chatModel, String embeddingModel,
-        int embeddingDimensions, Duration timeout
-    ) {}
-    public record Tools(int maxSteps) {}
-    public record Security(
-        Duration refreshTokenTtl,
-        Jwt jwt
-    ) {
-        public record Jwt(String secret, Duration accessTokenTtl) {}
-    }
-    public record Mcp(boolean enabled) {}
+public class AgentFlowProperties {
+    // JavaBean 风格的 Model、Tools、Security、Mcp 配置对象
+    // 生产 JWT secret 的默认值为空，调用安全配置时必须显式提供
 }
 ```
 
@@ -230,68 +214,40 @@ public record AgentFlowProperties(
 
 ```java
 // 文件：agent-llm/.../OpenAiCompatibleModelClient.java
-public class OpenAiCompatibleModelClient
-    implements AgentModelClient, EmbeddingClient, ChatModelClient {
-
-    // 同步对话
-    public ChatCompletionResponse complete(ChatCompletionRequest request) { ... }
-
-    // 流式对话
-    public ChatCompletionResponse stream(ChatCompletionRequest request,
-                                         Consumer<String> deltaConsumer) { ... }
-
-    // 文本向量化
-    public List<Double> embed(String text) { ... }
-
-    // Agent 专用生成
-    public String generate(ModelPrompt prompt) { ... }
+public class OpenAiCompatibleModelClient {
+    // 共享 OpenAI-compatible HTTP/JSON 传输，不实现核心端口
 }
 ```
 
-**职责**：通过 Spring RestClient 调用 OpenAI 兼容 API。
+**职责**：使用 Spring `RestClient` 调用 `/chat/completions` 和 `/embeddings`，解析同步
+响应与 SSE 流，并把缺少 API Key、Provider 错误、空响应和无效向量转换为
+`ModelClientException`。生产路径没有本地固定回答或确定性向量兜底。
 
-**关键实现**：
-- 使用 `RestClient` 发送 HTTP 请求
-- 手动解析 SSE 流（`data:` 行，`[DONE]` 结束标记）
-- 无 API Key 时返回本地兜底回答
-- 支持 DeepSeek 和 OpenAI 两种 provider
+#### 3.2.3 三个端口适配器
 
-#### 3.2.3 AgentLlmAutoConfiguration
+| 类 | 实现的核心端口 | 作用 |
+|-----|----------------|------|
+| `OpenAiAgentModelClient` | `AgentModelClient` | 为 Runtime 提供生成能力 |
+| `OpenAiChatModelClient` | `ChatModelClient` | 提供同步/流式聊天 |
+| `OpenAiEmbeddingClient` | `EmbeddingClient` | 提供文本向量化 |
+
+三个 Bean 分开注册，因此应用可以只替换其中一个端口。
+
+#### 3.2.4 AgentLlmAutoConfiguration
 
 ```java
 // 文件：agent-llm/.../AgentLlmAutoConfiguration.java
 @AutoConfiguration
+@EnableConfigurationProperties(AgentFlowProperties.class)
 public class AgentLlmAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public OpenAiCompatibleModelClient openAiCompatibleModelClient(
-            AgentFlowProperties properties, RestClient.Builder builder) {
-        return new OpenAiCompatibleModelClient(properties, builder);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(AgentModelClient.class)
-    public AgentModelClient agentModelClient(OpenAiCompatibleModelClient client) {
-        return client;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(EmbeddingClient.class)
-    public EmbeddingClient embeddingClient(OpenAiCompatibleModelClient client) {
-        return client;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(ChatModelClient.class)
-    public ChatModelClient chatModelClient(OpenAiCompatibleModelClient client) {
-        return client;
-    }
+    // 共享传输 + 三个分别按接口 ConditionalOnMissingBean 的适配器
 }
 ```
 
-**职责**：自动注册 LLM 相关 Bean。
+**职责**：通过模块自己的 `AutoConfiguration.imports` 被发现，绑定 `agentflow.*` 配置，
+并让应用自定义端口优先。缺 API Key 可以启动上下文，但首次调用时明确失败。
 
+## 4. agent-tool 模块
 ## 4. agent-tool 模块
 
 ### 4.1 模块定位
@@ -321,12 +277,12 @@ public class InMemoryToolRegistry implements ToolRegistry {
 // 文件：agent-tool/.../McpToolProvider.java
 public class McpToolProvider implements ToolProvider {
     public Collection<AgentTool> tools() {
-        return List.of();  // 占位实现
+        return List.of();  // 当前仅保留接口形状；该提供者不会被自动注册
     }
 }
 ```
 
-**职责**：MCP 协议工具提供者（当前为空实现）。
+**职责**：保留未来 MCP 映射的接口位置；当前不作为生产能力自动注册，Feature 006 再实现。
 
 #### 4.2.3 AgentToolAutoConfiguration
 
@@ -351,39 +307,23 @@ public class AgentToolAutoConfiguration {
 
 ### 5.1 模块定位
 
-RAG 检索适配器层，提供默认的空实现。
+RAG 自动配置发现入口。当前不注册框架级 `RagRetriever`，因为当前 Runtime 将该端口视为
+必需能力；没有应用真实实现时，装配必须明确失败。
 
 ### 5.2 核心类
 
-#### 5.2.1 NoopRagRetriever
-
-```java
-// 文件：agent-rag/.../NoopRagRetriever.java
-public class NoopRagRetriever implements RagRetriever {
-    public List<RagDocument> retrieve(String query, int limit) {
-        return List.of();
-    }
-}
-```
-
-**职责**：空实现，作为默认兜底。
-
-#### 5.2.2 AgentRagAutoConfiguration
+#### 5.2.1 AgentRagAutoConfiguration
 
 ```java
 // 文件：agent-rag/.../AgentRagAutoConfiguration.java
 @AutoConfiguration
 public class AgentRagAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public RagRetriever ragRetriever() {
-        return new NoopRagRetriever();
-    }
+    // 当前无默认 Bean
 }
 ```
 
-**职责**：自动注册默认的 RAG 检索器。
+Demo 的 `KnowledgeRagRetriever` 位于应用模块并通过应用组件注册；其 Qdrant/关键词行为不
+代表 agent-rag 已提供最终可信 RAG，Feature 005 将单独定义检索、引用和降级语义。
 
 ## 6. agent-web 模块
 
@@ -465,33 +405,30 @@ public class DefaultAgentRuntime implements AgentRuntime {
 ```java
 // 文件：agent-web/.../autoconfigure/AgentWebAutoConfiguration.java
 @AutoConfiguration
+@Import({AgentController.class, AgentTaskService.class, TaskEventPublisher.class,
+        AuthController.class, AuthService.class, JwtService.class,
+        ChatController.class, ChatService.class, SecurityConfig.class})
 public class AgentWebAutoConfiguration {
+    @Bean @ConditionalOnMissingBean(TaskPlanner.class)
+    TaskPlanner taskPlanner() { return new SimpleTaskPlanner(); }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public TaskPlanner taskPlanner() {
-        return new SimpleTaskPlanner();
+    @Bean @ConditionalOnMissingBean(ShortTermMemory.class)
+    ShortTermMemory shortTermMemory() { return new InMemoryShortTermMemory(); }
+
+    @Bean @ConditionalOnMissingBean(StepRecorder.class)
+    StepRecorder stepRecorder(AgentStepRepository repository) {
+        return new JpaStepRecorder(repository);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public ShortTermMemory shortTermMemory() {
-        return new InMemoryShortTermMemory();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public StepRecorder stepRecorder() {
-        return new NoopStepRecorder();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public AgentRuntime agentRuntime(...) {
-        return new DefaultAgentRuntime(...);
+    @Bean @ConditionalOnMissingBean(AgentRuntime.class)
+    AgentRuntime agentRuntime(/* required ports */) {
+        return new DefaultAgentRuntime(/* injected ports */);
     }
 }
 ```
+
+`RagRetriever`、`AgentModelClient` 和 `ToolRegistry` 是 Runtime 的构造依赖；缺少其中的真实
+提供者时不会注册 Noop。`RedisShortTermMemory` 不由本模块自动注册，应用需要时显式提供。
 
 ## 7. agent-demo 模块
 
@@ -506,7 +443,6 @@ public class AgentWebAutoConfiguration {
 ```java
 // 文件：agent-demo/.../AgentFlowDemoApplication.java
 @SpringBootApplication
-@Import(SecurityConfig.class)
 public class AgentFlowDemoApplication {
     public static void main(String[] args) {
         SpringApplication.run(AgentFlowDemoApplication.class, args);
@@ -543,14 +479,17 @@ public class AgentFlowDemoApplication {
 | `KnowledgeBootstrapConfig` | 启动时加载内置知识 |
 
 **代码依据**：
-- `InitialDataConfig.java`：`CommandLineRunner` 创建 admin 用户
+- `InitialDataConfig.java`：仅在 `AGENTFLOW_INITIAL_ADMIN_USERNAME` 与 `AGENTFLOW_INITIAL_ADMIN_PASSWORD` 同时显式配置时创建用户
 - `KnowledgeBootstrapConfig.java`：`CommandLineRunner` 调用 `reloadBuiltInKnowledge()`
 
-## 8. 待确认项
+## 8. 当前边界与延期
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | MCP 协议集成 | 待确认 | `McpToolProvider` 为空实现，何时实现？ |
-| 2 | 工具热加载 | 待确认 | 是否支持运行时动态注册工具？ |
-| 3 | 多租户支持 | 待确认 | 当前 userId 是否支持租户隔离？ |
-| 4 | 插件机制 | 待确认 | 是否计划支持插件式工具扩展？ |
+| Feature | 负责内容 |
+|---------|----------|
+| Feature 002 | 纯 Java Runtime、循环、预算、取消和终止；移除当前 Runtime 位于 Web 的临时例外 |
+| Feature 003 | 稳定 Run/SSE 契约与事件协议 |
+| Feature 005 | 可验证 RAG、引用和降级策略 |
+| Feature 006 | MCP Tool 映射与审批 |
+| Feature 008 | 最终 Starter 和按需依赖组合 |
+
+`McpToolProvider` 当前不自动注册；多租户、热加载和插件机制不属于 Feature 001 的承诺。

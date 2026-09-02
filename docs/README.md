@@ -1,6 +1,6 @@
 # AgentFlow-Java 项目文档
 
-> 企业级 AI Agent 开发框架
+> 面向学习和简历展示的 Java Agent 后端；当前以 Feature 001 工程基线为准。
 
 ## 项目简介
 
@@ -11,17 +11,17 @@ AgentFlow-Java 是一个基于 Java 17 + Spring Boot 的 AI Agent 开发框架�
 | 类别 | 技术 | 版本 |
 |------|------|------|
 | 语言 | Java | 17 |
-| 框架 | Spring Boot | 3.5.14 |
-| AI SDK | Spring AI BOM | 1.1.6 |
+| 框架 | Spring Boot | 4.1.1 |
+| AI SDK | 无已验证的 Spring AI 运行依赖 | — |
 | 数据库 | MySQL | 8.4 |
 | 缓存 | Redis | 7.4 |
 | 向量库 | Qdrant | v1.17.0 |
-| API 文档 | Springdoc OpenAPI | 2.8.14 |
+| API 文档 | Springdoc OpenAPI | 3.1.0 |
 
 ## 模块结构
 
 ```
-agent-core    # 纯接口层（零依赖）
+agent-core    # 纯 Java 端口、值对象和枚举（零外部依赖）
 agent-llm     # LLM 通信层
 agent-tool    # 工具框架层
 agent-rag     # RAG 检索层
@@ -46,20 +46,24 @@ agent-demo    # 演示应用（入口）
 ## 快速开始
 
 ```bash
-# 1. 启动基础设施
-docker-compose up -d
+# 1. 复制非秘密环境变量示例，并在本地填写真实值
+cp .env.example .env
 
-# 2. 设置环境变量
-export AGENTFLOW_MODEL_API_KEY=your-api-key
-export JWT_SECRET=your-jwt-secret
+# 2. 按需启动基础设施（Compose 要求显式数据库凭据）
+docker compose --env-file .env up -d
 
 # 3. 启动应用
-mvn spring-boot:run -pl agent-demo
+./mvnw spring-boot:run -pl agent-demo
 
 # 4. 访问
 # API: http://localhost:8080
 # Swagger: http://localhost:8080/swagger-ui.html
 ```
+
+模型 Key、JWT Secret 和初始化管理员凭据必须通过环境变量显式提供：
+`AGENTFLOW_MODEL_API_KEY`、`AGENTFLOW_JWT_SECRET`、
+`AGENTFLOW_INITIAL_ADMIN_USERNAME`、`AGENTFLOW_INITIAL_ADMIN_PASSWORD`。
+示例值只允许使用本地占位符，不要提交真实值。
 
 ## 版本信息
 

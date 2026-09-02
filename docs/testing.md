@@ -11,7 +11,7 @@
 | Spring Boot | 4.1.1 |
 | Maven | Wrapper 3.9.16 |
 | Maven 模块 | 6 个：agent-core、agent-llm、agent-tool、agent-rag、agent-web、agent-demo |
-| 最近一次完整门禁 | 11 个测试通过；Failures/Errors/Skipped = 0/0/0 |
+| 最近一次完整门禁 | 以 `verification.md` 中最新一次实际运行记录为准 |
 | 完整门禁 | `./mvnw -B -ntp clean verify` |
 
 首次使用 Wrapper 或本地缓存为空时，需要访问 Maven Central 下载 Maven 发行包和项目
@@ -30,13 +30,17 @@
 第一条命令应显示 Maven 3.9.16 和 Java 17。第二条命令由本地和 GitHub Actions 共用，
 会构建六个模块并执行可发现的测试；任一失败都返回非零状态。
 
-当前已验证的 Phase 2 结果：
+阶段验证已经覆盖：
 
-- 根 POM 和六个模块均构建成功。
-- 11 个测试通过，Failures、Errors、Skipped 均为 0。
-- agent-core 与 agent-rag 当前没有测试源，构建仍纳入完整门禁。
-- Demo 上下文使用 H2 测试数据库；模型 HTTP 使用 Mock；不访问真实付费服务。
-- 详细命令、耗时和迁移证据见 [Feature 001 验证记录](../specs/001-engineering-baseline-starter/verification.md)。
+- 根 POM 和六个模块的统一构建入口。
+- agent-core 的纯 Java 依赖边界（ArchUnit）。
+- LLM 三个端口的独立覆盖和缺凭据/Provider 错误的明确失败。
+- RAG、ToolRegistry、Web Runtime 的条件装配和应用覆盖。
+- H2 完整 Demo 上下文、11 个临时 HTTP 操作及四组受控 MockMvc 分发。
+- 凭据来源、Compose/页面占位符和生产范围静态扫描。
+
+每次测试的实际数量、失败数、耗时和退出码只以 [Feature 001 验证记录](../specs/001-engineering-baseline-starter/verification.md)
+为准；测试类数量会随任务推进变化，不能把旧快照当作当前结果。
 
 开发单个模块时可先运行聚焦门禁：
 
@@ -51,20 +55,17 @@
 
 ## 3. 当前测试清单
 
-当前有 7 个测试类、11 个测试方法：
+测试文件位于各模块的 `src/test` 目录，当前类别包括：
 
-| 测试类 | 模块 | 已验证内容 |
+| 类别 | 代表测试 | 已验证内容 |
 | --- | --- | --- |
-| `OpenAiCompatibleModelClientTest` | agent-llm | 受控 Mock HTTP 下的同步、流式和 embedding 请求 |
-| `InMemoryToolRegistryTest` | agent-tool | 工具注册、查找和启用/禁用 |
-| `ChatControllerSecurityTest` | agent-web | Chat 入口未认证请求的 401 安全行为 |
-| `ChatServiceTest` | agent-web | Chat Service 的当前同步/流式协作 |
-| `SimpleTaskPlannerTest` | agent-web | 当前规划器规则 |
-| `DefaultAgentRuntimeTest` | agent-web | 当前 Runtime 循环、步骤记录和事件发布 |
-| `AgentWebEndpointRegistrationTest` | agent-demo | H2 完整上下文、Web 入口注册和认证任务分发 |
+| 核心边界 | `CoreDependencyBoundaryTest` | 生产字节码不引用禁止的框架/基础设施类型 |
+| LLM | `AgentLlmAutoConfigurationTest`、`OpenAi*ModelClientTest`、`AgentFlowPropertiesTest` | 三个端口独立退让、请求解析、缺 Key/空响应/Provider 错误和配置绑定 |
+| Tool/RAG | `AgentToolAutoConfigurationTest`、`InMemoryToolRegistryTest`、`AgentRagAutoConfigurationTest` | 空注册表、自定义覆盖和无默认 RAG |
+| Web | `AgentWebAutoConfigurationTest`、`DefaultAgentRuntimeTest`、`SimpleTaskPlannerTest`、Chat/Security 测试 | 条件装配、当前 Runtime/规划器及未认证响应 |
+| Demo | `AgentFlowDemoContextTest`、`TemporaryDemoEndpointSnapshotTest`、`InitialDataConfigTest` | 完整上下文、11 个临时操作、凭据初始化边界 |
 
-测试文件位于各模块的 `src/test` 目录。测试名称和覆盖范围以源代码为准；文件存在不等于
-未来 Agent 能力已经实现。
+测试名称和覆盖范围以源代码与最新验证记录为准；文件存在不等于未来 Agent 能力已经实现。
 
 ## 4. 测试类型与边界
 
@@ -82,15 +83,16 @@ Web MVC 测试切片与测试专用安全配置。它验证当前 Chat 入口的
 
 ### 4.3 完整应用上下文测试
 
-`AgentWebEndpointRegistrationTest` 使用 `@SpringBootTest`、H2 和测试替身启动
+`AgentFlowDemoContextTest` 与 `TemporaryDemoEndpointSnapshotTest` 使用 `@SpringBootTest`、H2 和测试替身启动
 Demo 上下文，检查当前模块自动配置、Controller、Repository 和接口分发。测试不会连接
 生产数据库、Redis、Qdrant 或真实模型。
 
 ### 4.4 尚未纳入本基线的测试
 
-agent-core 的架构依赖检查、各端口条件装配覆盖、真实失败语义、11 个临时操作完整快照、
-凭据扫描和后续 Agent 能力测试，会在 Feature 001 的后续 Phase 或路线图 Feature 中按
-任务单独加入。当前不能用本节的 11 个测试代表这些内容已完成。
+Runtime 的新算法语义、正式 Run/SSE 契约、可信 RAG、MCP、评测和产品级端到端环境不属于
+Feature 001。它们会在路线图对应 Feature 中单独规格化和验证。本基线已经纳入核心边界、
+条件装配、真实失败语义、11 个临时操作快照和凭据扫描，但这些证据不等同于后续 Agent
+能力已经完成。
 
 ## 5. 测试编写规则
 

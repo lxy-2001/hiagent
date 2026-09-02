@@ -103,19 +103,19 @@
 
 ### Failing and Characterization Tests
 
-- [ ] T027 [P] [US3] 在 agent-core/pom.xml 添加仅 test scope 的 ArchUnit，并新增 agent-core/src/test/java/com/agentflow/core/architecture/CoreDependencyBoundaryTest.java，检查 agent-core 生产字节码不引用 Spring、JPA、Servlet、SQL、java.net.http、Redis、Qdrant、模型厂商或 Spring AI 类型
-- [ ] T028 [P] [US3] 将 agent-demo/src/test/java/com/agentflow/demo/AgentWebEndpointRegistrationTest.java 收敛为 agent-demo/src/test/java/com/agentflow/demo/TemporaryDemoEndpointSnapshotTest.java，精确断言 Auth 4、Chat 2、Agent 4、Knowledge 1 共 11 个临时操作，并对四组入口各做一次受控 MockMvc 基本分发
-- [ ] T029 [P] [US3] 新增 agent-llm/src/test/java/com/agentflow/llm/AgentFlowPropertiesTest.java 和 agent-demo/src/test/java/com/agentflow/demo/config/InitialDataConfigTest.java，证明 JWT 无生产默认 Secret、未显式提供初始化账号/密码时不创建管理员、只配置一半凭据时明确失败、完整显式测试凭据才创建测试用户
-- [ ] T030 [US3] 运行 T027-T029 的目标测试并将真实 Red 或 characterization 结果记录到 specs/001-engineering-baseline-starter/verification.md，确认失败只对应 core 越界、入口缺失或生产默认凭据
+- [X] T027 [P] [US3] 在 agent-core/pom.xml 添加仅 test scope 的 ArchUnit，并新增 agent-core/src/test/java/com/agentflow/core/architecture/CoreDependencyBoundaryTest.java，检查 agent-core 生产字节码不引用 Spring、JPA、Servlet、SQL、java.net.http、Redis、Qdrant、模型厂商或 Spring AI 类型
+- [X] T028 [P] [US3] 将 agent-demo/src/test/java/com/agentflow/demo/AgentWebEndpointRegistrationTest.java 收敛为 agent-demo/src/test/java/com/agentflow/demo/TemporaryDemoEndpointSnapshotTest.java，精确断言 Auth 4、Chat 2、Agent 4、Knowledge 1 共 11 个临时操作，并对四组入口各做一次受控 MockMvc 基本分发
+- [X] T029 [P] [US3] 新增 agent-llm/src/test/java/com/agentflow/llm/AgentFlowPropertiesTest.java 和 agent-demo/src/test/java/com/agentflow/demo/config/InitialDataConfigTest.java，证明 JWT 无生产默认 Secret、未显式提供初始化账号/密码时不创建管理员、只配置一半凭据时明确失败、完整显式测试凭据才创建测试用户
+- [X] T030 [US3] 运行 T027-T029 的目标测试并将真实 Red 或 characterization 结果记录到 specs/001-engineering-baseline-starter/verification.md，确认失败只对应 core 越界、入口缺失或生产默认凭据
 
 ### Minimal Implementation and Documentation Truth
 
-- [ ] T031 [US3] 修改 agent-llm/src/main/java/com/agentflow/llm/AgentFlowProperties.java、agent-web/src/main/java/com/agentflow/web/config/SecurityConfig.java、agent-demo/src/main/java/com/agentflow/demo/config/InitialDataConfig.java 和 agent-demo/src/main/resources/application.yml，移除 JWT、数据库与初始化管理员通用默认值；缺 Secret 或半配置管理员时给出明确错误，测试值只存在于 src/test
-- [ ] T032 [US3] 创建 .env.example 并修改 docker-compose.yml 与 agent-demo/src/main/resources/static/index.html，使 Compose 和页面不再包含可直接使用的数据库/管理员密码，只展示环境变量名及非秘密占位说明
-- [ ] T033 [P] [US3] 更新 README.md、specs/README.md 和 docs/testing.md，标明 Feature 001 当前状态、唯一 Wrapper 门禁、外部服务隔离、真实失败语义和后续 Feature 边界，删除无激活 Feature、固定账号及错误测试统计
-- [ ] T034 [P] [US3] 更新 docs/architecture.md 和 docs/module-design.md，准确描述精确 AutoConfiguration.imports、逐端口覆盖、无 Noop RAG/Recorder、当前 Runtime/Web 临时边界以及 Feature 002/005/008 的退出点
-- [ ] T035 [P] [US3] 更新 docs/configuration.md、docs/api/rest-api.md、docs/database.md 和 docs/deployment.md，移除固定 Key/Secret/密码、本地兜底和未经验证的稳定 SSE/高可用承诺，将 11 个操作明确标记为临时 Demo；保留 docs/learn/ 用户学习快照不变
-- [ ] T036 [US3] 运行 ./mvnw -pl agent-core -am test、./mvnw -pl agent-demo -am test 和 git diff --check，并按 plan.md 的“凭据扫描”规则扫描 agent-*/src/main/**、docker-compose.yml、README.md、specs/ 和 docs/（排除 docs/learn/）中的 API key、JWT secret、数据库/管理员 password 非空字面量及基线审计记录的已知历史默认凭据指纹清单；允许环境变量引用、明确的非秘密占位符和 src/test/** 测试值，生产范围命中时命令必须非零且只记录脱敏文件/行号；同时将 0 违规、11 操作和四组分发证据记录到 specs/001-engineering-baseline-starter/verification.md
+- [X] T031 [US3] 修改 agent-llm/src/main/java/com/agentflow/llm/AgentFlowProperties.java、agent-web/src/main/java/com/agentflow/web/config/SecurityConfig.java、agent-demo/src/main/java/com/agentflow/demo/config/InitialDataConfig.java 和 agent-demo/src/main/resources/application.yml，移除 JWT、数据库与初始化管理员通用默认值；缺 Secret 或半配置管理员时给出明确错误，测试值只存在于 src/test
+- [X] T032 [US3] 创建 .env.example 并修改 docker-compose.yml 与 agent-demo/src/main/resources/static/index.html，使 Compose 和页面不再包含可直接使用的数据库/管理员密码，只展示环境变量名及非秘密占位说明
+- [X] T033 [P] [US3] 更新 README.md、specs/README.md 和 docs/testing.md，标明 Feature 001 当前状态、唯一 Wrapper 门禁、外部服务隔离、真实失败语义和后续 Feature 边界，删除无激活 Feature、固定账号及错误测试统计
+- [X] T034 [P] [US3] 更新 docs/architecture.md 和 docs/module-design.md，准确描述精确 AutoConfiguration.imports、逐端口覆盖、无 Noop RAG/Recorder、当前 Runtime/Web 临时边界以及 Feature 002/005/008 的退出点
+- [X] T035 [P] [US3] 更新 docs/configuration.md、docs/api/rest-api.md、docs/database.md 和 docs/deployment.md，移除固定 Key/Secret/密码、本地兜底和未经验证的稳定 SSE/高可用承诺，将 11 个操作明确标记为临时 Demo；保留 docs/learn/ 用户学习快照不变
+- [X] T036 [US3] 运行 ./mvnw -pl agent-core -am test、./mvnw -pl agent-demo -am test 和 git diff --check，并按 plan.md 的“凭据扫描”规则扫描 agent-*/src/main/**、docker-compose.yml、README.md、specs/ 和 docs/（排除 docs/learn/）中的 API key、JWT secret、数据库/管理员 password 非空字面量及基线审计记录的已知历史默认凭据指纹清单；允许环境变量引用、明确的非秘密占位符和 src/test/** 测试值，生产范围命中时命令必须非零且只记录脱敏文件/行号；同时将 0 违规、11 操作和四组分发证据记录到 specs/001-engineering-baseline-starter/verification.md
 
 **Phase 5 checkpoint**: 架构、临时入口、凭据和正式文档均满足 US3 后，创建 Phase 5 完成提交。
 

@@ -1,5 +1,9 @@
 # REST API 接口文档
 
+> 本文档是 Feature 001 的临时 Demo 操作快照：当前共记录 Auth 4、Chat 2、Agent 4、Knowledge 1
+> 共 11 个操作，用于入口注册和基本分发验证。它不是稳定公开 API；正式版本控制、Run/SSE、
+> 事件重放和取消协议由 Feature 003 重新定义。
+
 ## 1. 概述
 
 ### 1.1 基础信息
@@ -70,8 +74,8 @@ Authorization: Bearer <access_token>
 
 ```json
 {
-  "username": "admin",
-  "password": "agentflow123"
+  "username": "<configured-username>",
+  "password": "<configured-password>"
 }
 ```
 
@@ -180,7 +184,7 @@ Authorization: Bearer <access_token>
 ```json
 {
   "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "username": "admin",
+  "username": "<configured-username>",
   "roles": ["USER"]
 }
 ```
@@ -233,7 +237,7 @@ Authorization: Bearer <access_token>
 | `usage.promptTokens` | int | 提示 Token 数 |
 | `usage.completionTokens` | int | 完成 Token 数 |
 | `usage.totalTokens` | int | 总 Token 数 |
-| `mocked` | boolean | 是否为本地兜底回答 |
+| `mocked` | boolean | Provider/测试替身返回的观测标记；生产缺凭据不会生成本地回答 |
 
 **响应示例**：
 
@@ -491,9 +495,10 @@ event: FINAL
 data: {"taskId":"...","type":"FINAL","name":"FINAL","content":"...","occurredAt":"..."}
 ```
 
-**说明**：
-- 支持断线重连，重连后会回放历史事件（Redis 缓存）
-- 事件缓存保留 2 小时，最多 100 条
+**当前实现观察**：
+- 订阅时会尝试回放 Redis 列表中的历史事件，并同时登记实时 `SseEmitter`。
+- 当前实现将每个任务最多保留 100 条事件、Redis TTL 为 2 小时；这些是实现细节，不是稳定
+  兼容承诺，重连、授权、事件顺序和取消语义由 Feature 003 重新定义。
 
 **代码依据**：`AgentController.java:43-45` → `TaskEventPublisher.java:44-60`
 
@@ -547,12 +552,12 @@ data: {"taskId":"...","type":"FINAL","name":"FINAL","content":"...","occurredAt"
 
 ---
 
-## 7. 待确认项
+## 7. 后续重新定义
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | API 版本控制 | 待确认 | 是否需要 `/api/v1/` 前缀？ |
-| 2 | 分页支持 | 待确认 | 列表接口是否需要分页？ |
-| 3 | 接口文档自动生成 | 待确认 | 是否启用 Springdoc OpenAPI？ |
-| 4 | WebSocket 支持 | 待确认 | 是否需要 WebSocket 替代 SSE？ |
-| 5 | 文件上传 | 待确认 | 是否支持知识文件上传？ |
+| Feature | 负责内容 |
+|---------|----------|
+| Feature 003 | 稳定 API 版本、Run/SSE、事件重放、重连和取消协议 |
+| Feature 005 | 知识上传、可信检索和引用响应 |
+| Feature 008 | 最终 Starter 的公开依赖和发布契约 |
+
+在这些 Feature 完成前，不应依据本页的临时路径编写长期客户端兼容逻辑。

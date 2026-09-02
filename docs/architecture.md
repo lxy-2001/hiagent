@@ -20,7 +20,7 @@ AgentFlow-Java 采用**六边形架构（Hexagonal Architecture）**，也称为
 │                    agent-demo（应用层）                    │
 │         @SpringBootApplication + 业务工具 + 知识库         │
 ├─────────────────────────────────────────────────────────┤
-│                    agent-web（组装层）                     │
+│              agent-web（当前组装层/临时 Runtime）          │
 │    控制器 + 认证 + JPA + Redis + DefaultAgentRuntime      │
 ├───────────┬───────────────┬──────────────┬──────────────┤
 │ agent-llm │  agent-tool   │  agent-rag   │  （适配器层）  │
@@ -64,22 +64,25 @@ graph TD
 
 ### 3.1 接口清单
 
-| 接口 | 包路径 | 职责 | 实现类 |
-|------|--------|------|--------|
-| `AgentRuntime` | `com.agentflow.core` | Agent 运行时入口 | `DefaultAgentRuntime` |
-| `AgentEventSink` | `com.agentflow.core` | 事件发布 | `TaskEventPublisher` |
-| `ChatModelClient` | `com.agentflow.core.chat` | LLM 对话客户端 | `OpenAiCompatibleModelClient` |
-| `AgentModelClient` | `com.agentflow.core.model` | Agent 专用模型客户端 | `OpenAiCompatibleModelClient` |
-| `EmbeddingClient` | `com.agentflow.core.model` | 向量化客户端 | `OpenAiCompatibleModelClient` |
-| `TaskPlanner` | `com.agentflow.core.planner` | 任务规划器 | `SimpleTaskPlanner` |
-| `RagRetriever` | `com.agentflow.core.rag` | 知识检索器 | `KnowledgeRagRetriever` |
-| `ShortTermMemory` | `com.agentflow.core.memory` | 短期记忆 | `RedisShortTermMemory` |
-| `StepRecorder` | `com.agentflow.core.step` | 步骤记录器 | `JpaStepRecorder` |
-| `AgentTool` | `com.agentflow.core.tool` | 工具接口 | `InterfaceDraftTool` 等 |
-| `ToolRegistry` | `com.agentflow.core.tool` | 工具注册表 | `InMemoryToolRegistry` |
-| `ToolProvider` | `com.agentflow.core.tool` | 工具提供者 | `McpToolProvider` |
+| 接口 | 包路径 | 职责 | 当前实现/来源 |
+|------|--------|------|---------------|
+| `AgentRuntime` | `com.agentflow.core` | Agent 运行时入口 | `DefaultAgentRuntime`（暂在 agent-web，Feature 002 迁移） |
+| `AgentEventSink` | `com.agentflow.core` | 事件发布端口 | `TaskEventPublisher`（Web） |
+| `ChatModelClient` | `com.agentflow.core.chat` | 对话模型端口 | `OpenAiChatModelClient`（agent-llm） |
+| `AgentModelClient` | `com.agentflow.core.model` | Agent 模型端口 | `OpenAiAgentModelClient`（agent-llm） |
+| `EmbeddingClient` | `com.agentflow.core.model` | 文本向量化端口 | `OpenAiEmbeddingClient`（agent-llm） |
+| `TaskPlanner` | `com.agentflow.core.planner` | 任务规划端口 | `SimpleTaskPlanner`（Web 默认） |
+| `RagRetriever` | `com.agentflow.core.rag` | 知识检索端口 | Demo 的 `KnowledgeRagRetriever`（应用显式提供） |
+| `ShortTermMemory` | `com.agentflow.core.memory` | 短期记忆端口 | `InMemoryShortTermMemory`（Web 默认）；Redis 实现需应用显式提供 |
+| `StepRecorder` | `com.agentflow.core.step` | 步骤记录端口 | `JpaStepRecorder`（Web 条件 Bean） |
+| `AgentTool` | `com.agentflow.core.tool` | 工具端口 | Demo 中的各个 `*DraftTool` |
+| `ToolRegistry` | `com.agentflow.core.tool` | 工具注册表端口 | `InMemoryToolRegistry`（Tool 默认） |
+| `ToolProvider` | `com.agentflow.core.tool` | 工具提供者端口 | 当前无自动注册的生产实现；MCP 留给 Feature 006 |
 
-**代码依据**：`agent-core/src/main/java/com/agentflow/core/` 目录下所有接口
+`agent-core` 只提供端口、值对象和枚举。`DefaultAgentRuntime` 暂时位于 `agent-web` 是
+Feature 001 已批准的过渡例外，不能据此向核心层引入 Spring 或基础设施依赖。
+
+**代码依据**：`agent-core/src/main/java/com/agentflow/core/` 与各模块实现目录
 
 ### 3.2 数据传输对象（Records）
 
@@ -233,45 +236,49 @@ sequenceDiagram
 
 | 服务 | 协议 | 用途 | 客户端类 |
 |------|------|------|---------|
-| DeepSeek/OpenAI | HTTPS | LLM 对话、Embedding | `OpenAiCompatibleModelClient` |
+| DeepSeek/OpenAI | HTTPS | LLM 对话、Embedding | `OpenAiCompatibleModelClient`（共享传输）+ 三个端口适配器 |
 | MySQL | JDBC | 持久化存储 | JPA + Hibernate |
 | Redis | TCP | 缓存、事件、限流、记忆 | `StringRedisTemplate` |
 | Qdrant | HTTP REST | 向量存储和检索 | `QdrantClient` |
 
 **代码依据**：
-- `OpenAiCompatibleModelClient.java`：RestClient 调用 `/chat/completions` 和 `/embeddings`
+- `OpenAiCompatibleModelClient.java`：共享 RestClient 传输，调用 `/chat/completions` 和 `/embeddings`
+- `OpenAiAgentModelClient.java`、`OpenAiChatModelClient.java`、`OpenAiEmbeddingClient.java`：分别实现核心模型端口
 - `QdrantClient.java`：RestClient 调用 Qdrant REST API
 - `agent-web` 中所有使用 `StringRedisTemplate` 的类
 
 ## 6. 自动装配机制
 
-### 6.1 Spring Boot AutoConfiguration
+### 6.1 精确发现链
 
-每个适配器模块都有一个 `@AutoConfiguration` 类，通过 `@ConditionalOnMissingBean` 注册默认实现：
+各适配器模块通过自己的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+暴露自动配置；当前四个文件分别加载 `AgentLlmAutoConfiguration`、`AgentToolAutoConfiguration`、
+`AgentRagAutoConfiguration` 和 `AgentWebAutoConfiguration`。Demo 不依赖扩大根包扫描来发现
+跨模块 Bean。
 
-| 模块 | 配置类 | 注册的 Bean |
-|------|--------|------------|
-| agent-llm | `AgentLlmAutoConfiguration` | `OpenAiCompatibleModelClient`（作为 AgentModelClient、EmbeddingClient、ChatModelClient） |
-| agent-tool | `AgentToolAutoConfiguration` | `InMemoryToolRegistry` |
-| agent-rag | `AgentRagAutoConfiguration` | `NoopRagRetriever` |
-| agent-web | `AgentWebAutoConfiguration` | `SimpleTaskPlanner`、`RedisShortTermMemory`、`JpaStepRecorder`、`DefaultAgentRuntime` |
-
-**代码依据**：各模块 `*AutoConfiguration.java` 文件
+| 模块 | 自动配置 | 当前注册语义 |
+|------|----------|--------------|
+| agent-llm | `AgentLlmAutoConfiguration` | 创建共享 OpenAI-compatible 传输，并分别以 `@ConditionalOnMissingBean` 注册 `AgentModelClient`、`ChatModelClient`、`EmbeddingClient` |
+| agent-tool | `AgentToolAutoConfiguration` | 没有应用 `ToolRegistry` 时创建真实的 `InMemoryToolRegistry`，收集应用 `AgentTool` |
+| agent-rag | `AgentRagAutoConfiguration` | 只作为发现入口；不注册默认 `RagRetriever`，缺少真实实现时 Runtime 装配明确失败 |
+| agent-web | `AgentWebAutoConfiguration` | 显式导入 Web Controller/Service/Security，条件注册 Planner、内存记忆、JPA Recorder 和当前临时 Runtime |
 
 ### 6.2 Bean 覆盖机制
 
-由于使用 `@ConditionalOnMissingBean`，应用层可以轻松覆盖默认实现：
+条件注解按接口检查应用是否已经提供实现。应用可以用 `@Bean`、`@Component` 或测试上下文
+提供替换；存在应用 Bean 时对应默认 Bean 不创建。RAG 当前没有框架默认值，因此 Demo 必须
+显式提供真实实现：
 
 ```java
-// 在 agent-demo 中覆盖默认的 RagRetriever
 @Component
 @Primary
 public class KnowledgeRagRetriever implements RagRetriever {
-    // 覆盖 agent-rag 的 NoopRagRetriever
+    // 应用自己的 RAG 实现；agent-rag 不会注册 Noop 兜底
 }
 ```
 
-**代码依据**：`agent-demo/.../knowledge/KnowledgeRagRetriever.java` 使用 `@Primary` 覆盖
+这套机制只负责选择和装配，不把外部类型泄漏进 `agent-core`。最终 Starter 的依赖拆分和
+可选适配器组合留给 Feature 008。
 
 ## 7. 安全架构
 
@@ -359,12 +366,17 @@ graph LR
 - `TaskEventPublisher.java`：Redis 缓存 + SSE 推送
 - `AgentStepType.java`：事件类型枚举
 
-## 9. 待确认项
+## 9. 当前边界与延期
 
-| # | 项目 | 状态 | 说明 |
-|---|------|------|------|
-| 1 | 微服务拆分 | 待确认 | 当前为单体架构，是否有微服务化计划？ |
-| 2 | 服务注册发现 | 待确认 | 是否需要集成 Nacos/Eureka？ |
-| 3 | 链路追踪 | 待确认 | 是否需要集成 Sleuth/Micrometer？ |
-| 4 | 配置中心 | 待确认 | 是否需要集成 Nacos Config？ |
-| 5 | 消息队列 | 待确认 | 是否需要集成 RabbitMQ/Kafka？ |
+Feature 001 只验证单进程模块化应用的构建、自动配置和边界。下列事项不是当前承诺，必须
+在对应 Feature 中重新规格化和验证：
+
+| Feature | 延期内容 |
+|---------|----------|
+| Feature 002 | 纯 Java Runtime、决策循环、预算、取消和终止语义；届时移除 Runtime/Web 临时例外 |
+| Feature 003 | 稳定 Run/SSE API、事件重放和取消协议 |
+| Feature 005 | 可验证 RAG、引用策略和降级语义 |
+| Feature 006 | MCP 传输、Tool 映射和审批 |
+| Feature 008 | 最终 Starter、按需适配器依赖和发布组合 |
+
+当前未对微服务、Kubernetes、高可用、完整 APM 或产品级前端作出实现承诺。

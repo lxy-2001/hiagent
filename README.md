@@ -3,9 +3,8 @@
 HiAgent 是一个面向学习、面试讲解和简历展示的 Java Agent 后端项目。重点是实现并证明
 Agent 的运行机制，同时把模型、Tool、RAG、MCP 和 Spring Boot 集成设计成可替换模块。
 
-> 当前 Feature 001 仍处于 ACTIVE：Phase 1（工程基线）和 Phase 2（Boot 4.1.1
-> 兼容迁移）已在本地验证并提交；后续装配、失败语义、架构边界和凭据治理仍按
-> [路线图](specs/ROADMAP.md)逐阶段实施。远端 CI 结果以 GitHub Actions 实际运行记录为准。
+> 当前 Feature 001 处于 ACTIVE：Phase 1～5 已在本地验证并提交，Phase 6 的全仓验收、
+> 文档收尾和分支推送仍待完成。远端 CI 结果以 GitHub Actions 实际运行记录为准。
 
 ## V1 要证明的能力
 
@@ -55,7 +54,7 @@ RAG 引用策略、MCP 映射、风险控制和评测逻辑。
 | Maven | Wrapper 固定 3.9.16 |
 | Spring Boot | 4.1.1 |
 | Maven 模块 | 6 个（core、llm、tool、rag、web、demo） |
-| 本地全仓结果 | 11 个测试通过，Failures/Errors/Skipped = 0/0/0（Phase 2） |
+| 本地全仓结果 | 最近一次实际结果以 [验证记录](specs/001-engineering-baseline-starter/verification.md) 为准 |
 
 默认验证不需要真实模型 API Key、MySQL、Redis、Qdrant 或 Docker；测试使用 H2、Mock HTTP
 和受控测试替身。首次运行 Wrapper 或依赖未缓存时需要访问 Maven Central 下载文件。

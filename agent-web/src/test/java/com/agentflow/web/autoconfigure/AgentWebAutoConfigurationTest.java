@@ -124,6 +124,7 @@ class AgentWebAutoConfigurationTest {
                 .withConfiguration(AutoConfigurations.of(
                         AgentWebAutoConfiguration.class,
                         AgentRagAutoConfiguration.class))
+                .withPropertyValues("agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32")
                 .withUserConfiguration(TestDependencies.class);
     }
 
