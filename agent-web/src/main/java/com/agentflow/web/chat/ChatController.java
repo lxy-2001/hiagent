@@ -1,6 +1,10 @@
 package com.agentflow.web.chat;
 
+import com.agentflow.llm.ModelClientException;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +34,12 @@ public class ChatController {
         return chatService.chat(request);
     }
 
+    @ExceptionHandler(ModelClientException.class)
+    ResponseEntity<ChatErrorResponse> handleModelClientException(ModelClientException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ChatErrorResponse("MODEL_UNAVAILABLE", ex.getMessage()));
+    }
+
     @PostMapping("/stream")
     public SseEmitter stream(@Valid @RequestBody ChatRequest request) {
         SseEmitter emitter = new SseEmitter(Duration.ofMinutes(30).toMillis());
@@ -53,6 +63,9 @@ public class ChatController {
         } catch (IOException ex) {
             throw new UncheckedIOException(ex);
         }
+    }
+
+    public record ChatErrorResponse(String code, String message) {
     }
 
     private void sendError(SseEmitter emitter, Exception ex) {
