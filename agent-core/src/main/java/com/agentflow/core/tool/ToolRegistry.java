@@ -1,5 +1,6 @@
 package com.agentflow.core.tool;
 
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -7,14 +8,14 @@ import java.util.Set;
 
 public interface ToolRegistry {
 
-    void register(AgentTool tool);
-
-    default void register(ToolRegistration registration) {
-        if (registration == null) {
-            throw new NullPointerException("registration must not be null");
+    default void register(AgentTool tool) {
+        if (tool == null) {
+            throw new NullPointerException("tool must not be null");
         }
-        register(registration.tool());
+        register(new ToolRegistration(tool, true));
     }
+
+    void register(ToolRegistration registration);
 
     ToolLookup lookup(String name);
 
@@ -31,6 +32,6 @@ public interface ToolRegistry {
         for (ToolDefinition definition : enabledDefinitions()) {
             names.add(definition.name());
         }
-        return Set.copyOf(names);
+        return Collections.unmodifiableSet(names);
     }
 }
