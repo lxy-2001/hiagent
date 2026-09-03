@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultToolExecutorTest {
     @Test
@@ -51,6 +53,33 @@ class DefaultToolExecutorTest {
         assertEquals(ToolResultStatus.SUCCESS, success.status());
         assertEquals("TOOL_ERROR", failure.errorCode());
         assertEquals(2, executions.get());
+    }
+
+    @Test
+    void nullNormalizerUsesSafeDefault() {
+        AgentTool tool = new AgentTool() {
+            private final ToolDefinition definition = DefaultToolExecutorTest.definition();
+
+            @Override
+            public ToolDefinition definition() {
+                return definition;
+            }
+
+            @Override
+            public ToolResult execute(ToolArguments arguments, ToolContext context) {
+                return ToolResult.success("echo", "apiKey=secret-value");
+            }
+        };
+        InRegistry registry = new InRegistry(new ToolRegistration(tool, true));
+        DefaultToolExecutor executor = new DefaultToolExecutor(registry, null);
+
+        ToolResult result = executor.execute(new ToolCall("c-safe", "echo",
+                new ToolArguments(Map.of("text", "hello"))),
+                new ToolContext("t", "s", "u"));
+
+        assertTrue(result.output().contains("[redacted]"));
+        assertFalse(result.output().contains("secret-value"));
+        assertEquals("c-safe", result.callId());
     }
 
     private static AgentTool tool(AtomicInteger executions) {

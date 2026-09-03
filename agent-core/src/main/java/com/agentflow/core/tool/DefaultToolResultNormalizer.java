@@ -22,6 +22,7 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
         if (output != null && output.length() > MAX_OUTPUT_CHARS) {
             return failure(call, "TOOL_RESULT_TOO_LARGE", "tool result exceeds output limit");
         }
+        output = sanitize(output);
         if (raw.status() == ToolResultStatus.SUCCESS) {
             if (output == null || output.isBlank()) {
                 return failure(call, "TOOL_RESULT_INVALID", "successful tool result must have output");
@@ -44,7 +45,10 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
         if (diagnostic == null) {
             return null;
         }
-        String value = diagnostic.replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1=[redacted]");
+        String value = diagnostic
+                .replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1[redacted]")
+                .replaceAll("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
+                .replaceAll("(?i)([?&](?:api[-_ ]?key|token|secret|password)=)[^&\\s]+", "$1[redacted]");
         return value.length() <= 1024 ? value : value.substring(0, 1024);
     }
 }

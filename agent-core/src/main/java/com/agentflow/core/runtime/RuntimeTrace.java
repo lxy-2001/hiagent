@@ -98,7 +98,10 @@ public final class RuntimeTrace {
         if (value == null) {
             return "";
         }
-        String sanitized = value.replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1=[redacted]");
+        String sanitized = value
+                .replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1[redacted]")
+                .replaceAll("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
+                .replaceAll("(?i)([?&](?:api[-_ ]?key|token|secret|password)=)[^&\\s]+", "$1[redacted]");
         return sanitized.length() <= 1024 ? sanitized : sanitized.substring(0, 1024);
     }
 }

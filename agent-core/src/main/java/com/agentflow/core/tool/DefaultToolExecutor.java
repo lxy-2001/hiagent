@@ -9,7 +9,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
 
     public DefaultToolExecutor(ToolRegistry registry, ToolResultNormalizer normalizer) {
         this.registry = Objects.requireNonNull(registry, "registry must not be null");
-        this.normalizer = normalizer == null ? ToolResultNormalizer.IDENTITY : normalizer;
+        this.normalizer = normalizer == null ? new DefaultToolResultNormalizer() : normalizer;
     }
 
     public DefaultToolExecutor(ToolRegistry registry) {

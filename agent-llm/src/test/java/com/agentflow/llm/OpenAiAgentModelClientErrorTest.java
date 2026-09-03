@@ -53,6 +53,19 @@ class OpenAiAgentModelClientErrorTest {
     }
 
     @Test
+    void doesNotExposeCredentialThroughExceptionCause() {
+        ModelClientException exception = new ModelClientException(
+                ModelClientException.PROVIDER_ERROR,
+                "apiKey=secret-value",
+                new IllegalArgumentException("password=another-secret"));
+
+        org.assertj.core.api.Assertions.assertThat(exception.getMessage())
+                .doesNotContain("secret-value");
+        org.assertj.core.api.Assertions.assertThat(exception.getCause().getMessage())
+                .doesNotContain("another-secret");
+    }
+
+    @Test
     void missingApiKeyFailsBeforeTransport() {
         RestClient.Builder builder = RestClient.builder();
         AgentFlowProperties properties = properties();

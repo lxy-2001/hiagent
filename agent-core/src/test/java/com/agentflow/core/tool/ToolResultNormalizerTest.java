@@ -44,6 +44,16 @@ class ToolResultNormalizerTest {
         assertEquals("call-1", result.callId());
     }
 
+    @Test
+    void redactsSensitiveToolOutputBeforeItCanReachTheNextModelTurn() {
+        ToolResult result = normalizer.normalize(call,
+                ToolResult.success("echo", "apiKey=secret-value Bearer bearer-secret"));
+
+        assertTrue(result.output().contains("[redacted]"));
+        assertFalse(result.output().contains("secret-value"));
+        assertFalse(result.output().contains("bearer-secret"));
+    }
+
     private static void assertFailure(ToolResult result, String code) {
         assertEquals(ToolResultStatus.FAILED, result.status());
         assertEquals(code, result.errorCode());

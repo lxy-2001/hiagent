@@ -99,6 +99,7 @@ public class AgentTaskService {
             message = throwable == null ? "agent task failed" : throwable.getClass().getSimpleName();
         }
         String sanitized = message
+                .replaceAll("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
                 .replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1[redacted]")
                 .replaceAll("(?i)([?&](?:api[-_ ]?key|token|secret|password)=)[^&\\s]+", "$1[redacted]");
         return sanitized.length() <= 1_024 ? sanitized : sanitized.substring(0, 1_024);

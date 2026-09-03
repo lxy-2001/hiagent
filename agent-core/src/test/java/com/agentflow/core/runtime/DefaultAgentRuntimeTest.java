@@ -93,11 +93,17 @@ class DefaultAgentRuntimeTest {
 
     @Test
     void deterministicTwoToolScenarioIsRepeatable() {
+        long maxElapsedNanos = 0;
         for (int run = 0; run < 100; run++) {
+            long runStarted = System.nanoTime();
             final int runId = run;
             TestRegistry registry = new TestRegistry(List.of(tool("tool-a"), tool("tool-b")));
-            ToolExecutor executor = (call, context) -> new ToolResult(call.name(), "ok-" + call.name(),
+            List<String> order = new ArrayList<>();
+            ToolExecutor executor = (call, context) -> {
+                order.add(call.name());
+                return new ToolResult(call.name(), "ok-" + call.name(),
                     com.agentflow.core.tool.ToolResultStatus.SUCCESS, null, null, false, call.callId());
+            };
             AgentModelClient model = request -> switch (request.iteration()) {
                 case 1 -> new ToolCallDecision("d1", new ToolCall("a-" + runId, "tool-a",
                         new ToolArguments(Map.of("text", "a"))), TokenUsage.empty());
@@ -111,7 +117,11 @@ class DefaultAgentRuntimeTest {
                     "task-" + runId, "session", "user", "input"), event -> { });
             assertEquals(RunStatus.SUCCEEDED, result.status());
             assertEquals("done", result.finalAnswer());
+            assertEquals(List.of("tool-a", "tool-b"), order);
+            maxElapsedNanos = Math.max(maxElapsedNanos, System.nanoTime() - runStarted);
         }
+        assertTrue(maxElapsedNanos < 1_000_000_000L,
+                "deterministic two-tool scenario exceeded one second");
     }
 
     @Test

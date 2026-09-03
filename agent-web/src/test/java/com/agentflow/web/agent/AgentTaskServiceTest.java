@@ -52,7 +52,7 @@ class AgentTaskServiceTest {
             public AgentResult run(com.agentflow.core.AgentRequest request,
                                    com.agentflow.core.AgentEventSink eventSink,
                                    com.agentflow.core.runtime.AgentRunOptions options) {
-                throw new IllegalStateException("apiKey=secret-value token=another-secret");
+                throw new IllegalStateException("Bearer bearer-secret apiKey=secret-value token=another-secret");
             }
         };
         AgentTaskService service = service(runtime, tasks, events, submitted);
@@ -62,7 +62,7 @@ class AgentTaskServiceTest {
         submitted.get().run();
 
         assertThat(task.getStatus()).isEqualTo("FAILED");
-        assertThat(task.getFinalAnswer()).doesNotContain("secret-value").doesNotContain("another-secret");
+        assertThat(task.getFinalAnswer()).doesNotContain("bearer-secret").doesNotContain("secret-value").doesNotContain("another-secret");
         verify(events).error(eq(response.taskId()), any(IllegalStateException.class));
     }
 

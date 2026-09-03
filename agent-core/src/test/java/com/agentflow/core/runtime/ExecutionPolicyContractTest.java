@@ -41,6 +41,23 @@ class ExecutionPolicyContractTest {
     }
 
     @Test
+    void resultBoundaryRedactsSensitiveAnswerAndDiagnostic() {
+        AgentResult success = AgentResult.success("t", "apiKey=secret-value",
+                List.of(), TokenUsage.empty());
+        assertFalse(success.finalAnswer().contains("secret-value"));
+        assertTrue(success.finalAnswer().contains("[redacted]"));
+
+        AgentResult failure = AgentResult.failure("t", RunStatus.FAILED,
+                TerminationReason.MODEL_ERROR, "Bearer bearer-secret password=pw",
+                List.of(), TokenUsage.empty());
+        assertFalse(failure.diagnostic().contains("bearer-secret"));
+        assertFalse(failure.diagnostic().contains("pw"));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentResult("t", null, List.of(), RunStatus.FAILED,
+                        TerminationReason.COMPLETED, TokenUsage.empty(), ""));
+    }
+
+    @Test
     void requestRejectsBlankInputAndFailureResultCannotLookSuccessful() {
         assertThrows(IllegalArgumentException.class,
                 () -> new AgentRequest("t", "s", "u", "  "));

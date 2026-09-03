@@ -26,7 +26,8 @@ public record AgentResult(
         Objects.requireNonNull(status, "status must not be null");
         Objects.requireNonNull(terminationReason, "terminationReason must not be null");
         Objects.requireNonNull(usage, "usage must not be null");
-        diagnostic = diagnostic == null ? "" : diagnostic;
+        finalAnswer = finalAnswer == null ? null : sanitize(finalAnswer);
+        diagnostic = sanitize(diagnostic);
         if (status == RunStatus.SUCCEEDED) {
             if (terminationReason != TerminationReason.COMPLETED) {
                 throw new IllegalArgumentException("successful result must terminate as COMPLETED");
@@ -34,8 +35,13 @@ public record AgentResult(
             if (finalAnswer == null || finalAnswer.isBlank()) {
                 throw new IllegalArgumentException("successful result must have finalAnswer");
             }
-        } else if (finalAnswer != null && !finalAnswer.isBlank()) {
-            throw new IllegalArgumentException("non-success result must not have finalAnswer");
+        } else {
+            if (terminationReason == TerminationReason.COMPLETED) {
+                throw new IllegalArgumentException("non-success result cannot terminate as COMPLETED");
+            }
+            if (finalAnswer != null && !finalAnswer.isBlank()) {
+                throw new IllegalArgumentException("non-success result must not have finalAnswer");
+            }
         }
         if (status != RunStatus.SUCCEEDED && (finalAnswer == null || finalAnswer.isBlank())) {
             finalAnswer = null;
@@ -65,5 +71,16 @@ public record AgentResult(
             throw new IllegalArgumentException("failure result cannot be SUCCEEDED");
         }
         return new AgentResult(taskId, null, steps, status, reason, usage, diagnostic);
+    }
+
+    private static String sanitize(String value) {
+        if (value == null) {
+            return "";
+        }
+        String sanitized = value
+                .replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1[redacted]")
+                .replaceAll("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
+                .replaceAll("(?i)([?&](?:api[-_ ]?key|token|secret|password)=)[^&\\s]+", "$1[redacted]");
+        return sanitized.length() <= 1024 ? sanitized : sanitized.substring(0, 1024);
     }
 }

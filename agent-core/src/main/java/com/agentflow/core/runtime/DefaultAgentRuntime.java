@@ -45,7 +45,7 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry must not be null");
         this.toolExecutor = Objects.requireNonNull(toolExecutor, "toolExecutor must not be null");
         this.stepRecorder = stepRecorder == null ? step -> { } : stepRecorder;
-        this.resultNormalizer = resultNormalizer == null ? ToolResultNormalizer.IDENTITY : resultNormalizer;
+        this.resultNormalizer = resultNormalizer == null ? new com.agentflow.core.tool.DefaultToolResultNormalizer() : resultNormalizer;
         this.timeSource = timeSource == null ? TimeSource.system() : timeSource;
     }
 
@@ -57,7 +57,8 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
 
     public DefaultAgentRuntime(AgentModelClient modelClient, ToolRegistry toolRegistry,
                                ToolExecutor toolExecutor, StepRecorder stepRecorder) {
-        this(modelClient, toolRegistry, toolExecutor, stepRecorder, ToolResultNormalizer.IDENTITY, TimeSource.system());
+        this(modelClient, toolRegistry, toolExecutor, stepRecorder,
+                new com.agentflow.core.tool.DefaultToolResultNormalizer(), TimeSource.system());
     }
 
     public DefaultAgentRuntime(AgentModelClient modelClient, ToolRegistry toolRegistry,
