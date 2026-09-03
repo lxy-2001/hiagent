@@ -1,12 +1,18 @@
 package com.agentflow.demo;
 
+import com.agentflow.core.AgentResult;
+import com.agentflow.core.AgentRequest;
 import com.agentflow.core.AgentRuntime;
 import com.agentflow.core.chat.ChatModelClient;
 import com.agentflow.core.model.AgentModelClient;
+import com.agentflow.core.model.FinalAnswerDecision;
+import com.agentflow.core.model.ToolCallDecision;
 import com.agentflow.core.model.EmbeddingClient;
 import com.agentflow.core.memory.ShortTermMemory;
 import com.agentflow.core.rag.RagRetriever;
 import com.agentflow.core.step.StepRecorder;
+import com.agentflow.core.tool.ToolArguments;
+import com.agentflow.core.tool.ToolCall;
 import com.agentflow.core.tool.ToolRegistry;
 import com.agentflow.demo.knowledge.KnowledgeChunkRepository;
 import com.agentflow.demo.knowledge.KnowledgeController;
@@ -14,7 +20,7 @@ import com.agentflow.demo.knowledge.KnowledgeDocumentRepository;
 import com.agentflow.demo.knowledge.KnowledgeRagRetriever;
 import com.agentflow.demo.knowledge.KnowledgeService;
 import com.agentflow.demo.tool.AgentToolRepository;
-import com.agentflow.web.DefaultAgentRuntime;
+import com.agentflow.core.runtime.DefaultAgentRuntime;
 import com.agentflow.web.agent.AgentController;
 import com.agentflow.web.agent.AgentSessionRepository;
 import com.agentflow.web.agent.AgentStepRepository;
@@ -39,6 +45,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.context.ActiveProfiles;
+
+import java.util.ArrayList;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -92,6 +101,41 @@ class AgentFlowDemoContextTest {
         assertThat(context.getBean(RagRetriever.class)).isInstanceOf(KnowledgeRagRetriever.class);
         assertThat(context.getBean(StepRecorder.class)).isInstanceOf(JpaStepRecorder.class);
         assertThat(context.getBean(ShortTermMemory.class)).isInstanceOf(InMemoryShortTermMemory.class);
+    }
+
+    @Test
+    void runsTwoExplicitDemoToolsOfflineThroughTheCoreRuntime() {
+        ToolRegistry registry = context.getBean(ToolRegistry.class);
+        assertThat(registry.enabledToolNames())
+                .contains("uppercase-text", "text-stats", "interface-draft", "sql-draft", "code-draft");
+
+        ArrayList<com.agentflow.core.model.AgentModelRequest> requests = new ArrayList<>();
+        AgentModelClient fixture = request -> {
+            requests.add(request);
+            return switch (request.iteration()) {
+                case 1 -> new ToolCallDecision("demo-d1",
+                        new ToolCall("demo-c1", "uppercase-text",
+                                new ToolArguments(Map.of("text", "hello"))),
+                        com.agentflow.core.chat.TokenUsage.empty());
+                case 2 -> new ToolCallDecision("demo-d2",
+                        new ToolCall("demo-c2", "text-stats",
+                                new ToolArguments(Map.of("text", "HELLO"))),
+                        com.agentflow.core.chat.TokenUsage.empty());
+                case 3 -> new FinalAnswerDecision("demo-d3", "完成", com.agentflow.core.chat.TokenUsage.empty());
+                default -> throw new AssertionError("unexpected demo iteration " + request.iteration());
+            };
+        };
+
+        AgentResult result = new DefaultAgentRuntime(fixture, registry, step -> { })
+                .run(new AgentRequest("demo-task", "demo-session", "demo-user", "hello"), event -> { });
+
+        assertThat(result.status()).isEqualTo(com.agentflow.core.runtime.RunStatus.SUCCEEDED);
+        assertThat(result.finalAnswer()).isEqualTo("完成");
+        assertThat(requests).hasSize(3);
+        assertThat(requests.get(1).messages()).anyMatch(message -> "tool".equals(message.role())
+                && "HELLO".equals(message.content()));
+        assertThat(requests.get(2).messages()).anyMatch(message -> "tool".equals(message.role())
+                && message.content().contains("chars=5"));
     }
 
     @SpringBootConfiguration

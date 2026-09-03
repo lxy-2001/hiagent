@@ -1,32 +1,31 @@
 package com.agentflow.demo.tool;
 
 import com.agentflow.core.tool.AgentTool;
+import com.agentflow.core.tool.ParameterSpec;
 import com.agentflow.core.tool.RiskLevel;
+import com.agentflow.core.tool.ToolArguments;
 import com.agentflow.core.tool.ToolContext;
+import com.agentflow.core.tool.ToolDefinition;
 import com.agentflow.core.tool.ToolResult;
-import org.springframework.stereotype.Component;
+import com.agentflow.core.tool.ToolSchema;
 
-@Component
-public class SqlDraftTool implements AgentTool {
+import java.util.Map;
+import java.util.Set;
+
+/** Deterministic, side-effect-free Demo Tool. */
+public final class SqlDraftTool implements AgentTool {
+    private static final ToolDefinition DEFINITION = new ToolDefinition(
+            "sql-draft", "Generate MySQL table sketches for backend design tasks.", RiskLevel.LOW,
+            new ToolSchema(Map.of("input", ParameterSpec.requiredString(4096)), Set.of("input"), false));
 
     @Override
-    public String name() {
-        return "sql-draft";
+    public ToolDefinition definition() {
+        return DEFINITION;
     }
 
     @Override
-    public String description() {
-        return "Generate MySQL table sketches for backend design tasks.";
-    }
-
-    @Override
-    public RiskLevel riskLevel() {
-        return RiskLevel.LOW;
-    }
-
-    @Override
-    public ToolResult execute(String input, ToolContext context) {
-        String output = """
+    public ToolResult execute(ToolArguments arguments, ToolContext context) {
+        return ToolResult.success(DEFINITION.name(), """
                 ```sql
                 create table seckill_inventory (
                     sku_id varchar(64) primary key,
@@ -53,7 +52,6 @@ public class SqlDraftTool implements AgentTool {
                  where sku_id = ?
                    and available_stock >= ?;
                 ```
-                """;
-        return new ToolResult(name(), output);
+                """);
     }
 }

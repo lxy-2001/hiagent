@@ -3,6 +3,8 @@ package com.agentflow.llm;
 import com.agentflow.core.chat.ChatModelClient;
 import com.agentflow.core.model.AgentModelClient;
 import com.agentflow.core.model.EmbeddingClient;
+import com.agentflow.core.model.FinalAnswerDecision;
+import com.agentflow.core.chat.TokenUsage;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
@@ -30,7 +32,7 @@ class AgentLlmAutoConfigurationTest {
 
     @Test
     void agentModelOverrideDoesNotSuppressOtherPortsOrCreateSharedClient() {
-        AgentModelClient custom = prompt -> "custom";
+        AgentModelClient custom = request -> new FinalAnswerDecision("custom-decision", "custom", TokenUsage.empty());
 
         runner().withBean(AgentModelClient.class, () -> custom).run(context -> {
             assertThat(context).getBean(AgentModelClient.class).isSameAs(custom);
@@ -76,7 +78,7 @@ class AgentLlmAutoConfigurationTest {
 
     @Test
     void allApplicationModelOverridesDoNotCreateTransportWhenBuilderAvailable() {
-        AgentModelClient agentModel = prompt -> "custom-agent";
+        AgentModelClient agentModel = request -> new FinalAnswerDecision("custom-decision", "custom-agent", TokenUsage.empty());
         ChatModelClient chatModel = new ChatModelClient() {
             @Override
             public com.agentflow.core.chat.ChatCompletionResponse complete(
@@ -108,7 +110,7 @@ class AgentLlmAutoConfigurationTest {
 
     @Test
     void allApplicationModelOverridesWorkWithoutOptionalRestClientDependency() {
-        AgentModelClient agentModel = prompt -> "custom-agent";
+        AgentModelClient agentModel = request -> new FinalAnswerDecision("custom-decision", "custom-agent", TokenUsage.empty());
         ChatModelClient chatModel = new ChatModelClient() {
             @Override
             public com.agentflow.core.chat.ChatCompletionResponse complete(

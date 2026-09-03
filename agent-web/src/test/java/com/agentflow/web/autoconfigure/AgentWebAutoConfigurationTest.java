@@ -7,14 +7,13 @@ import com.agentflow.core.chat.ChatCompletionResponse;
 import com.agentflow.core.chat.ChatModelClient;
 import com.agentflow.core.memory.ShortTermMemory;
 import com.agentflow.core.model.AgentModelClient;
+import com.agentflow.core.model.FinalAnswerDecision;
+import com.agentflow.core.chat.TokenUsage;
 import com.agentflow.core.planner.Plan;
 import com.agentflow.core.planner.TaskPlanner;
-import com.agentflow.core.rag.RagRetriever;
 import com.agentflow.core.step.StepRecorder;
 import com.agentflow.core.tool.ToolRegistry;
-import com.agentflow.rag.AgentRagAutoConfiguration;
 import com.agentflow.tool.InMemoryToolRegistry;
-import com.agentflow.web.DefaultAgentRuntime;
 import com.agentflow.web.agent.AgentSessionEntity;
 import com.agentflow.web.agent.AgentSessionRepository;
 import com.agentflow.web.agent.AgentStepEntity;
@@ -38,7 +37,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,7 +51,7 @@ class AgentWebAutoConfigurationTest {
             assertThat(context).hasSingleBean(ShortTermMemory.class);
             assertThat(context).hasSingleBean(StepRecorder.class);
             assertThat(context).hasSingleBean(AgentRuntime.class);
-            assertThat(context).getBean(AgentRuntime.class).isInstanceOf(DefaultAgentRuntime.class);
+            assertThat(context).getBean(AgentRuntime.class).isInstanceOf(com.agentflow.core.runtime.DefaultAgentRuntime.class);
             assertThat(context).getBean(ShortTermMemory.class).isInstanceOf(InMemoryShortTermMemory.class);
             assertThat(context).getBean(StepRecorder.class).isInstanceOf(JpaStepRecorder.class);
             assertThat(context.getBeansOfType(StepRecorder.class).keySet()).doesNotContain("noopStepRecorder");
@@ -97,33 +95,22 @@ class AgentWebAutoConfigurationTest {
 
     @Test
     void allowsApplicationRuntimeOverride() {
-        AgentRuntime custom = (request, eventSink) -> new AgentResult("custom", "answer", List.of());
+        AgentRuntime custom = (request, eventSink, options) -> new AgentResult("custom", "answer", List.of());
         runner().withBean(AgentRuntime.class, () -> custom).run(context ->
                 assertThat(context).getBean(AgentRuntime.class).isSameAs(custom));
     }
 
     @Test
-    void failsWhenRagIsMissingInsteadOfInstallingNoop() {
-        runnerWithoutRag().run(context -> {
-            assertThat(context).hasFailed();
-            assertThat(context.getStartupFailure()).isNotNull();
+    void doesNotRequireRagForCoreRuntimeAssembly() {
+        runner().run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).doesNotHaveBean(com.agentflow.core.rag.RagRetriever.class);
         });
     }
 
     private ApplicationContextRunner runner() {
-        return baseRunner().withBean(RagRetriever.class,
-                () -> (query, limit) -> List.of());
-    }
-
-    private ApplicationContextRunner runnerWithoutRag() {
-        return baseRunner();
-    }
-
-    private ApplicationContextRunner baseRunner() {
         return new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(
-                        AgentWebAutoConfiguration.class,
-                        AgentRagAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(AgentWebAutoConfiguration.class))
                 .withPropertyValues("agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32")
                 .withUserConfiguration(TestDependencies.class);
     }
@@ -174,7 +161,7 @@ class AgentWebAutoConfigurationTest {
 
         @Bean
         AgentModelClient agentModelClient() {
-            return prompt -> "model";
+            return request -> new FinalAnswerDecision("test-decision", "model", TokenUsage.empty());
         }
 
         @Bean

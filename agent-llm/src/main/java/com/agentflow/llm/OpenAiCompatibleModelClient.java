@@ -5,7 +5,7 @@ import com.agentflow.core.chat.ChatCompletionResponse;
 import com.agentflow.core.chat.ChatMessage;
 import com.agentflow.core.chat.ChatModelClient;
 import com.agentflow.core.chat.TokenUsage;
-import com.agentflow.core.model.AgentModelClient;
+import com.agentflow.core.model.AgentModelRequest;
 import com.agentflow.core.model.EmbeddingClient;
 import com.agentflow.core.model.ModelPrompt;
 import tools.jackson.core.JacksonException;
@@ -50,6 +50,24 @@ public class OpenAiCompatibleModelClient {
         this.restClient = configured.build();
     }
 
+    tools.jackson.databind.ObjectMapper objectMapper() {
+        return objectMapper;
+    }
+
+    public JsonNode completeAgent(AgentModelRequest request) {
+        requireApiKey("agent decision");
+        try {
+            return restClient.post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ProviderDecisionMapper.requestBody(request, resolveModel(null), objectMapper))
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RuntimeException ex) {
+            throw providerFailure("Agent decision provider request failed", ex);
+        }
+    }
+
     public String generate(ModelPrompt prompt) {
         return complete(new ChatCompletionRequest(List.of(
                 ChatMessage.system(prompt.system()),
@@ -71,11 +89,11 @@ public class OpenAiCompatibleModelClient {
             throw providerFailure("Chat completion provider request failed", ex);
         }
         if (response == null || response.isNull() || response.isMissingNode()) {
-            throw new ModelClientException("Chat completion returned an empty response");
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Chat completion returned an empty response");
         }
         JsonNode contentNode = response.path("choices").path(0).path("message").path("content");
         if (!contentNode.isTextual() || contentNode.asText().isBlank()) {
-            throw new ModelClientException("Chat completion returned empty content");
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Chat completion returned empty content");
         }
         return new ChatCompletionResponse(provider(),
                 response.path("model").asText(resolveModel(request.model())),
@@ -159,12 +177,12 @@ public class OpenAiCompatibleModelClient {
         }
         JsonNode embedding = response == null ? null : response.path("data").path(0).path("embedding");
         if (embedding == null || !embedding.isArray() || embedding.isEmpty()) {
-            throw new ModelClientException("Embedding provider returned an empty or invalid response");
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Embedding provider returned an empty or invalid response");
         }
         List<Double> vector = new ArrayList<>(embedding.size());
         for (JsonNode value : embedding) {
             if (!value.isNumber() || !Double.isFinite(value.asDouble())) {
-                throw new ModelClientException("Embedding provider returned an invalid vector");
+                throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Embedding provider returned an invalid vector");
             }
             vector.add(value.asDouble());
         }
@@ -173,18 +191,26 @@ public class OpenAiCompatibleModelClient {
 
     private void requireApiKey(String operation) {
         if (!hasApiKey()) {
-            throw new ModelClientException(
+            throw new ModelClientException(ModelClientException.CONFIGURATION_ERROR,
                     "LLM API key is required before invoking " + operation);
         }
     }
 
     private ModelClientException providerFailure(String message, RuntimeException cause) {
-        return new ModelClientException(message + ": " + safeMessage(cause), cause);
+        return new ModelClientException(ModelClientException.PROVIDER_ERROR,
+                message + ": " + safeMessage(cause), cause);
     }
 
     private String safeMessage(Throwable throwable) {
         String message = throwable.getMessage();
-        return message == null || message.isBlank() ? throwable.getClass().getSimpleName() : message;
+        if (message == null || message.isBlank()) {
+            message = throwable.getClass().getSimpleName();
+        }
+        String apiKey = properties.model().getApiKey();
+        if (apiKey != null && !apiKey.isBlank()) {
+            message = message.replace(apiKey, "[redacted]");
+        }
+        return ModelClientException.sanitize(message);
     }
 
     private Map<String, Object> chatBody(ChatCompletionRequest request, boolean stream) {
