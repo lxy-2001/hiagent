@@ -71,16 +71,37 @@ public class AgentTaskService {
             AgentTaskEntity task = taskRepository.findById(taskId).orElseThrow();
             AgentResult result = agentRuntime.run(new AgentRequest(task.getId(), task.getSessionId(),
                     task.getUserId(), task.getUserInput()), eventPublisher::publish);
-            task.complete(result.finalAnswer());
-            taskRepository.save(task);
-            eventPublisher.complete(taskId);
+            if (result.status() == com.agentflow.core.runtime.RunStatus.SUCCEEDED
+                    && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
+                task.complete(result.finalAnswer());
+                taskRepository.save(task);
+                eventPublisher.complete(taskId);
+            } else {
+                String reason = result.terminationReason() == null
+                        ? "AGENT_RUNTIME_FAILED" : result.terminationReason().name();
+                task.fail(reason);
+                taskRepository.save(task);
+                eventPublisher.error(taskId, new IllegalStateException(reason));
+            }
         } catch (RuntimeException ex) {
+            String safeMessage = safeFailureMessage(ex);
             taskRepository.findById(taskId).ifPresent(task -> {
-                task.fail(ex.getMessage());
+                task.fail(safeMessage);
                 taskRepository.save(task);
             });
-            eventPublisher.error(taskId, ex);
+            eventPublisher.error(taskId, new IllegalStateException(safeMessage));
         }
+    }
+
+    private String safeFailureMessage(Throwable throwable) {
+        String message = throwable == null ? null : throwable.getMessage();
+        if (message == null || message.isBlank()) {
+            message = throwable == null ? "agent task failed" : throwable.getClass().getSimpleName();
+        }
+        String sanitized = message
+                .replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1[redacted]")
+                .replaceAll("(?i)([?&](?:api[-_ ]?key|token|secret|password)=)[^&\\s]+", "$1[redacted]");
+        return sanitized.length() <= 1_024 ? sanitized : sanitized.substring(0, 1_024);
     }
 
     private String title(String input) {

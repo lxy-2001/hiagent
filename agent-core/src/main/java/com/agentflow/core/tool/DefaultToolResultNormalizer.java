@@ -44,7 +44,7 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
         if (diagnostic == null) {
             return null;
         }
-        String value = diagnostic.replaceAll("(?i)(api[-_ ]?key|token|secret|password)\\s*[:=]\\s*[^,;\\s]+", "$1=[redacted]");
+        String value = diagnostic.replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1=[redacted]");
         return value.length() <= 1024 ? value : value.substring(0, 1024);
     }
 }

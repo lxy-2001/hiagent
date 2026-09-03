@@ -62,6 +62,21 @@ class RuntimeTraceTest {
     }
 
     @Test
+    void traceRedactsSensitiveFieldsAndBoundsPayloads() {
+        RuntimeTrace trace = new RuntimeTrace("t", step -> { }, event -> { });
+        String longValue = "x".repeat(2_000);
+
+        AgentStepRecord step = trace.success(AgentStepType.TOOL_CALL, "echo",
+                "apiKey=secret-value " + longValue,
+                "token: another-secret", 0, null, "d", "c", false);
+
+        assertTrue(step.input().length() <= 1_024);
+        assertTrue(step.output().length() <= 1_024);
+        assertTrue(!step.input().contains("secret-value"));
+        assertTrue(!step.output().contains("another-secret"));
+    }
+
+    @Test
     void observerFailuresDoNotDuplicateOrChangeTerminalOutcome() {
         AgentModelClient model = request -> new FinalAnswerDecision("d", "done", TokenUsage.empty());
         DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, new Registry(),

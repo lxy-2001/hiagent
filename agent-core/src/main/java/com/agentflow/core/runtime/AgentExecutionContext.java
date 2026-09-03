@@ -38,7 +38,11 @@ public final class AgentExecutionContext {
     }
 
     public AgentModelRequest modelRequest(int iteration) {
-        return new AgentModelRequest(request, messages(), toolDefinitions, iteration);
+        return modelRequest(iteration, null);
+    }
+
+    public AgentModelRequest modelRequest(int iteration, Integer maxCompletionTokens) {
+        return new AgentModelRequest(request, messages(), toolDefinitions, iteration, maxCompletionTokens);
     }
 
     public void confirmToolCall(ToolCall call) {

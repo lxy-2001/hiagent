@@ -16,7 +16,8 @@ public record AgentModelRequest(
         String input,
         List<ModelMessage> messages,
         List<ToolDefinition> tools,
-        int iteration
+        int iteration,
+        Integer maxCompletionTokens
 ) {
     public AgentModelRequest {
         requireNonBlank(taskId, "taskId");
@@ -28,14 +29,27 @@ public record AgentModelRequest(
         if (iteration < 1) {
             throw new IllegalArgumentException("iteration must be at least 1");
         }
+        if (maxCompletionTokens != null && maxCompletionTokens < 0) {
+            throw new IllegalArgumentException("maxCompletionTokens must not be negative");
+        }
         messages = Collections.unmodifiableList(new ArrayList<>(messages));
         tools = Collections.unmodifiableList(new ArrayList<>(tools));
     }
 
+    public AgentModelRequest(String taskId, String sessionId, String userId, String input,
+                             List<ModelMessage> messages, List<ToolDefinition> tools, int iteration) {
+        this(taskId, sessionId, userId, input, messages, tools, iteration, null);
+    }
+
     public AgentModelRequest(AgentRequest request, List<ModelMessage> messages,
                              List<ToolDefinition> tools, int iteration) {
+        this(request, messages, tools, iteration, null);
+    }
+
+    public AgentModelRequest(AgentRequest request, List<ModelMessage> messages,
+                             List<ToolDefinition> tools, int iteration, Integer maxCompletionTokens) {
         this(request.taskId(), request.sessionId(), request.userId(), request.input(),
-                messages, tools, iteration);
+                messages, tools, iteration, maxCompletionTokens);
     }
 
     private static void requireNonBlank(String value, String field) {

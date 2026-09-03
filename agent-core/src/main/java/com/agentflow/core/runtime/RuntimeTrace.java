@@ -30,8 +30,8 @@ public final class RuntimeTrace {
     public AgentStepRecord success(AgentStepType type, String name, String input, String output,
                                    long latencyMs, TokenUsage usage, String decisionId,
                                    String callId, boolean terminal) {
-        AgentStepRecord step = AgentStepRecord.success(taskId, nextStepNo++, type, name, input,
-                output == null ? "" : output, Math.max(0, latencyMs),
+        AgentStepRecord step = AgentStepRecord.success(taskId, nextStepNo++, type, name, safe(input),
+                output == null ? "" : safe(output), Math.max(0, latencyMs),
                 usage == null ? null : usage.promptTokens(),
                 usage == null ? null : usage.completionTokens(), decisionId, callId, terminal);
         append(step);
@@ -41,7 +41,7 @@ public final class RuntimeTrace {
     public AgentStepRecord failure(AgentStepType type, String name, String input, String message,
                                    long latencyMs, String errorCode, String decisionId,
                                    String callId, boolean terminal) {
-        AgentStepRecord step = AgentStepRecord.failed(taskId, nextStepNo++, type, name, input,
+        AgentStepRecord step = AgentStepRecord.failed(taskId, nextStepNo++, type, name, safe(input),
                 safe(message), Math.max(0, latencyMs), errorCode, decisionId, callId, terminal);
         append(step);
         return step;
@@ -98,7 +98,7 @@ public final class RuntimeTrace {
         if (value == null) {
             return "";
         }
-        String sanitized = value.replaceAll("(?i)(api[-_ ]?key|token|secret|password)\\s*[:=]\\s*[^,;\\s]+", "$1=[redacted]");
+        String sanitized = value.replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1=[redacted]");
         return sanitized.length() <= 1024 ? sanitized : sanitized.substring(0, 1024);
     }
 }
