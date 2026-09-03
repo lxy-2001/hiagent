@@ -1,0 +1,53 @@
+package com.agentflow.core.runtime;
+
+import com.agentflow.core.AgentEventSink;
+import com.agentflow.core.AgentRequest;
+import com.agentflow.core.AgentResult;
+import com.agentflow.core.chat.TokenUsage;
+import com.agentflow.core.cancel.CancellationSignal;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class ExecutionPolicyContractTest {
+
+    @Test
+    void defaultsAreBoundedAndZeroIsValidBoundary() {
+        ExecutionBudget defaults = ExecutionBudget.defaults();
+        assertEquals(8, defaults.maxIterations());
+        assertEquals(Duration.ofSeconds(30), defaults.maxDuration());
+        assertEquals(4096, defaults.maxPromptTokens());
+        assertEquals(2048, defaults.maxCompletionTokens());
+        assertEquals(0, new ExecutionBudget(0, Duration.ZERO, 0, 0).maxIterations());
+        assertThrows(IllegalArgumentException.class,
+                () -> new ExecutionBudget(-1, Duration.ZERO, 0, 0));
+    }
+
+    @Test
+    void runOptionsRequireBudgetAndCancellationSignal() {
+        AgentRunOptions options = AgentRunOptions.defaults();
+        assertEquals(CancellationSignal.NONE, options.cancellationSignal());
+        assertThrows(NullPointerException.class,
+                () -> new AgentRunOptions(null, CancellationSignal.NONE));
+        assertThrows(NullPointerException.class,
+                () -> new AgentRunOptions(ExecutionBudget.defaults(), null));
+        assertFalse(CancellationSignal.NONE.isCancelled());
+    }
+
+    @Test
+    void requestRejectsBlankInputAndFailureResultCannotLookSuccessful() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentRequest("t", "s", "u", "  "));
+        AgentResult result = AgentResult.failure("t", RunStatus.FAILED,
+                TerminationReason.MODEL_ERROR, "safe diagnostic", List.of(), TokenUsage.empty());
+        assertEquals(RunStatus.FAILED, result.status());
+        assertEquals(TerminationReason.MODEL_ERROR, result.terminationReason());
+        assertTrue(result.finalAnswer() == null || result.finalAnswer().isBlank());
+    }
+}

@@ -9,9 +9,19 @@ public record AgentRequest(
         String input
 ) {
     public AgentRequest {
-        Objects.requireNonNull(taskId, "taskId must not be null");
-        Objects.requireNonNull(sessionId, "sessionId must not be null");
-        Objects.requireNonNull(userId, "userId must not be null");
+        requireNonBlank(taskId, "taskId");
+        requireNonBlank(sessionId, "sessionId");
+        requireNonBlank(userId, "userId");
         Objects.requireNonNull(input, "input must not be null");
+        if (input.isBlank()) {
+            throw new IllegalArgumentException("input must not be blank");
+        }
+    }
+
+    private static void requireNonBlank(String value, String field) {
+        Objects.requireNonNull(value, field + " must not be null");
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
     }
 }
