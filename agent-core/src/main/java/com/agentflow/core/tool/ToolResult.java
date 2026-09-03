@@ -2,6 +2,7 @@ package com.agentflow.core.tool;
 
 import java.util.Objects;
 
+/** Raw or normalized result envelope returned by a Tool boundary. */
 public record ToolResult(
         String toolName,
         String output,
@@ -12,18 +13,15 @@ public record ToolResult(
         String callId
 ) {
     public ToolResult {
-        if (toolName == null || toolName.isBlank()) {
-            throw new IllegalArgumentException("toolName must be non-blank");
+        if (toolName == null || toolName.isBlank() || !toolName.equals(toolName.strip())) {
+            throw new IllegalArgumentException("toolName must be non-blank and trimmed");
         }
         Objects.requireNonNull(status, "status must not be null");
-        if (status == ToolResultStatus.SUCCESS && (output == null || output.isBlank())) {
-            throw new IllegalArgumentException("successful tool result must have output");
+        if (errorCode != null && errorCode.isBlank()) {
+            throw new IllegalArgumentException("errorCode must be non-blank when present");
         }
-        if (status == ToolResultStatus.FAILED && (errorCode == null || errorCode.isBlank())) {
-            throw new IllegalArgumentException("failed tool result must have errorCode");
-        }
-        if (output != null && output.length() > ToolArguments.MAX_STRING_CHARS * 2) {
-            throw new IllegalArgumentException("tool result output exceeds hard limit");
+        if (callId != null && (callId.isBlank() || !callId.equals(callId.strip()))) {
+            throw new IllegalArgumentException("callId must be non-blank and trimmed when present");
         }
     }
 

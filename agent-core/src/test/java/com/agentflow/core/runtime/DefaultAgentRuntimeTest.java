@@ -114,6 +114,32 @@ class DefaultAgentRuntimeTest {
         }
     }
 
+    @Test
+    void convenienceRuntimeUsesRegistryExecutorAndNeverInvokesInvalidArguments() {
+        java.util.concurrent.atomic.AtomicInteger executions = new java.util.concurrent.atomic.AtomicInteger();
+        ToolDefinition definition = new ToolDefinition("tool-a", "tool", RiskLevel.LOW,
+                new ToolSchema(Map.of("text", ParameterSpec.requiredString(4)), Set.of("text"), false));
+        AgentTool tool = new AgentTool() {
+            @Override public ToolDefinition definition() { return definition; }
+            @Override public ToolResult execute(ToolArguments arguments, com.agentflow.core.tool.ToolContext context) {
+                executions.incrementAndGet();
+                return ToolResult.success("tool-a", "ok");
+            }
+        };
+        TestRegistry registry = new TestRegistry(List.of(tool));
+        AgentModelClient model = request -> request.iteration() == 1
+                ? new ToolCallDecision("d1", new ToolCall("c1", "tool-a",
+                        new ToolArguments(Map.of("text", "too-long"))), TokenUsage.empty())
+                : new FinalAnswerDecision("d2", "unexpected", TokenUsage.empty());
+
+        AgentResult result = new DefaultAgentRuntime(model, registry, step -> { })
+                .run(new com.agentflow.core.AgentRequest("t", "s", "u", "input"), event -> { });
+
+        assertEquals(RunStatus.FAILED, result.status());
+        assertEquals(TerminationReason.INVALID_TOOL_ARGUMENTS, result.terminationReason());
+        assertEquals(0, executions.get());
+    }
+
     private static AgentTool tool(String name) {
         ToolDefinition definition = new ToolDefinition(name, name + " tool", RiskLevel.LOW,
                 new ToolSchema(Map.of("text", ParameterSpec.requiredString(64)), Set.of("text"), false));

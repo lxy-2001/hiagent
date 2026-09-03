@@ -7,6 +7,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ToolSchemaContractTest {
@@ -37,4 +38,17 @@ class ToolSchemaContractTest {
     void rejectsStringThatExceedsDeclaredLimit() {
         assertFalse(schema.validate(new ToolArguments(Map.of("text", "toolong"))).valid());
     }
+    @Test
+    void rejectsUntrustedNestedValuesAndResourceLimits() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new ToolArguments(Map.of("object", Map.of(1, "bad"))));
+        assertThrows(IllegalArgumentException.class,
+                () -> new ToolArguments(Map.of("text", "x".repeat(ToolArguments.MAX_STRING_CHARS + 1))));
+        Map<String, Object> tooMany = new java.util.LinkedHashMap<>();
+        for (int i = 0; i <= ToolArguments.MAX_PROPERTIES; i++) {
+            tooMany.put("p" + i, i);
+        }
+        assertThrows(IllegalArgumentException.class, () -> new ToolArguments(tooMany));
+    }
+
 }

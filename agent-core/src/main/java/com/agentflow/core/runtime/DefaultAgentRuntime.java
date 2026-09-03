@@ -51,6 +51,12 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
         this(modelClient, toolRegistry, toolExecutor, stepRecorder, ToolResultNormalizer.IDENTITY);
     }
 
+    public DefaultAgentRuntime(AgentModelClient modelClient, ToolRegistry toolRegistry,
+                               StepRecorder stepRecorder) {
+        this(modelClient, toolRegistry, new com.agentflow.core.tool.DefaultToolExecutor(toolRegistry),
+                stepRecorder, new com.agentflow.core.tool.DefaultToolResultNormalizer());
+    }
+
     @Override
     public AgentResult run(com.agentflow.core.AgentRequest request, AgentEventSink eventSink,
                            AgentRunOptions options) {
@@ -157,17 +163,25 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     return toolFailure(request, context, trace, usage, call, toolDecision,
                             TerminationReason.DISABLED_TOOL, AgentErrorCode.DISABLED_TOOL.name(), "tool is disabled");
                 }
-                ValidationResult validation = lookup.registration().definition().schema().validate(call.arguments());
+                ValidationResult validation;
+                try {
+                    validation = lookup.registration().definition().schema().validate(call.arguments());
+                } catch (RuntimeException ex) {
+                    return toolFailure(request, context, trace, usage, call, toolDecision,
+                            TerminationReason.INVALID_TOOL_ARGUMENTS, AgentErrorCode.INVALID_TOOL_ARGUMENTS.name(),
+                            ex.getMessage());
+                }
                 if (!validation.valid()) {
                     return toolFailure(request, context, trace, usage, call, toolDecision,
                             TerminationReason.INVALID_TOOL_ARGUMENTS, AgentErrorCode.INVALID_TOOL_ARGUMENTS.name(),
                             validation.violations().toString());
                 }
+                ToolCall validatedCall = new ToolCall(call.callId(), call.name(), validation.arguments());
 
                 long toolStarted = System.nanoTime();
                 ToolResult rawResult;
                 try {
-                    rawResult = toolExecutor.execute(call, new com.agentflow.core.tool.ToolContext(
+                    rawResult = toolExecutor.execute(validatedCall, new com.agentflow.core.tool.ToolContext(
                             request.taskId(), request.sessionId(), request.userId()));
                 } catch (RuntimeException ex) {
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
@@ -178,7 +192,7 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 }
                 ToolResult normalized;
                 try {
-                    normalized = canonicalize(call, resultNormalizer.normalize(call, rawResult));
+                    normalized = canonicalize(validatedCall, resultNormalizer.normalize(validatedCall, rawResult));
                 } catch (RuntimeException ex) {
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
                             ex.getMessage(), elapsed(toolStarted), AgentErrorCode.TOOL_RESULT_INVALID.name(),
@@ -197,7 +211,8 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
                             normalized.diagnostic(), elapsed(toolStarted), normalized.errorCode(),
                             toolDecision.decisionId(), call.callId(), false);
-                    return finishFailure(request, trace, usage, TerminationReason.TOOL_ERROR,
+                    TerminationReason resultReason = terminationReasonFor(normalized.errorCode());
+                    return finishFailure(request, trace, usage, resultReason,
                             RunStatus.FAILED, normalized.diagnostic());
                 }
                 trace.success(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
@@ -252,6 +267,20 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
 
     private static ToolResult throwMismatch() {
         throw new IllegalArgumentException("tool result call id does not match call");
+    }
+
+    private static TerminationReason terminationReasonFor(String errorCode) {
+        if (errorCode == null) {
+            return TerminationReason.TOOL_ERROR;
+        }
+        return switch (errorCode) {
+            case "UNKNOWN_TOOL" -> TerminationReason.UNKNOWN_TOOL;
+            case "DISABLED_TOOL" -> TerminationReason.DISABLED_TOOL;
+            case "INVALID_TOOL_ARGUMENTS" -> TerminationReason.INVALID_TOOL_ARGUMENTS;
+            case "TOOL_RESULT_TOO_LARGE" -> TerminationReason.TOOL_RESULT_TOO_LARGE;
+            case "TOOL_RESULT_INVALID" -> TerminationReason.TOOL_RESULT_INVALID;
+            default -> TerminationReason.TOOL_ERROR;
+        };
     }
 
     private static String decisionDescription(ModelDecision decision) {
