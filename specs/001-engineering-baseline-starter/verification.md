@@ -575,7 +575,7 @@ MockMvc 分发和完整 Demo 上下文均通过。
 | --- | --- | --- |
 | FR-001 | Maven Wrapper、./mvnw -B -ntp clean verify；7 个项目 SUCCESS、44 tests | PASS |
 | FR-002 | 完整门禁在无模型 Key、无 Docker/外部运行服务下退出 0；H2/Mock HTTP 仅在测试边界使用 | PASS |
-| FR-003 | .github/workflows/verify.yml 与本地均调用同一 Wrapper 命令；远端执行待推送 | PASS（配置证据） |
+| FR-003 | .github/workflows/verify.yml 与本地均调用同一 Wrapper 命令；远端 Run 33705987671 成功 | PASS |
 | FR-004 | AgentFlowDemoContextTest 及 Demo 完整上下文：Controller/Service/8 个 JPA Repository、Runtime 和适配器来源断言 | PASS |
 | FR-005 | 各模块精确 AutoConfiguration.imports、Demo 无扩大根包扫描；自动配置测试通过 | PASS |
 | FR-006 | LLM 三端口、ToolRegistry、Planner/Memory/Recorder/Runtime 的应用覆盖测试通过 | PASS |
@@ -594,7 +594,7 @@ MockMvc 分发和完整 Demo 上下文均通过。
 | --- | --- | --- |
 | SC-001 | Wrapper 单一命令完成 7 个项目编译、测试和打包，44 tests 全通过 | PASS |
 | SC-002 | 无真实模型 Key、MySQL、Redis、Qdrant 或 Docker 时完整门禁退出 0 | PASS |
-| SC-003 | 本地与 CI 配置使用完全相同的 Wrapper 命令；远端同提交结果待推送确认 | PASS（配置证据） |
+| SC-003 | 本地与 CI 配置使用完全相同的 Wrapper 命令；远端 Run 33705987671 成功 | PASS |
 | SC-004 | Demo 上下文发现全部已记录组件和 11 个承诺入口 | PASS |
 | SC-005 | 每个记录的替换点均有 ApplicationContextRunner/上下文覆盖断言 | PASS |
 | SC-006 | 缺凭据、缺提供者和无效响应场景均为真实失败，未返回伪成功 | PASS |
@@ -614,7 +614,7 @@ README.md、specs/ 和 docs/，排除 docs/learn/** 与 docs/.ipynb_checkpoints/
     NON_EMPTY_LITERAL_HITS=0
     CREDENTIAL_SCAN_EXIT=0
 
-**T038 结论：本地 FR/SC 矩阵和扫描均通过；SC-003 的远端执行记录留待推送后补充。**
+**T038 结论：本地 FR/SC 矩阵和扫描均通过；SC-003 的远端执行记录已由 Run 33705987671 补充。**
 
 ## T039：speckit-analyze 一致性复核
 
@@ -659,7 +659,7 @@ T039 的分析只读约束已遵守；文档修正是任务明确授权的后续
 
 - `spec.md` 状态已更新为 `VERIFIED`。
 - `specs/ROADMAP.md` 的 Feature 001 状态已更新为 `VERIFIED`；README 与 `specs/README.md`
-  的状态说明同步为本地验收完成、远端 CI 待核对。
+  的状态说明同步为本地与远端验收完成。
 - T001～T041 共 41 个任务均已标记 `[X]`；当前分支为
   `feature/001-engineering-baseline-starter`。
 - 最终差异审查确认没有暂存或计划纳入 `docs/learn/`、`.ua/`、密钥、后续 Feature 或无关
@@ -678,7 +678,9 @@ T039 的分析只读约束已遵守；文档修正是任务明确授权的后续
 
 **差异检查**：`git diff --check` 退出码 0。
 
-**远端限制**：最终分支尚未推送，GitHub Actions 的远端结果尚无记录；推送后必须核对
-`.github/workflows/verify.yml` 的实际运行结果。
+**远端 GitHub Actions**：Run [33705987671](https://github.com/lxy-2001/hiagent/actions/runs/33705987671)
+针对提交 `308e63680dd200eab8ec0ae6849ffaf3911e4988` 执行 `.github/workflows/verify.yml`，
+`verify` job 成功，耗时约 1 分 03 秒。工作流仅有两条 GitHub Actions 运行时弃用提示，
+不影响退出结果。
 
-**T041 结论：本地最终收尾门禁通过，可创建 Phase 6 完成提交；远端 CI 结果待推送确认。**
+**T041 结论：本地和远端最终收尾门禁均通过，Feature 001 可以标记为 VERIFIED。**

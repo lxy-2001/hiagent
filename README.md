@@ -3,8 +3,8 @@
 HiAgent 是一个面向学习、面试讲解和简历展示的 Java Agent 后端项目。重点是实现并证明
 Agent 的运行机制，同时把模型、Tool、RAG、MCP 和 Spring Boot 集成设计成可替换模块。
 
-> Feature 001 已完成本地验收：Phase 1～6 均已验证并提交；分支推送后仍需核对 GitHub
-> Actions 的远端结果。
+> Feature 001 已完成本地与远端验收：Phase 1～6 均已验证并提交；GitHub Actions Run
+> 33705987671 已成功通过。
 
 ## V1 要证明的能力
 

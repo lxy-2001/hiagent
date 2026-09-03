@@ -142,7 +142,7 @@ converge：把代码与文档之间的剩余差距补回 tasks
 
 当前激活 Feature 由 `.specify/feature.json` 指向
 `specs/001-engineering-baseline-starter/`，状态为 `VERIFIED`。Phase 1～6 已完成并有对应
-阶段提交；分支推送后仍需核对 GitHub Actions 的远端结果。
+阶段提交；GitHub Actions Run `33705987671` 已成功通过。
 
 Feature 001 只负责让构建、测试、自动配置、凭据治理和模块边界可信，不在同一 Feature 中
 开发新的 Runtime、RAG、记忆或 MCP 行为。后续能力仍须按路线图单独建立规格、计划和任务。
