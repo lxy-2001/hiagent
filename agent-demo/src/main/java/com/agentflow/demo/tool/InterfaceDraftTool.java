@@ -1,32 +1,31 @@
 package com.agentflow.demo.tool;
 
 import com.agentflow.core.tool.AgentTool;
+import com.agentflow.core.tool.ParameterSpec;
 import com.agentflow.core.tool.RiskLevel;
+import com.agentflow.core.tool.ToolArguments;
 import com.agentflow.core.tool.ToolContext;
+import com.agentflow.core.tool.ToolDefinition;
 import com.agentflow.core.tool.ToolResult;
-import org.springframework.stereotype.Component;
+import com.agentflow.core.tool.ToolSchema;
 
-@Component
-public class InterfaceDraftTool implements AgentTool {
+import java.util.Map;
+import java.util.Set;
+
+/** Deterministic, side-effect-free Demo Tool. */
+public final class InterfaceDraftTool implements AgentTool {
+    private static final ToolDefinition DEFINITION = new ToolDefinition(
+            "interface-draft", "Draft REST API contracts for Java backend requirements.", RiskLevel.LOW,
+            new ToolSchema(Map.of("input", ParameterSpec.requiredString(4096)), Set.of("input"), false));
 
     @Override
-    public String name() {
-        return "interface-draft";
+    public ToolDefinition definition() {
+        return DEFINITION;
     }
 
     @Override
-    public String description() {
-        return "Draft REST API contracts for Java backend requirements.";
-    }
-
-    @Override
-    public RiskLevel riskLevel() {
-        return RiskLevel.LOW;
-    }
-
-    @Override
-    public ToolResult execute(String input, ToolContext context) {
-        String output = """
+    public ToolResult execute(ToolArguments arguments, ToolContext context) {
+        return ToolResult.success(DEFINITION.name(), """
                 推荐接口：
 
                 POST /api/seckill/deduct
@@ -45,7 +44,6 @@ public class InterfaceDraftTool implements AgentTool {
                 - SOLD_OUT：库存不足
                 - DUPLICATED：重复请求
                 - BUSY：限流或系统繁忙
-                """;
-        return new ToolResult(name(), output);
+                """);
     }
 }

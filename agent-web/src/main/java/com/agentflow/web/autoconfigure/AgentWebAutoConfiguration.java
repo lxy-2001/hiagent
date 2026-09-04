@@ -3,12 +3,14 @@ package com.agentflow.web.autoconfigure;
 import com.agentflow.core.AgentRuntime;
 import com.agentflow.core.memory.ShortTermMemory;
 import com.agentflow.core.model.AgentModelClient;
-import com.agentflow.core.planner.TaskPlanner;
-import com.agentflow.core.rag.RagRetriever;
+import com.agentflow.core.runtime.DefaultAgentRuntime;
 import com.agentflow.core.step.StepRecorder;
+import com.agentflow.core.tool.DefaultToolExecutor;
+import com.agentflow.core.tool.DefaultToolResultNormalizer;
+import com.agentflow.core.tool.ToolExecutor;
 import com.agentflow.core.tool.ToolRegistry;
+import com.agentflow.core.tool.ToolResultNormalizer;
 import com.agentflow.llm.AgentFlowProperties;
-import com.agentflow.web.DefaultAgentRuntime;
 import com.agentflow.web.agent.AgentController;
 import com.agentflow.web.agent.AgentSessionEntity;
 import com.agentflow.web.agent.AgentStepRepository;
@@ -24,6 +26,7 @@ import com.agentflow.web.chat.ChatService;
 import com.agentflow.web.config.SecurityConfig;
 import com.agentflow.web.memory.InMemoryShortTermMemory;
 import com.agentflow.web.planner.SimpleTaskPlanner;
+import com.agentflow.core.planner.TaskPlanner;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -47,6 +50,9 @@ import org.springframework.context.annotation.Import;
 })
 public class AgentWebAutoConfiguration {
 
+    /**
+     * Kept for the existing chat compatibility path; the Core Runtime does not depend on it.
+     */
     @Bean
     @ConditionalOnMissingBean(TaskPlanner.class)
     TaskPlanner taskPlanner() {
@@ -66,17 +72,25 @@ public class AgentWebAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(ToolResultNormalizer.class)
+    ToolResultNormalizer toolResultNormalizer() {
+        return new DefaultToolResultNormalizer();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ToolExecutor.class)
+    ToolExecutor toolExecutor(ToolRegistry toolRegistry, ToolResultNormalizer resultNormalizer) {
+        return new DefaultToolExecutor(toolRegistry, resultNormalizer);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(AgentRuntime.class)
     AgentRuntime agentRuntime(
-            TaskPlanner taskPlanner,
-            RagRetriever ragRetriever,
-            ToolRegistry toolRegistry,
             AgentModelClient modelClient,
+            ToolRegistry toolRegistry,
+            ToolExecutor toolExecutor,
             StepRecorder stepRecorder,
-            ShortTermMemory shortTermMemory,
-            AgentFlowProperties properties
-    ) {
-        return new DefaultAgentRuntime(taskPlanner, ragRetriever, toolRegistry, modelClient, stepRecorder,
-                shortTermMemory, properties.tools().maxSteps());
+            ToolResultNormalizer resultNormalizer) {
+        return new DefaultAgentRuntime(modelClient, toolRegistry, toolExecutor, stepRecorder, resultNormalizer);
     }
 }

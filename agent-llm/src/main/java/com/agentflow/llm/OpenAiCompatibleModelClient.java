@@ -5,7 +5,7 @@ import com.agentflow.core.chat.ChatCompletionResponse;
 import com.agentflow.core.chat.ChatMessage;
 import com.agentflow.core.chat.ChatModelClient;
 import com.agentflow.core.chat.TokenUsage;
-import com.agentflow.core.model.AgentModelClient;
+import com.agentflow.core.model.AgentModelRequest;
 import com.agentflow.core.model.EmbeddingClient;
 import com.agentflow.core.model.ModelPrompt;
 import tools.jackson.core.JacksonException;
@@ -50,6 +50,24 @@ public class OpenAiCompatibleModelClient {
         this.restClient = configured.build();
     }
 
+    tools.jackson.databind.ObjectMapper objectMapper() {
+        return objectMapper;
+    }
+
+    public JsonNode completeAgent(AgentModelRequest request) {
+        requireApiKey("agent decision");
+        try {
+            return restClient.post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(ProviderDecisionMapper.requestBody(request, resolveModel(null), objectMapper))
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RuntimeException ex) {
+            throw providerFailure("Agent decision provider request failed", ex);
+        }
+    }
+
     public String generate(ModelPrompt prompt) {
         return complete(new ChatCompletionRequest(List.of(
                 ChatMessage.system(prompt.system()),
@@ -71,11 +89,11 @@ public class OpenAiCompatibleModelClient {
             throw providerFailure("Chat completion provider request failed", ex);
         }
         if (response == null || response.isNull() || response.isMissingNode()) {
-            throw new ModelClientException("Chat completion returned an empty response");
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Chat completion returned an empty response");
         }
         JsonNode contentNode = response.path("choices").path(0).path("message").path("content");
         if (!contentNode.isTextual() || contentNode.asText().isBlank()) {
-            throw new ModelClientException("Chat completion returned empty content");
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Chat completion returned empty content");
         }
         return new ChatCompletionResponse(provider(),
                 response.path("model").asText(resolveModel(request.model())),
@@ -159,12 +177,12 @@ public class OpenAiCompatibleModelClient {
         }
         JsonNode embedding = response == null ? null : response.path("data").path(0).path("embedding");
         if (embedding == null || !embedding.isArray() || embedding.isEmpty()) {
-            throw new ModelClientException("Embedding provider returned an empty or invalid response");
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Embedding provider returned an empty or invalid response");
         }
         List<Double> vector = new ArrayList<>(embedding.size());
         for (JsonNode value : embedding) {
             if (!value.isNumber() || !Double.isFinite(value.asDouble())) {
-                throw new ModelClientException("Embedding provider returned an invalid vector");
+                throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE, "Embedding provider returned an invalid vector");
             }
             vector.add(value.asDouble());
         }
@@ -173,18 +191,23 @@ public class OpenAiCompatibleModelClient {
 
     private void requireApiKey(String operation) {
         if (!hasApiKey()) {
-            throw new ModelClientException(
+            throw new ModelClientException(ModelClientException.CONFIGURATION_ERROR,
                     "LLM API key is required before invoking " + operation);
         }
     }
 
     private ModelClientException providerFailure(String message, RuntimeException cause) {
-        return new ModelClientException(message + ": " + safeMessage(cause), cause);
+        return new ModelClientException(ModelClientException.PROVIDER_ERROR,
+                message + ": " + safeMessage(cause), cause);
     }
 
     private String safeMessage(Throwable throwable) {
-        String message = throwable.getMessage();
-        return message == null || message.isBlank() ? throwable.getClass().getSimpleName() : message;
+        if (throwable == null) {
+            return "provider transport failure";
+        }
+        // RestClient exceptions can embed the complete provider response body in getMessage().
+        // Keep only the exception type; status is already represented by the stable operation code.
+        return "provider transport failure (" + throwable.getClass().getSimpleName() + ")";
     }
 
     private Map<String, Object> chatBody(ChatCompletionRequest request, boolean stream) {
@@ -240,11 +263,34 @@ public class OpenAiCompatibleModelClient {
         if (usage == null || !usage.isObject()) {
             return TokenUsage.empty();
         }
-        return new TokenUsage(
-                usage.path("prompt_tokens").asInt(0),
-                usage.path("completion_tokens").asInt(0),
-                usage.path("total_tokens").asInt(0)
-        );
+        try {
+            int prompt = usageCount(usage.path("prompt_tokens"), "prompt_tokens");
+            int completion = usageCount(usage.path("completion_tokens"), "completion_tokens");
+            JsonNode totalNode = usage.path("total_tokens");
+            int total = totalNode.isMissingNode() || totalNode.isNull()
+                    ? Math.addExact(prompt, completion)
+                    : usageCount(totalNode, "total_tokens");
+            return new TokenUsage(prompt, completion, total);
+        } catch (ModelClientException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE,
+                    "Chat completion usage is invalid", ex);
+        }
+    }
+
+    private int usageCount(JsonNode node, String field) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return 0;
+        }
+        if (!node.isIntegralNumber()) {
+            throw new IllegalArgumentException("usage field " + field + " must be an integer");
+        }
+        long value = node.asLong();
+        if (value < 0 || value > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("usage field " + field + " is out of range");
+        }
+        return (int) value;
     }
 
     private boolean hasApiKey() {

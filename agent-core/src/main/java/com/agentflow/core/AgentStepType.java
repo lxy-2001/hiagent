@@ -5,7 +5,12 @@ public enum AgentStepType {
     MEMORY,
     RAG,
     LLM,
+    MODEL_DECISION,
     TOOL,
+    TOOL_CALL,
+    TOOL_RESULT,
     HUMAN_APPROVAL,
-    FINAL
+    FINAL,
+    FAILURE,
+    TERMINATION
 }

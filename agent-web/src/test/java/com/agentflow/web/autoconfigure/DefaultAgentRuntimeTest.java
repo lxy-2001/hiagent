@@ -5,69 +5,70 @@ import com.agentflow.core.AgentRequest;
 import com.agentflow.core.AgentResult;
 import com.agentflow.core.AgentStepRecord;
 import com.agentflow.core.AgentStepType;
-import com.agentflow.core.model.ModelPrompt;
-import com.agentflow.core.rag.RagDocument;
+import com.agentflow.core.model.AgentModelClient;
+import com.agentflow.core.model.FinalAnswerDecision;
+import com.agentflow.core.chat.TokenUsage;
+import com.agentflow.core.runtime.DefaultAgentRuntime;
 import com.agentflow.core.step.StepRecorder;
 import com.agentflow.core.tool.AgentTool;
+import com.agentflow.core.tool.ParameterSpec;
 import com.agentflow.core.tool.RiskLevel;
+import com.agentflow.core.tool.ToolArguments;
 import com.agentflow.core.tool.ToolContext;
+import com.agentflow.core.tool.ToolDefinition;
+import com.agentflow.core.tool.ToolRegistry;
 import com.agentflow.core.tool.ToolResult;
-import com.agentflow.web.DefaultAgentRuntime;
-import com.agentflow.web.memory.InMemoryShortTermMemory;
-import com.agentflow.web.planner.SimpleTaskPlanner;
+import com.agentflow.core.tool.ToolSchema;
 import com.agentflow.tool.InMemoryToolRegistry;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Web module smoke test for the Core Runtime. Detailed loop semantics live in agent-core tests.
+ */
 class DefaultAgentRuntimeTest {
 
     @Test
-    void recordsRagToolLlmAndFinalSteps() {
+    void webModuleCanUseCoreRuntimeWithStructuredToolDecision() {
         List<AgentStepRecord> recorded = new ArrayList<>();
-        StepRecorder recorder = recorded::add;
-        var runtime = new DefaultAgentRuntime(
-                new SimpleTaskPlanner(),
-                (query, limit) -> List.of(new RagDocument("doc-1", "并发设计", "Redis Lua + MySQL 条件更新", 0.9)),
-                new InMemoryToolRegistry(List.of(new FakeTool("interface-draft"), new FakeTool("sql-draft"), new FakeTool("code-draft"))),
-                this::fakeAnswer,
-                recorder,
-                new InMemoryShortTermMemory(),
-                6
-        );
+        AgentTool tool = new EchoTool();
+        ToolRegistry registry = new InMemoryToolRegistry(List.of(tool));
+        AgentModelClient model = request -> request.iteration() == 1
+                ? new com.agentflow.core.model.ToolCallDecision("decision-1",
+                new com.agentflow.core.tool.ToolCall("call-1", "echo",
+                        new ToolArguments(Map.of("input", "hello"))), TokenUsage.empty())
+                : new FinalAnswerDecision("decision-2", "done", TokenUsage.empty());
+        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry, recorded::add);
 
-        AgentResult result = runtime.run(new AgentRequest("task-1", "session-1", "user-1",
-                "帮我设计一个秒杀库存扣减接口，生成 SQL 和 Service 伪代码"), AgentEventSink.NOOP);
+        AgentResult result = runtime.run(new AgentRequest("task-1", "session-1", "user-1", "hello"),
+                AgentEventSink.NOOP);
 
-        assertTrue(result.finalAnswer().contains("最终方案"));
-        assertEquals(List.of(AgentStepType.PLANNER, AgentStepType.RAG, AgentStepType.TOOL,
-                        AgentStepType.TOOL, AgentStepType.TOOL, AgentStepType.LLM, AgentStepType.FINAL),
-                recorded.stream().map(AgentStepRecord::stepType).toList());
+        assertThat(result.finalAnswer()).isEqualTo("done");
+        assertThat(result.status().name()).isEqualTo("SUCCEEDED");
+        assertThat(recorded).extracting(AgentStepRecord::stepType)
+                .contains(AgentStepType.MODEL_DECISION, AgentStepType.TOOL_CALL, AgentStepType.TOOL_RESULT,
+                        AgentStepType.FINAL, AgentStepType.TERMINATION);
     }
 
-    private String fakeAnswer(ModelPrompt prompt) {
-        return "最终方案：" + prompt.user().substring(0, Math.min(20, prompt.user().length()));
-    }
-
-    private record FakeTool(String name) implements AgentTool {
+    private static final class EchoTool implements AgentTool {
+        private static final ToolDefinition DEFINITION = new ToolDefinition(
+                "echo", "Echo text", RiskLevel.LOW,
+                new ToolSchema(Map.of("input", ParameterSpec.requiredString(64)), Set.of("input"), false));
 
         @Override
-        public String description() {
-            return name + " tool";
+        public ToolDefinition definition() {
+            return DEFINITION;
         }
 
         @Override
-        public RiskLevel riskLevel() {
-            return RiskLevel.LOW;
-        }
-
-        @Override
-        public ToolResult execute(String input, ToolContext context) {
-            return new ToolResult(name, "output from " + name);
+        public ToolResult execute(ToolArguments arguments, ToolContext context) {
+            return ToolResult.success(DEFINITION.name(), arguments.values().get("input").toString());
         }
     }
 }

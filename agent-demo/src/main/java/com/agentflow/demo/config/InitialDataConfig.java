@@ -45,9 +45,10 @@ public class InitialDataConfig {
     CommandLineRunner seedToolCatalog(AgentToolRepository repository, List<AgentTool> tools) {
         return args -> {
             for (AgentTool tool : tools) {
-                if (repository.findByName(tool.name()).isEmpty()) {
-                    repository.save(new AgentToolEntity(Ids.newId(), tool.name(), tool.description(), "{}",
-                            true, tool.riskLevel().name(), Instant.now()));
+                var definition = tool.definition();
+                if (repository.findByName(definition.name()).isEmpty()) {
+                    repository.save(new AgentToolEntity(Ids.newId(), definition.name(), definition.description(), "{}",
+                            true, definition.riskLevel().name(), Instant.now()));
                 }
             }
         };

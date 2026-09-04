@@ -1,0 +1,17 @@
+package com.agentflow.core.runtime;
+
+public enum TerminationReason {
+    COMPLETED,
+    INVALID_INPUT,
+    INVALID_DECISION,
+    MODEL_ERROR,
+    UNKNOWN_TOOL,
+    DISABLED_TOOL,
+    INVALID_TOOL_ARGUMENTS,
+    TOOL_ERROR,
+    TOOL_RESULT_INVALID,
+    TOOL_RESULT_TOO_LARGE,
+    CANCELLED,
+    TIMED_OUT,
+    BUDGET_EXCEEDED
+}
