@@ -112,6 +112,27 @@ class OpenAiChatModelClientTest {
     }
 
     @Test
+    void mapsNegativeUsageToStableMalformedResponseError() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        OpenAiChatModelClient client = new OpenAiChatModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
+
+        server.expect(requestTo("https://api.deepseek.com/chat/completions"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess(
+                        "{\"choices\":[{\"message\":{\"content\":\"answer\"}}],\"usage\":{\"prompt_tokens\":-1}}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.complete(new ChatCompletionRequest(
+                List.of(ChatMessage.user("negative-usage")), null, null, null)))
+                .isInstanceOf(ModelClientException.class)
+                .extracting(error -> ((ModelClientException) error).code())
+                .isEqualTo(ModelClientException.MALFORMED_MODEL_RESPONSE);
+        server.verify();
+    }
+
+    @Test
     void rejectsEmptyResponse() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

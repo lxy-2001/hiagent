@@ -55,6 +55,19 @@ class ExecutionPolicyContractTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new AgentResult("t", null, List.of(), RunStatus.FAILED,
                         TerminationReason.COMPLETED, TokenUsage.empty(), ""));
+        assertThrows(IllegalArgumentException.class,
+                () -> new AgentResult("t", null, List.of(), RunStatus.CANCELLED,
+                        TerminationReason.MODEL_ERROR, TokenUsage.empty(), ""));
+    }
+
+    @Test
+    void preservesLongSuccessAnswerWhileRedactingSensitiveValues() {
+        String answer = "x".repeat(2_000) + " apiKey=secret-value";
+        AgentResult result = AgentResult.success("t", answer, List.of(), TokenUsage.empty());
+
+        assertTrue(result.finalAnswer().length() > 1_024);
+        assertFalse(result.finalAnswer().contains("secret-value"));
+        assertTrue(result.finalAnswer().contains("[redacted]"));
     }
 
     @Test

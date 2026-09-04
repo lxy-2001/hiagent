@@ -63,7 +63,8 @@ public class ModelClientException extends IllegalStateException {
             if (value == null) {
                 return null;
             }
-            return new IllegalStateException(message(value.getMessage()));
+            // A provider/JSON exception may carry an entire response body in its message.
+            return new IllegalStateException(value.getClass().getSimpleName());
         }
     }
 }

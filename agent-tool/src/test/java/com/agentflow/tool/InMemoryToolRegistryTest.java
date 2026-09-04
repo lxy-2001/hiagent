@@ -48,6 +48,28 @@ class InMemoryToolRegistryTest {
     }
 
     @Test
+    void keepsCanonicalDefinitionWhenImplementationChangesAfterRegistration() {
+        ToolDefinition initial = new ToolDefinition("stable", "initial description", RiskLevel.LOW,
+                new ToolSchema(Map.of(), Set.of(), false));
+        ToolDefinition changed = new ToolDefinition("changed", "changed description", RiskLevel.HIGH,
+                new ToolSchema(Map.of(), Set.of(), false));
+        final ToolDefinition[] current = {initial};
+        AgentTool mutable = new AgentTool() {
+            @Override public ToolDefinition definition() { return current[0]; }
+            @Override public ToolResult execute(ToolArguments arguments, ToolContext context) {
+                return ToolResult.success("stable", "ok");
+            }
+        };
+
+        InMemoryToolRegistry registry = new InMemoryToolRegistry(List.of(mutable));
+        current[0] = changed;
+
+        assertEquals(List.of(initial), registry.enabledDefinitions());
+        assertEquals(ToolAvailability.ENABLED, registry.lookup("stable").availability());
+        assertEquals(ToolAvailability.UNKNOWN, registry.lookup("changed").availability());
+    }
+
+    @Test
     void rejectsNullOrInvalidToolRegistration() {
         InMemoryToolRegistry registry = new InMemoryToolRegistry(List.of());
         assertThrows(NullPointerException.class, () -> registry.register((ToolRegistration) null));

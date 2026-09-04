@@ -202,15 +202,12 @@ public class OpenAiCompatibleModelClient {
     }
 
     private String safeMessage(Throwable throwable) {
-        String message = throwable.getMessage();
-        if (message == null || message.isBlank()) {
-            message = throwable.getClass().getSimpleName();
+        if (throwable == null) {
+            return "provider transport failure";
         }
-        String apiKey = properties.model().getApiKey();
-        if (apiKey != null && !apiKey.isBlank()) {
-            message = message.replace(apiKey, "[redacted]");
-        }
-        return ModelClientException.sanitize(message);
+        // RestClient exceptions can embed the complete provider response body in getMessage().
+        // Keep only the exception type; status is already represented by the stable operation code.
+        return "provider transport failure (" + throwable.getClass().getSimpleName() + ")";
     }
 
     private Map<String, Object> chatBody(ChatCompletionRequest request, boolean stream) {
@@ -266,11 +263,34 @@ public class OpenAiCompatibleModelClient {
         if (usage == null || !usage.isObject()) {
             return TokenUsage.empty();
         }
-        return new TokenUsage(
-                usage.path("prompt_tokens").asInt(0),
-                usage.path("completion_tokens").asInt(0),
-                usage.path("total_tokens").asInt(0)
-        );
+        try {
+            int prompt = usageCount(usage.path("prompt_tokens"), "prompt_tokens");
+            int completion = usageCount(usage.path("completion_tokens"), "completion_tokens");
+            JsonNode totalNode = usage.path("total_tokens");
+            int total = totalNode.isMissingNode() || totalNode.isNull()
+                    ? Math.addExact(prompt, completion)
+                    : usageCount(totalNode, "total_tokens");
+            return new TokenUsage(prompt, completion, total);
+        } catch (ModelClientException ex) {
+            throw ex;
+        } catch (RuntimeException ex) {
+            throw new ModelClientException(ModelClientException.MALFORMED_MODEL_RESPONSE,
+                    "Chat completion usage is invalid", ex);
+        }
+    }
+
+    private int usageCount(JsonNode node, String field) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return 0;
+        }
+        if (!node.isIntegralNumber()) {
+            throw new IllegalArgumentException("usage field " + field + " must be an integer");
+        }
+        long value = node.asLong();
+        if (value < 0 || value > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("usage field " + field + " is out of range");
+        }
+        return (int) value;
     }
 
     private boolean hasApiKey() {

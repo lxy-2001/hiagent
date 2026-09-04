@@ -33,8 +33,12 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
         if (raw.errorCode() == null || raw.errorCode().isBlank()) {
             return failure(call, "TOOL_RESULT_INVALID", "failed tool result must have error code");
         }
-        return new ToolResult(call.name(), output, ToolResultStatus.FAILED, raw.errorCode(),
-                sanitize(raw.diagnostic()), raw.truncated(), call.callId());
+        return new ToolResult(call.name(), output, ToolResultStatus.FAILED,
+                safeErrorCode(raw.errorCode()), sanitize(raw.diagnostic()), raw.truncated(), call.callId());
+    }
+
+    private static String safeErrorCode(String code) {
+        return code.matches("[A-Z][A-Z0-9_]{0,63}") ? code : "TOOL_ERROR";
     }
 
     private static ToolResult failure(ToolCall call, String code, String diagnostic) {

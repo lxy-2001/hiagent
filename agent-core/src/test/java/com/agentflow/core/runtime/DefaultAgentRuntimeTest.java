@@ -125,6 +125,31 @@ class DefaultAgentRuntimeTest {
     }
 
     @Test
+    void canonicalizesSensitiveToolOutputEvenWithIdentityNormalizer() {
+        var tool = RuntimeTestSupport.tool("echo", (args, context) ->
+                ToolResult.success("echo", "apiKey=secret-value"));
+        AgentModelClient model = request -> {
+            if (request.iteration() == 1) {
+                return new ToolCallDecision("d1",
+                        new ToolCall("c1", "echo", new ToolArguments(Map.of())), TokenUsage.empty());
+            }
+            String toolContent = request.messages().stream()
+                    .filter(message -> "tool".equals(message.role()))
+                    .findFirst().orElseThrow().content();
+            assertTrue(!toolContent.contains("secret-value"));
+            assertTrue(toolContent.contains("[redacted]"));
+            return new FinalAnswerDecision("d2", "done", TokenUsage.empty());
+        };
+
+        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool),
+                (call, context) -> ToolResult.success("echo", "apiKey=secret-value"),
+                step -> { }, ToolResultNormalizer.IDENTITY)
+                .run(new AgentRequest("t-sensitive", "s", "u", "input"), event -> { });
+
+        assertEquals(RunStatus.SUCCEEDED, result.status());
+    }
+
+    @Test
     void convenienceRuntimeUsesRegistryExecutorAndNeverInvokesInvalidArguments() {
         java.util.concurrent.atomic.AtomicInteger executions = new java.util.concurrent.atomic.AtomicInteger();
         ToolDefinition definition = new ToolDefinition("tool-a", "tool", RiskLevel.LOW,

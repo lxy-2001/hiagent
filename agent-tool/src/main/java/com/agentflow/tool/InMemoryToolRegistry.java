@@ -32,7 +32,8 @@ public final class InMemoryToolRegistry implements ToolRegistry {
         Objects.requireNonNull(registration, "registration must not be null");
         AgentTool tool = registration.tool();
         ToolDefinition definition = registration.definition();
-        if (tool.definition() != definition && !tool.definition().equals(definition)) {
+        ToolDefinition implementationDefinition = tool.definition();
+        if (implementationDefinition == null || !implementationDefinition.equals(definition)) {
             throw new IllegalArgumentException("tool definition is inconsistent");
         }
         String name = definition.name();

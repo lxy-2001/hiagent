@@ -39,6 +39,20 @@ class ToolSchemaContractTest {
         assertFalse(schema.validate(new ToolArguments(Map.of("text", "toolong"))).valid());
     }
     @Test
+    void appliesEnumConstraintsToPrimitiveValues() {
+        ToolSchema constrained = new ToolSchema(
+                Map.of(
+                        "count", new ParameterSpec(ValueType.INTEGER, false, false, "",
+                                null, null, null, null, null, null, Set.of("1", "2"), null),
+                        "enabled", new ParameterSpec(ValueType.BOOLEAN, false, false, "",
+                                null, null, null, null, null, null, Set.of("true"), null)),
+                Set.of(), false);
+
+        assertTrue(constrained.validate(new ToolArguments(Map.of("count", 1, "enabled", true))).valid());
+        assertFalse(constrained.validate(new ToolArguments(Map.of("count", 3, "enabled", false))).valid());
+    }
+
+    @Test
     void rejectsUntrustedNestedValuesAndResourceLimits() {
         assertThrows(IllegalArgumentException.class,
                 () -> new ToolArguments(Map.of("object", Map.of(1, "bad"))));

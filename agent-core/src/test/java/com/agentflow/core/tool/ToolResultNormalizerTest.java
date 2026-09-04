@@ -45,6 +45,15 @@ class ToolResultNormalizerTest {
     }
 
     @Test
+    void normalizesUntrustedErrorCodeToStableVocabulary() {
+        ToolResult result = normalizer.normalize(call,
+                new ToolResult("echo", null, ToolResultStatus.FAILED,
+                        "password=secret-value", "failure", false, null));
+
+        assertEquals("TOOL_ERROR", result.errorCode());
+    }
+
+    @Test
     void redactsSensitiveToolOutputBeforeItCanReachTheNextModelTurn() {
         ToolResult result = normalizer.normalize(call,
                 ToolResult.success("echo", "apiKey=secret-value Bearer bearer-secret"));

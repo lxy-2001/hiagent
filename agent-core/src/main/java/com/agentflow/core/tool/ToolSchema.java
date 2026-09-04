@@ -86,13 +86,13 @@ public record ToolSchema(
             violations.add(new Violation(name, "TYPE_MISMATCH", "argument type does not match schema"));
             return;
         }
+        if (!spec.enumValues().isEmpty() && !spec.enumValues().contains(String.valueOf(value))) {
+            violations.add(new Violation(name, "ENUM_MISMATCH", "value is not in schema enum"));
+        }
         if (value instanceof String string) {
             if ((spec.minLength() != null && string.length() < spec.minLength())
                     || (spec.maxLength() != null && string.length() > spec.maxLength())) {
                 violations.add(new Violation(name, "LENGTH_OUT_OF_RANGE", "string length is outside schema range"));
-            }
-            if (!spec.enumValues().isEmpty() && !spec.enumValues().contains(string)) {
-                violations.add(new Violation(name, "ENUM_MISMATCH", "value is not in schema enum"));
             }
             if (spec.pattern() != null) {
                 try {

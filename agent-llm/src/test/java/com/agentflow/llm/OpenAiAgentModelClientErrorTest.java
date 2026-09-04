@@ -43,6 +43,26 @@ class OpenAiAgentModelClientErrorTest {
     }
 
     @Test
+    void rejectsOutOfRangeNumericToolArguments() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("https://api.deepseek.com/chat/completions"))
+                .andRespond(withSuccess(
+                        "{\"choices\":[{\"message\":{\"tool_calls\":[{\"id\":\"c\",\"function\":{\"name\":\"x\",\"arguments\":{\"value\":9223372036854775808}}}]}}]}",
+                        MediaType.APPLICATION_JSON));
+        OpenAiAgentModelClient client = new OpenAiAgentModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
+        AgentModelRequest request = new AgentModelRequest("task", "session", "user", "input",
+                List.of(ModelMessage.user("input")), List.of(), 1);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.decide(request))
+                .isInstanceOf(ModelClientException.class)
+                .extracting(error -> ((ModelClientException) error).code())
+                .isEqualTo(ModelClientException.MALFORMED_MODEL_RESPONSE);
+        server.verify();
+    }
+
+    @Test
     void redactsQuotedJsonCredentialFields() {
         String sanitized = ModelClientException.sanitize("{\"api_key\":\"secret-value\",\"password\":\"pw\"}");
 
@@ -63,6 +83,28 @@ class OpenAiAgentModelClientErrorTest {
                 .doesNotContain("secret-value");
         org.assertj.core.api.Assertions.assertThat(exception.getCause().getMessage())
                 .doesNotContain("another-secret");
+    }
+
+    @Test
+    void doesNotExposeUnclassifiedProviderResponseBody() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo("https://api.deepseek.com/chat/completions"))
+                .andRespond(withStatus(HttpStatus.BAD_REQUEST)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"internal_provider_detail\":\"do-not-expose-this\"}"));
+        OpenAiAgentModelClient client = new OpenAiAgentModelClient(
+                new OpenAiCompatibleModelClient(properties(), builder));
+        AgentModelRequest request = new AgentModelRequest("task", "session", "user", "input",
+                List.of(ModelMessage.user("input")), List.of(), 1);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> client.decide(request))
+                .isInstanceOf(ModelClientException.class)
+                .extracting(Throwable::getMessage)
+                .asString()
+                .doesNotContain("do-not-expose-this")
+                .doesNotContain("internal_provider_detail");
+        server.verify();
     }
 
     @Test

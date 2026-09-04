@@ -15,6 +15,7 @@ import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -237,8 +238,25 @@ public final class ProviderDecisionMapper {
         if (node == null || node.isNull()) return null;
         if (node.isTextual()) return node.asText();
         if (node.isBoolean()) return node.asBoolean();
-        if (node.isIntegralNumber()) return node.asLong();
-        if (node.isFloatingPointNumber()) return node.asDouble();
+        if (node.isIntegralNumber()) {
+            try {
+                BigInteger integer = new BigInteger(node.asText());
+                if (integer.compareTo(BigInteger.valueOf(Long.MIN_VALUE)) < 0
+                        || integer.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+                    throw invalid("integer argument is outside the supported range");
+                }
+                return integer.longValue();
+            } catch (NumberFormatException ex) {
+                throw invalid("integer argument is invalid", ex);
+            }
+        }
+        if (node.isFloatingPointNumber()) {
+            double number = node.asDouble();
+            if (!Double.isFinite(number)) {
+                throw invalid("number argument must be finite");
+            }
+            return number;
+        }
         if (node.isArray()) {
             List<Object> values = new ArrayList<>();
             node.forEach(item -> values.add(value(item)));

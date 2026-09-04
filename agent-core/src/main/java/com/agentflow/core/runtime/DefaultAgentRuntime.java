@@ -12,6 +12,7 @@ import com.agentflow.core.model.ModelDecision;
 import com.agentflow.core.model.ToolCallDecision;
 import com.agentflow.core.step.StepRecorder;
 import com.agentflow.core.tool.DefaultToolExecutor;
+import com.agentflow.core.tool.DefaultToolResultNormalizer;
 import com.agentflow.core.tool.ToolAvailability;
 import com.agentflow.core.tool.ToolCall;
 import com.agentflow.core.tool.ToolDefinition;
@@ -31,6 +32,7 @@ import java.util.Set;
 
 /** Pure Java, bounded, single-Tool-call-per-iteration Agent decision loop. */
 public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntime {
+    private static final ToolResultNormalizer SAFETY_NORMALIZER = new DefaultToolResultNormalizer();
     private final AgentModelClient modelClient;
     private final ToolRegistry toolRegistry;
     private final ToolExecutor toolExecutor;
@@ -210,6 +212,11 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
                             ex.getMessage(), elapsed(toolStarted), AgentErrorCode.TOOL_ERROR.name(),
                             toolDecision.decisionId(), call.callId(), false);
+                    Termination afterTool = afterToolBoundary(effectiveOptions, startedAt);
+                    if (afterTool != null) {
+                        return finishFailure(request, trace, budget, afterTool.reason(),
+                                afterTool.status(), afterTool.diagnostic());
+                    }
                     return finishFailure(request, trace, budget, TerminationReason.TOOL_ERROR,
                             RunStatus.FAILED, "tool execution failed");
                 }
@@ -221,6 +228,11 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
                             ex.getMessage(), elapsed(toolStarted), AgentErrorCode.TOOL_RESULT_INVALID.name(),
                             toolDecision.decisionId(), call.callId(), false);
+                    Termination afterTool = afterToolBoundary(effectiveOptions, startedAt);
+                    if (afterTool != null) {
+                        return finishFailure(request, trace, budget, afterTool.reason(),
+                                afterTool.status(), afterTool.diagnostic());
+                    }
                     return finishFailure(request, trace, budget, TerminationReason.TOOL_RESULT_INVALID,
                             RunStatus.FAILED, "tool result invalid");
                 }
@@ -228,19 +240,33 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
                             "tool result exceeds output limit", elapsed(toolStarted),
                             AgentErrorCode.TOOL_RESULT_TOO_LARGE.name(), toolDecision.decisionId(), call.callId(), false);
+                    Termination afterTool = afterToolBoundary(effectiveOptions, startedAt);
+                    if (afterTool != null) {
+                        return finishFailure(request, trace, budget, afterTool.reason(),
+                                afterTool.status(), afterTool.diagnostic());
+                    }
                     return finishFailure(request, trace, budget, TerminationReason.TOOL_RESULT_TOO_LARGE,
                             RunStatus.FAILED, "tool result exceeds output limit");
                 }
-                if (normalized.status() == ToolResultStatus.FAILED) {
+                boolean failedToolResult = normalized.status() == ToolResultStatus.FAILED;
+                if (failedToolResult) {
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
                             normalized.diagnostic(), elapsed(toolStarted), normalized.errorCode(),
                             toolDecision.decisionId(), call.callId(), false);
+                } else {
+                    trace.success(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
+                            normalized.outputOrEmpty(), elapsed(toolStarted), null, toolDecision.decisionId(), call.callId(), false);
+                    context.confirmToolResult(normalized);
+                }
+                Termination afterTool = afterToolBoundary(effectiveOptions, startedAt);
+                if (afterTool != null) {
+                    return finishFailure(request, trace, budget, afterTool.reason(),
+                            afterTool.status(), afterTool.diagnostic());
+                }
+                if (failedToolResult) {
                     return finishFailure(request, trace, budget, terminationReasonFor(normalized.errorCode()),
                             RunStatus.FAILED, normalized.diagnostic());
                 }
-                trace.success(AgentStepType.TOOL_RESULT, call.name(), call.arguments().values().toString(),
-                        normalized.outputOrEmpty(), elapsed(toolStarted), null, toolDecision.decisionId(), call.callId(), false);
-                context.confirmToolResult(normalized);
             }
         } catch (RuntimeException ex) {
             trace.failure(AgentStepType.FAILURE, "runtime", request.input(), ex.getMessage(),
@@ -265,28 +291,18 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
     }
 
     private static ToolResult canonicalize(ToolCall call, ToolResult result) {
-        if (result == null) {
-            throw new IllegalArgumentException("tool returned null result");
-        }
-        if (!call.name().equals(result.toolName())) {
-            throw new IllegalArgumentException("tool result name does not match call");
-        }
-        if (result.callId() != null && !call.callId().equals(result.callId())) {
-            throw new IllegalArgumentException("tool result call id does not match call");
-        }
-        if (result.status() == ToolResultStatus.SUCCESS
-                && (result.output() == null || result.output().isBlank())) {
+        // The Runtime owns the final trust boundary; a custom normalizer must not be
+        // able to bypass call correlation, output bounds, or credential redaction.
+        ToolResult safe = SAFETY_NORMALIZER.normalize(call, result);
+        if (safe.status() == ToolResultStatus.SUCCESS
+                && (safe.output() == null || safe.output().isBlank())) {
             throw new IllegalArgumentException("successful tool result must have output");
         }
-        if (result.status() == ToolResultStatus.FAILED
-                && (result.errorCode() == null || result.errorCode().isBlank())) {
+        if (safe.status() == ToolResultStatus.FAILED
+                && (safe.errorCode() == null || safe.errorCode().isBlank())) {
             throw new IllegalArgumentException("failed tool result must have error code");
         }
-        if (result.callId() == null) {
-            return new ToolResult(result.toolName(), result.output(), result.status(), result.errorCode(),
-                    result.diagnostic(), result.truncated(), call.callId());
-        }
-        return result;
+        return safe;
     }
 
     private static TerminationReason terminationReasonFor(String errorCode) {
@@ -339,6 +355,11 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
             return budgetTermination();
         }
         return null;
+    }
+
+    /** Checks only cancellation and wall-clock timeout after a Tool boundary. */
+    private Termination afterToolBoundary(AgentRunOptions options, long startedAt) {
+        return timeBoundary(options, startedAt);
     }
 
     private Termination timeBoundary(AgentRunOptions options, long startedAt) {
