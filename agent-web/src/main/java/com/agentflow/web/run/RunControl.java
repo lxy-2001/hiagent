@@ -199,6 +199,14 @@ public final class RunControl implements CancellationSignal {
         workerExited = true;
     }
 
+    public synchronized void markExecutorSlotReleased() {
+        if (workerEntered) {
+            workerExited = true;
+        } else {
+            queueDetached = true;
+        }
+    }
+
     public synchronized void markQueueDetached() {
         if (workerEntered) {
             throw new IllegalStateException("entered worker cannot be detached from queue");

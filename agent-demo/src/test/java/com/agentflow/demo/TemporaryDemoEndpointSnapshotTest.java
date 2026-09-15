@@ -6,6 +6,8 @@ import com.agentflow.demo.tool.AgentToolRepository;
 import com.agentflow.web.agent.AgentController;
 import com.agentflow.web.agent.AgentTaskService;
 import com.agentflow.web.auth.AuthController;
+import com.agentflow.web.run.RunCoordinator;
+import com.agentflow.web.run.RunLifecycleStatus;
 import com.agentflow.web.auth.AuthService;
 import com.agentflow.web.auth.SysUserRepository;
 import com.agentflow.web.chat.ChatController;
@@ -69,6 +71,7 @@ class TemporaryDemoEndpointSnapshotTest {
             new Operation("GET", "/api/agent/tasks/{taskId}"),
             new Operation("GET", "/api/agent/tasks/{taskId}/steps"),
             new Operation("GET", "/api/agent/tasks/{taskId}/events"),
+            new Operation("POST", "/api/agent/tasks/{taskId}/cancel"),
             new Operation("POST", "/api/knowledge/reload")
     );
 
@@ -114,13 +117,13 @@ class TemporaryDemoEndpointSnapshotTest {
         when(chatService.chat(any(ChatRequest.class)))
                 .thenReturn(new ChatResponse("session-1", "test", "test-model", "ok", TokenUsage.empty(), false));
         when(agentTaskService.create("user-1", "hello"))
-                .thenReturn(new AgentController.TaskResponse("task-1", "session-1", "RUNNING"));
+                .thenReturn(new RunCoordinator.RunAccepted("task-1", "task-1", "session-1", RunLifecycleStatus.QUEUED));
         when(knowledgeService.reloadBuiltInKnowledge())
                 .thenReturn(new KnowledgeService.ReloadResult(0, List.of()));
     }
 
     @Test
-    void registersExactlyElevenTemporaryDemoOperations() {
+    void registersExactlyTwelveTemporaryDemoOperations() {
         Set<Operation> actual = new HashSet<>();
         handlerMapping.getHandlerMethods().forEach((mapping, handler) -> {
             Class<?> beanType = handler.getBeanType();
@@ -135,7 +138,7 @@ class TemporaryDemoEndpointSnapshotTest {
             }
         });
 
-        assertThat(actual).hasSize(11).containsExactlyInAnyOrderElementsOf(EXPECTED_OPERATIONS);
+        assertThat(actual).hasSize(12).containsExactlyInAnyOrderElementsOf(EXPECTED_OPERATIONS);
     }
 
     @Test
@@ -157,7 +160,7 @@ class TemporaryDemoEndpointSnapshotTest {
                         .with(jwt().jwt(token -> token.subject("user-1")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"input\":\"hello\"}"))
-                .andExpect(status().isOk())
+                .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.taskId").value("task-1"));
 
         mockMvc.perform(post("/api/knowledge/reload")

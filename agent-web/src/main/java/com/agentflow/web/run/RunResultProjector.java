@@ -177,6 +177,16 @@ public final class RunResultProjector {
                 sanitize(source.errorCode(), MAX_ID_CHARS), source.terminal());
     }
 
+    public java.util.Optional<ProjectedStep> projectStep(String expectedTaskId,
+                                                         AgentStepRecord source) {
+        requireTaskId(expectedTaskId);
+        if (source == null || !expectedTaskId.equals(source.taskId())
+                || source.stepNo() < 1 || source.stepNo() > MAX_STEPS) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(projectStep(source));
+    }
+
     private FinalProjection fitProjection(FinalProjection source, boolean complete) {
         List<ProjectedStep> steps = new ArrayList<>(source.steps());
         FinalProjection candidate = withSteps(source, steps, complete);

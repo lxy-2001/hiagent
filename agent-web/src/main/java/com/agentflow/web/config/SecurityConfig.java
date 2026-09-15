@@ -28,22 +28,33 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import com.agentflow.web.run.RunApiErrorWriter;
+import tools.jackson.databind.ObjectMapper;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, StringRedisTemplate redisTemplate) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, StringRedisTemplate redisTemplate,
+                                            ObjectMapper objectMapper) throws Exception {
+        RunApiErrorWriter errors = new RunApiErrorWriter(objectMapper);
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/favicon.ico", "/error", "/api/auth/**",
-                                "/api/agent/tasks/*/events", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                                "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-                .addFilterBefore(new RateLimitFilter(redisTemplate), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new JwtBlacklistFilter(redisTemplate), BearerTokenAuthenticationFilter.class);
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint((request, response, failure) -> {
+                            if (request.getRequestURI().equals("/api/agent/tasks")
+                                    || request.getRequestURI().startsWith("/api/agent/tasks/")) {
+                                errors.write(response, 401, "UNAUTHORIZED", null);
+                            } else response.sendError(401);
+                        })
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                .addFilterBefore(new RateLimitFilter(redisTemplate, errors), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new JwtBlacklistFilter(redisTemplate, errors), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

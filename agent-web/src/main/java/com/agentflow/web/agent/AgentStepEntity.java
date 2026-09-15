@@ -5,12 +5,16 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.Objects;
+import com.agentflow.web.run.RunResultProjector;
 
 @Entity
-@Table(name = "agent_step")
+@Table(name = "agent_step", uniqueConstraints =
+        @UniqueConstraint(name = "uk_agent_step_task_no", columnNames = {"task_id", "step_no"}))
 public class AgentStepEntity {
 
     @Id
@@ -29,6 +33,10 @@ public class AgentStepEntity {
     private Integer completionTokens;
     @Column(columnDefinition = "text")
     private String errorMessage;
+    private String decisionId;
+    private String callId;
+    private String errorCode;
+    private boolean terminal;
     private Instant createdAt;
 
     protected AgentStepEntity() {
@@ -47,7 +55,36 @@ public class AgentStepEntity {
         this.promptTokens = record.promptTokens();
         this.completionTokens = record.completionTokens();
         this.errorMessage = record.errorMessage();
+        this.decisionId = record.decisionId();
+        this.callId = record.callId();
+        this.errorCode = record.errorCode();
+        this.terminal = record.terminal();
         this.createdAt = Instant.now();
+    }
+
+    public AgentStepEntity(RunResultProjector.ProjectedStep step, Instant createdAt) {
+        this.id = UUID.randomUUID().toString();
+        apply(step);
+        this.createdAt = createdAt;
+    }
+
+    public void apply(RunResultProjector.ProjectedStep step) {
+        Objects.requireNonNull(step, "step must not be null");
+        this.taskId = step.taskId();
+        this.stepNo = step.stepNo();
+        this.stepType = step.stepType();
+        this.toolName = step.name();
+        this.input = step.input();
+        this.output = step.output();
+        this.status = step.status();
+        this.latencyMs = step.latencyMs();
+        this.promptTokens = step.promptTokens();
+        this.completionTokens = step.completionTokens();
+        this.errorMessage = step.errorMessage();
+        this.decisionId = step.decisionId();
+        this.callId = step.callId();
+        this.errorCode = step.errorCode();
+        this.terminal = step.terminal();
     }
 
     public int getStepNo() {
@@ -72,5 +109,47 @@ public class AgentStepEntity {
 
     public String getErrorMessage() {
         return errorMessage;
+    }
+
+    public String getTaskId() {
+        return taskId;
+    }
+
+    public String getInput() {
+        return input;
+    }
+
+    public long getLatencyMs() {
+        return latencyMs;
+    }
+
+    public Integer getPromptTokens() {
+        return promptTokens;
+    }
+
+    public Integer getCompletionTokens() {
+        return completionTokens;
+    }
+
+    public String getDecisionId() {
+        return decisionId;
+    }
+
+    public String getCallId() {
+        return callId;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+
+    public boolean isTerminal() {
+        return terminal;
+    }
+
+    public RunResultProjector.ProjectedStep toProjection() {
+        return new RunResultProjector.ProjectedStep(taskId, stepNo, stepType, toolName,
+                input, output, status, latencyMs, promptTokens, completionTokens,
+                errorMessage, decisionId, callId, errorCode, terminal);
     }
 }

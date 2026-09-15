@@ -17,6 +17,12 @@ import com.agentflow.web.agent.AgentStepRepository;
 import com.agentflow.web.agent.AgentTaskService;
 import com.agentflow.web.agent.JpaStepRecorder;
 import com.agentflow.web.agent.TaskEventPublisher;
+import com.agentflow.web.agent.AgentSessionRepository;
+import com.agentflow.web.agent.AgentTaskRepository;
+import com.agentflow.web.run.*;
+import com.agentflow.web.support.Ids;
+import jakarta.persistence.EntityManager;
+import tools.jackson.databind.ObjectMapper;
 import com.agentflow.web.auth.AuthController;
 import com.agentflow.web.auth.AuthService;
 import com.agentflow.web.auth.JwtService;
@@ -34,13 +40,16 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
+import java.time.Clock;
+import java.util.concurrent.atomic.AtomicInteger;
+
 @AutoConfiguration
 @AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class})
 @EnableConfigurationProperties(AgentFlowProperties.class)
 @Import({
         AgentController.class,
         AgentTaskService.class,
-        TaskEventPublisher.class,
+        RunApiExceptionHandler.class,
         AuthController.class,
         AuthService.class,
         JwtService.class,
@@ -67,8 +76,63 @@ public class AgentWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(StepRecorder.class)
-    StepRecorder stepRecorder(AgentStepRepository stepRepository) {
-        return new JpaStepRecorder(stepRepository);
+    StepRecorder stepRecorder(RunPersistence persistence, RunResultProjector projector) {
+        return new JpaStepRecorder(persistence, projector);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RunLifecycleProperties runLifecycleProperties() {
+        return RunLifecycleProperties.defaults();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RunResultProjector runResultProjector() { return new RunResultProjector(); }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RunEventProjector runEventProjector() { return new RunEventProjector(); }
+
+    @Bean
+    @ConditionalOnMissingBean
+    TaskEventPublisher taskEventPublisher(RunEventHub hub, RunEventProjector projector) {
+        return new TaskEventPublisher(hub, projector);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RunEventHub runEventHub(ObjectMapper mapper, RunLifecycleProperties p) {
+        return new InMemoryRunEventHub(mapper, p.eventWindowCount(), p.eventWindowBytes(), p.eventFrameBytes());
+    }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean
+    BoundedRunExecutor boundedRunExecutor(RunLifecycleProperties p) {
+        AtomicInteger number = new AtomicInteger();
+        return new BoundedRunExecutor(p.workerThreads(), p.queueCapacity(), runnable -> {
+            Thread thread = new Thread(runnable, "agent-run-" + number.incrementAndGet());
+            thread.setDaemon(true);
+            return thread;
+        });
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RunPersistence runPersistence(AgentSessionRepository sessions, AgentTaskRepository tasks,
+                                  AgentStepRepository steps, EntityManager entityManager) {
+        return new RunPersistence(sessions, tasks, steps, entityManager);
+    }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean
+    RunCoordinator runCoordinator(AgentRuntime runtime, RunPersistence persistence, RunEventHub hub,
+                                  RunEventProjector eventProjector, RunResultProjector resultProjector,
+                                  BoundedRunExecutor executor, RunLifecycleProperties properties) {
+        RunCoordinator coordinator = new RunCoordinator(runtime, persistence, hub, eventProjector, resultProjector, executor,
+                properties, Clock.systemUTC(), System::nanoTime, Ids::newId);
+        coordinator.recoverInterrupted();
+        return coordinator;
     }
 
     @Bean

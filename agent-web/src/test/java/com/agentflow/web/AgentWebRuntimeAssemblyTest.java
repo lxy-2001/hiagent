@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -75,6 +76,7 @@ class AgentWebRuntimeAssemblyTest {
         @Bean AuthRefreshTokenRepository tokens() { return mock(AuthRefreshTokenRepository.class); }
         @Bean StringRedisTemplate redis() { return mock(StringRedisTemplate.class); }
         @Bean ObjectMapper objectMapper() { return new ObjectMapper(); }
+        @Bean EntityManager entityManager() { return mock(EntityManager.class); }
         @Bean Executor executor() { return Runnable::run; }
         @Bean com.agentflow.core.chat.ChatModelClient chat() {
             return new com.agentflow.core.chat.ChatModelClient() {

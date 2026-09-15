@@ -6,6 +6,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import com.agentflow.core.chat.TokenUsage;
+import com.agentflow.core.runtime.TerminationReason;
+import com.agentflow.web.run.RunLifecycleStatus;
+import com.agentflow.web.run.RunResultProjector;
 
 @Entity
 @Table(name = "agent_task")
@@ -22,6 +26,16 @@ public class AgentTaskEntity {
     private String finalAnswer;
     private Instant createdAt;
     private Instant updatedAt;
+    private Instant startedAt;
+    private Instant finishedAt;
+    private boolean cancelRequested;
+    private String terminationReason;
+    private String runtimeReason;
+    private String errorCode;
+    private boolean recordingComplete;
+    private Integer promptTokens;
+    private Integer completionTokens;
+    private Integer totalTokens;
 
     protected AgentTaskEntity() {
     }
@@ -58,6 +72,93 @@ public class AgentTaskEntity {
 
     public String getFinalAnswer() {
         return finalAnswer;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getFinishedAt() {
+        return finishedAt;
+    }
+
+    public boolean isCancelRequested() {
+        return cancelRequested;
+    }
+
+    public String getTerminationReason() {
+        return terminationReason;
+    }
+
+    public String getRuntimeReason() {
+        return runtimeReason;
+    }
+
+    public String getErrorCode() {
+        return errorCode;
+    }
+
+    public boolean isRecordingComplete() {
+        return recordingComplete;
+    }
+
+    public Integer getPromptTokens() {
+        return promptTokens;
+    }
+
+    public Integer getCompletionTokens() {
+        return completionTokens;
+    }
+
+    public Integer getTotalTokens() {
+        return totalTokens;
+    }
+
+    public void markRunning(Instant startedAt) {
+        if (startedAt == null || startedAt.isBefore(createdAt)) {
+            throw new IllegalArgumentException("startedAt must not be before createdAt");
+        }
+        if (!"QUEUED".equals(status)) {
+            throw new IllegalStateException("only queued task can start");
+        }
+        this.status = "RUNNING";
+        this.startedAt = startedAt;
+        this.updatedAt = startedAt;
+    }
+
+    public void applyFinal(RunResultProjector.FinalProjection projection) {
+        if (!id.equals(projection.taskId())) {
+            throw new IllegalArgumentException("projection belongs to another task");
+        }
+        this.status = projection.status().name();
+        this.finalAnswer = projection.finalAnswer();
+        this.finishedAt = projection.finishedAt();
+        this.cancelRequested |= projection.cancelRequested();
+        this.terminationReason = projection.terminationReason().name();
+        this.runtimeReason = projection.runtimeReason() == null
+                ? null : projection.runtimeReason().name();
+        this.errorCode = projection.errorCode();
+        this.recordingComplete = projection.recordingComplete();
+        TokenUsage usage = projection.usage();
+        this.promptTokens = usage == null ? null : usage.promptTokens();
+        this.completionTokens = usage == null ? null : usage.completionTokens();
+        this.totalTokens = usage == null ? null : usage.totalTokens();
+        this.updatedAt = projection.finishedAt();
+    }
+
+    public void requestCancellation(Instant now) {
+        if (!RunLifecycleStatus.valueOf(status).isTerminal()) {
+            cancelRequested = true;
+            updatedAt = now;
+        }
     }
 
     public void complete(String finalAnswer) {

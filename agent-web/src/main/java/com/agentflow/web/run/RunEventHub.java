@@ -40,4 +40,9 @@ public interface RunEventHub {
     PublishResult publish(String taskId, RunEvent.Draft event);
 
     ReplayResult replay(String taskId, long lastEventId);
+
+    /** Closes publication for a run after its committed terminal event is present. */
+    default boolean markTerminal(String taskId) {
+        return false;
+    }
 }

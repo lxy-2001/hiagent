@@ -10,15 +10,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import com.agentflow.web.run.RunApiErrorWriter;
+import tools.jackson.databind.ObjectMapper;
 
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final int LIMIT_PER_MINUTE = 120;
 
     private final StringRedisTemplate redisTemplate;
+    private final RunApiErrorWriter errors;
 
     public RateLimitFilter(StringRedisTemplate redisTemplate) {
+        this(redisTemplate, new RunApiErrorWriter(new ObjectMapper()));
+    }
+
+    public RateLimitFilter(StringRedisTemplate redisTemplate, RunApiErrorWriter errors) {
         this.redisTemplate = redisTemplate;
+        this.errors = errors;
     }
 
     @Override
@@ -29,15 +37,25 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
         String key = "rate:" + clientIp(request) + ":" + Instant.now().getEpochSecond() / 60;
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1) {
-            redisTemplate.expire(key, Duration.ofMinutes(2));
+        Long count;
+        try {
+            count = redisTemplate.opsForValue().increment(key);
+            if (count != null && count == 1) redisTemplate.expire(key, Duration.ofMinutes(2));
+        } catch (RuntimeException dependencyFailure) {
+            if (isTaskPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
+            throw dependencyFailure;
         }
         if (count != null && count > LIMIT_PER_MINUTE) {
-            response.sendError(429, "Too many requests");
+            if (isTaskPath(request)) errors.write(response, 429, "RATE_LIMITED", null);
+            else response.sendError(429, "Too many requests");
             return;
         }
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTaskPath(HttpServletRequest request) {
+        return request.getRequestURI().equals("/api/agent/tasks")
+                || request.getRequestURI().startsWith("/api/agent/tasks/");
     }
 
     private String clientIp(HttpServletRequest request) {

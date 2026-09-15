@@ -35,6 +35,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
 
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -153,6 +154,9 @@ class AgentWebAutoConfigurationTest {
         ObjectMapper objectMapper() {
             return new ObjectMapper();
         }
+
+        @Bean
+        EntityManager entityManager() { return mock(EntityManager.class); }
 
         @Bean
         Executor applicationTaskExecutor() {
