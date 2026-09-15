@@ -297,6 +297,7 @@ public final class RunCoordinator implements AutoCloseable {
 
     /** Performs one bounded, serial retry pass; it never invokes the Runtime. */
     public void maintainOnce() {
+        expireQueuedRuns();
         boolean failed = false;
         for (OwnedRun owned : java.util.List.copyOf(runs.values())) {
             RunControl.PendingClaim claim = owned.control().claimPending().orElse(null);
@@ -326,6 +327,22 @@ public final class RunCoordinator implements AutoCloseable {
         if (!failed && runs.values().stream().noneMatch(r -> r.control().pending().isPresent())) {
             availability = Availability.READY;
         } else if (failed) availability = Availability.DEGRADED;
+    }
+
+    private void expireQueuedRuns() {
+        long nowTick = monotonicNanos.getAsLong();
+        for (OwnedRun owned : java.util.List.copyOf(runs.values())) {
+            RunControl control = owned.control();
+            if (nowTick - control.queueDeadline() < 0
+                    || control.claimStart(nowTick) != RunControl.StartClaim.EXPIRED) {
+                continue;
+            }
+            BoundedRunExecutor.TaskHandle handle = handles.get(control.taskId());
+            if (handle != null) {
+                executor.remove(handle);
+            }
+            failWithoutRuntime(owned, RunResultProjector.FailureKind.QUEUE_TIMEOUT);
+        }
     }
 
     public boolean recoverInterrupted() {
