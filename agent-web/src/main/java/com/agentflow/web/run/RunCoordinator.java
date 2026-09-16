@@ -297,6 +297,7 @@ public final class RunCoordinator implements AutoCloseable {
 
     /** Performs one bounded, serial retry pass; it never invokes the Runtime. */
     public void maintainOnce() {
+        events.maintain();
         expireQueuedRuns();
         boolean failed = false;
         for (OwnedRun owned : java.util.List.copyOf(runs.values())) {
@@ -412,6 +413,7 @@ public final class RunCoordinator implements AutoCloseable {
         availability = Availability.STOPPING;
         maintenance.shutdownNow();
         runs.values().forEach(run -> run.control().requestCancel());
+        events.closeSubscriptions();
         executor.shutdown();
         try {
             executor.awaitTermination(java.time.Duration.ofSeconds(5));

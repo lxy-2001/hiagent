@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class InMemoryRunEventHub implements RunEventHub {
 
@@ -24,10 +26,13 @@ public final class InMemoryRunEventHub implements RunEventHub {
     private final int terminalCapacity;
     private final long terminalTtlNanos;
     private final LongSupplier ticker;
+    private final int perRunSubscriptionCapacity;
+    private final int globalSubscriptionCapacity;
     private final Object cacheLock = new Object();
     private final LinkedHashMap<String, StreamState> terminalOrder = new LinkedHashMap<>();
     private final Map<String, StreamState> streams = new ConcurrentHashMap<>();
     private int activeRuns;
+    private int activeSubscriptions;
 
     public InMemoryRunEventHub(ObjectMapper objectMapper, int windowCount, int windowBytes,
                                int frameBytes) {
@@ -39,12 +44,15 @@ public final class InMemoryRunEventHub implements RunEventHub {
         this(objectMapper, windowCount, windowBytes, frameBytes, initialLastEventId,
                 RunLifecycleProperties.MAX_IN_FLIGHT_CAPACITY,
                 RunLifecycleProperties.MAX_TERMINAL_CACHE_CAPACITY,
-                RunLifecycleProperties.MAX_TERMINAL_CACHE_TTL.toNanos(), System::nanoTime);
+                RunLifecycleProperties.MAX_TERMINAL_CACHE_TTL.toNanos(), System::nanoTime,
+                RunLifecycleProperties.MAX_SUBSCRIPTIONS_PER_RUN,
+                RunLifecycleProperties.MAX_GLOBAL_SUBSCRIPTIONS);
     }
 
     private InMemoryRunEventHub(ObjectMapper objectMapper, int windowCount, int windowBytes,
                                 int frameBytes, long initialLastEventId, int activeCapacity,
-                                int terminalCapacity, long terminalTtlNanos, LongSupplier ticker) {
+                                int terminalCapacity, long terminalTtlNanos, LongSupplier ticker,
+                                int perRunSubscriptionCapacity, int globalSubscriptionCapacity) {
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
         if (windowCount <= 0 || windowBytes <= 0 || frameBytes <= 0
                 || frameBytes > windowBytes || initialLastEventId < 0 || activeCapacity <= 0
@@ -59,13 +67,30 @@ public final class InMemoryRunEventHub implements RunEventHub {
         this.terminalCapacity = terminalCapacity;
         this.terminalTtlNanos = terminalTtlNanos;
         this.ticker = Objects.requireNonNull(ticker, "ticker must not be null");
+        if (perRunSubscriptionCapacity <= 0 || globalSubscriptionCapacity <= 0
+                || perRunSubscriptionCapacity > globalSubscriptionCapacity) {
+            throw new IllegalArgumentException("invalid subscription limits");
+        }
+        this.perRunSubscriptionCapacity = perRunSubscriptionCapacity;
+        this.globalSubscriptionCapacity = globalSubscriptionCapacity;
     }
 
     InMemoryRunEventHub(ObjectMapper objectMapper, int windowCount, int windowBytes,
                         int frameBytes, int activeCapacity, int terminalCapacity,
                         long terminalTtlNanos, LongSupplier ticker) {
         this(objectMapper, windowCount, windowBytes, frameBytes, 0, activeCapacity,
-                terminalCapacity, terminalTtlNanos, ticker);
+                terminalCapacity, terminalTtlNanos, ticker,
+                RunLifecycleProperties.MAX_SUBSCRIPTIONS_PER_RUN,
+                RunLifecycleProperties.MAX_GLOBAL_SUBSCRIPTIONS);
+    }
+
+    public InMemoryRunEventHub(ObjectMapper objectMapper, int windowCount, int windowBytes,
+                               int frameBytes, int activeCapacity, int terminalCapacity,
+                               long terminalTtlNanos, LongSupplier ticker,
+                               int perRunSubscriptionCapacity, int globalSubscriptionCapacity) {
+        this(objectMapper, windowCount, windowBytes, frameBytes, 0, activeCapacity,
+                terminalCapacity, terminalTtlNanos, ticker, perRunSubscriptionCapacity,
+                globalSubscriptionCapacity);
     }
 
     public boolean markTerminal(String taskId) {
@@ -93,6 +118,7 @@ public final class InMemoryRunEventHub implements RunEventHub {
         }
     }
 
+    @Override
     public void maintain() {
         long now = ticker.getAsLong();
         synchronized (cacheLock) {
@@ -218,6 +244,47 @@ public final class InMemoryRunEventHub implements RunEventHub {
         }
     }
 
+    @Override
+    public OpenResult open(String taskId, long lastEventId) {
+        requireTaskId(taskId);
+        if (lastEventId < 0) throw new IllegalArgumentException("lastEventId must not be negative");
+        synchronized (cacheLock) {
+            StreamState state = streams.get(taskId);
+            if (state == null) return new OpenResult(OpenStatus.UNAVAILABLE, null);
+            synchronized (state) {
+                Bounds bounds = bounds(state);
+                if (state.unavailable) return new OpenResult(OpenStatus.UNAVAILABLE, null);
+                if (lastEventId > bounds.latest()) return new OpenResult(OpenStatus.AHEAD, null);
+                if (lastEventId < bounds.earliest() - 1) return new OpenResult(OpenStatus.TOO_OLD, null);
+                if (state.terminal && lastEventId == bounds.latest()) {
+                    return new OpenResult(OpenStatus.DONE, null);
+                }
+                if (state.subscriptions >= perRunSubscriptionCapacity
+                        || activeSubscriptions >= globalSubscriptionCapacity) {
+                    return new OpenResult(OpenStatus.CAPACITY, null);
+                }
+                state.subscriptions++;
+                activeSubscriptions++;
+                return new OpenResult(OpenStatus.OPEN, new MemorySubscription(state));
+            }
+        }
+    }
+
+    @Override
+    public void closeSubscriptions() {
+        synchronized (cacheLock) {
+            for (StreamState state : streams.values()) {
+                synchronized (state) {
+                    state.makeUnavailable();
+                }
+            }
+        }
+    }
+
+    public int subscriptionCount() {
+        synchronized (cacheLock) { return activeSubscriptions; }
+    }
+
     private static byte[] encodeSse(RunEvent event, byte[] json) {
         byte[] prefix = ("id: " + event.eventId() + "\nevent: " + event.type()
                 + "\ndata: ").getBytes(StandardCharsets.UTF_8);
@@ -231,6 +298,66 @@ public final class InMemoryRunEventHub implements RunEventHub {
 
     private static ReplayResult unavailableReplay() {
         return new ReplayResult(ReplayStatus.UNAVAILABLE, 0, 0, java.util.List.of());
+    }
+
+    private static Bounds bounds(StreamState state) {
+        long latest = state.lastEventId;
+        long earliest = state.frames.isEmpty() ? latest + 1
+                : Long.parseLong(state.frames.getFirst().event().eventId());
+        return new Bounds(earliest, latest);
+    }
+
+    private record Bounds(long earliest, long latest) { }
+
+    private final class MemorySubscription implements Subscription {
+        private final StreamState state;
+        private final AtomicBoolean closed = new AtomicBoolean();
+
+        private MemorySubscription(StreamState state) { this.state = state; }
+
+        @Override
+        public ReadResult read(long cursor, Duration maximumWait) throws InterruptedException {
+            if (cursor < 0) throw new IllegalArgumentException("cursor must not be negative");
+            Objects.requireNonNull(maximumWait, "maximumWait must not be null");
+            if (maximumWait.isNegative()) throw new IllegalArgumentException("maximumWait must not be negative");
+            synchronized (state) {
+                ReadResult immediate = readNow(cursor);
+                if (immediate.status() != ReadStatus.IDLE || maximumWait.isZero()) return immediate;
+                long millis = maximumWait.toMillis();
+                int nanos = maximumWait.minusMillis(millis).getNano();
+                state.wait(millis, nanos);
+                return readNow(cursor);
+            }
+        }
+
+        private ReadResult readNow(long cursor) {
+            if (closed.get() || state.unavailable) return new ReadResult(ReadStatus.UNAVAILABLE, null);
+            Bounds bounds = bounds(state);
+            if (cursor < bounds.earliest() - 1) return new ReadResult(ReadStatus.TOO_OLD, null);
+            for (PublishedFrame frame : state.frames) {
+                if (Long.parseLong(frame.event().eventId()) > cursor) {
+                    return new ReadResult(ReadStatus.FRAME, frame);
+                }
+            }
+            return new ReadResult(state.terminal ? ReadStatus.DONE : ReadStatus.IDLE, null);
+        }
+
+        @Override
+        public void wake() {
+            synchronized (state) { state.notifyAll(); }
+        }
+
+        @Override
+        public void close() {
+            if (!closed.compareAndSet(false, true)) return;
+            synchronized (cacheLock) {
+                synchronized (state) {
+                    if (state.subscriptions > 0) state.subscriptions--;
+                    if (activeSubscriptions > 0) activeSubscriptions--;
+                    state.notifyAll();
+                }
+            }
+        }
     }
 
     private void evictTerminalOverflow() {
@@ -263,6 +390,7 @@ public final class InMemoryRunEventHub implements RunEventHub {
         private boolean terminal;
         private boolean unavailable;
         private long terminalTick;
+        private int subscriptions;
 
         private StreamState(long lastEventId) {
             this.lastEventId = lastEventId;

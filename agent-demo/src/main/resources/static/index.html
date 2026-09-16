@@ -170,6 +170,7 @@
         <label for="taskInput">任务</label>
         <textarea id="taskInput">帮我设计一个秒杀库存扣减接口，要求考虑 Redis 缓存、MySQL 一致性和并发安全。</textarea>
         <button id="runBtn" disabled>运行 Agent</button>
+        <button id="cancelBtn" class="secondary" disabled>取消运行</button>
         <div id="taskStatus" class="status"></div>
     </section>
 
@@ -180,10 +181,13 @@
     </section>
 </main>
 
-<script>
+<script type="module">
+    import {observeRun} from "/run-events.js";
     let accessToken = "";
     let refreshToken = "";
     let currentTaskId = "";
+    let currentObserver = null;
+    let observationGeneration = 0;
 
     const output = document.querySelector("#output");
     const steps = document.querySelector("#steps");
@@ -215,6 +219,8 @@
     });
 
     document.querySelector("#runBtn").addEventListener("click", async () => {
+        currentObserver?.stop();
+        const generation = ++observationGeneration;
         output.textContent = "";
         steps.innerHTML = "";
         document.querySelector("#taskStatus").textContent = "任务已提交";
@@ -225,8 +231,26 @@
         });
         const task = await response.json();
         currentTaskId = task.taskId;
+        document.querySelector("#cancelBtn").disabled = false;
         document.querySelector("#taskStatus").textContent = `运行中：${currentTaskId}`;
-        subscribe(currentTaskId);
+        currentObserver = observeRun({
+            taskId: currentTaskId,
+            token: accessToken,
+            generation,
+            isCurrent: value => value === observationGeneration,
+            onEvent: appendEvent,
+            onSnapshot: renderSnapshot,
+            onSteps: renderSteps,
+            onState: state => document.querySelector("#taskStatus").textContent = state
+        });
+        await currentObserver.start();
+    });
+
+    document.querySelector("#cancelBtn").addEventListener("click", async () => {
+        if (!currentTaskId) return;
+        const response = await authedFetch(`/api/agent/tasks/${currentTaskId}/cancel`, {method: "POST"});
+        document.querySelector("#taskStatus").textContent = response.ok
+            ? "取消请求已处理，正在读取最终状态" : "取消状态暂时无法确认";
     });
 
     async function authedFetch(url, options = {}) {
@@ -234,47 +258,34 @@
         return fetch(url, options);
     }
 
-    function subscribe(taskId) {
-        const source = new EventSource(`/api/agent/tasks/${taskId}/events`);
-        source.addEventListener("message", appendEvent);
-        ["PLANNER", "RAG", "TOOL", "LLM", "FINAL", "REPLAY"].forEach(name => source.addEventListener(name, appendEvent));
-        source.onerror = async () => {
-            source.close();
-            await loadFinalState(taskId);
-        };
-    }
-
     function appendEvent(event) {
-        const data = JSON.parse(event.data);
-        output.textContent += `\n[${data.type}] ${data.name}\n${data.content || ""}\n`;
+        output.textContent += `\n[${event.type}]\n${event.payload?.summary || ""}\n`;
         output.scrollTop = output.scrollHeight;
     }
 
-    async function loadFinalState(taskId) {
-        const task = await authedFetch(`/api/agent/tasks/${taskId}`).then(r => r.json());
+    function renderSnapshot(task) {
         document.querySelector("#taskStatus").textContent = `${task.status}：${task.taskId}`;
-        if (task.finalAnswer) {
-            output.textContent += `\n[FINAL ANSWER]\n${task.finalAnswer}\n`;
-        }
-        const data = await authedFetch(`/api/agent/tasks/${taskId}/steps`).then(r => r.json());
-        steps.innerHTML = data.map(step => `
-            <div class="step">
-                <strong>#${step.stepNo} ${step.stepType}${step.toolName ? " / " + step.toolName : ""}</strong>
-                <span>${step.status}</span>
-                <pre>${escapeHtml(step.output || step.errorMessage || "")}</pre>
-            </div>
-        `).join("");
+        document.querySelector("#cancelBtn").disabled = Boolean(task.finishedAt);
+        if (task.finalAnswer) output.textContent += `\n[FINAL ANSWER]\n${task.finalAnswer}\n`;
+        if (task.terminationReason) output.textContent += `\n[结束原因] ${task.terminationReason}\n`;
     }
 
-    function escapeHtml(value) {
-        return value.replace(/[&<>"']/g, char => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            "\"": "&quot;",
-            "'": "&#39;"
-        })[char]);
+    function renderSteps(data) {
+        steps.replaceChildren(...data.map(step => {
+            const card = document.createElement("div");
+            card.className = "step";
+            const title = document.createElement("strong");
+            title.textContent = `#${step.stepNo} ${step.stepType}${step.toolName ? " / " + step.toolName : ""}`;
+            const status = document.createElement("span");
+            status.textContent = step.status;
+            const detail = document.createElement("pre");
+            detail.textContent = step.output || step.errorMessage || "";
+            card.append(title, status, detail);
+            return card;
+        }));
     }
+
+    window.addEventListener("pagehide", () => currentObserver?.stop());
 </script>
 </body>
 </html>

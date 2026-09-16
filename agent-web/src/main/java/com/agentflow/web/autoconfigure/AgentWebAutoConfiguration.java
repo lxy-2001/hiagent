@@ -103,8 +103,20 @@ public class AgentWebAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     RunEventHub runEventHub(ObjectMapper mapper, RunLifecycleProperties p) {
-        return new InMemoryRunEventHub(mapper, p.eventWindowCount(), p.eventWindowBytes(), p.eventFrameBytes());
+        return new InMemoryRunEventHub(mapper, p.eventWindowCount(), p.eventWindowBytes(), p.eventFrameBytes(),
+                p.inFlightCapacity(), p.terminalCacheCapacity(), p.terminalCacheTtl().toNanos(),
+                System::nanoTime, p.subscriptionsPerRun(), p.globalSubscriptions());
     }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnMissingBean
+    RunSseService runSseService(RunEventHub hub, RunLifecycleProperties properties) {
+        return new RunSseService(hub, properties, Clock.systemUTC());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    RunSseMvcConfiguration runSseMvcConfiguration() { return new RunSseMvcConfiguration(); }
 
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean
