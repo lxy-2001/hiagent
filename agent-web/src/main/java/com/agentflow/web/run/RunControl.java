@@ -2,6 +2,7 @@ package com.agentflow.web.run;
 
 import com.agentflow.core.cancel.CancellationSignal;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,6 +35,12 @@ public final class RunControl implements CancellationSignal {
         SIGNALLED,
         ALREADY_REQUESTED,
         TERMINAL
+    }
+
+    public enum StartResolution {
+        RUNNING,
+        TERMINAL,
+        STOPPED
     }
 
     public enum PendingKind {
@@ -73,6 +80,7 @@ public final class RunControl implements CancellationSignal {
     private boolean queueDetached;
     private boolean terminalConfirmed;
     private boolean releaseClaimed;
+    private StartResolution startResolution;
 
     private RunControl(String taskId, String userId, long acceptedTick, long queueDeadline) {
         this.taskId = requireNonBlank(taskId, "taskId");
@@ -141,6 +149,78 @@ public final class RunControl implements CancellationSignal {
         pendingRevision = Math.incrementExact(pendingRevision);
         pending = new PendingView(PendingKind.CANCEL_FLAG_PENDING, pendingRevision, null);
         return pendingRevision;
+    }
+
+    public synchronized long markCreateUncertain(Object command) {
+        Objects.requireNonNull(command, "command must not be null");
+        if (pending != null || ioClaim != null || finalFrozen || phase != Phase.QUEUED) {
+            throw new IllegalStateException("create uncertainty can only be recorded once before dispatch");
+        }
+        phase = Phase.PREPARING;
+        pendingRevision = Math.incrementExact(pendingRevision);
+        pending = new PendingView(PendingKind.CREATE_UNCERTAIN, pendingRevision, command);
+        return pendingRevision;
+    }
+
+    public synchronized long markStartUncertain(Instant startedAt) {
+        Objects.requireNonNull(startedAt, "startedAt must not be null");
+        if (pending != null || ioClaim != null || finalFrozen || phase != Phase.STARTING) {
+            throw new IllegalStateException("start uncertainty can only be recorded before the runtime call");
+        }
+        pendingRevision = Math.incrementExact(pendingRevision);
+        pending = new PendingView(PendingKind.START_UNCERTAIN, pendingRevision, startedAt);
+        return pendingRevision;
+    }
+
+    public synchronized StartResolution awaitStartResolution() {
+        while (startResolution == null) {
+            try {
+                wait();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                return StartResolution.STOPPED;
+            }
+        }
+        return startResolution;
+    }
+
+    public synchronized boolean finishStartPending(PendingClaim claim, StartResolution resolution) {
+        Objects.requireNonNull(claim, "claim must not be null");
+        Objects.requireNonNull(resolution, "resolution must not be null");
+        if (claim.kind() != PendingKind.START_UNCERTAIN || resolution == StartResolution.STOPPED) {
+            throw new IllegalArgumentException("start claim requires a persisted start resolution");
+        }
+        boolean remains = finishPending(claim, resolution == StartResolution.TERMINAL
+                ? PendingOutcome.TERMINAL_CONFIRMED : PendingOutcome.CONFIRMED);
+        if (!remains && startResolution == null) {
+            startResolution = resolution;
+            notifyAll();
+        }
+        return remains;
+    }
+
+    public synchronized void stopStartWaiter() {
+        if (startResolution == null && (pending != null && pending.kind() == PendingKind.START_UNCERTAIN
+                || ioClaim != null && ioClaim.kind() == PendingKind.START_UNCERTAIN)) {
+            startResolution = StartResolution.STOPPED;
+            notifyAll();
+        }
+    }
+
+    public synchronized Optional<PendingClaim> claimCancellationWrite() {
+        if (phase == Phase.STARTING || finalFrozen || ioClaim != null
+                || pending != null && pending.kind() != PendingKind.CANCEL_FLAG_PENDING) {
+            return Optional.empty();
+        }
+        markCancellationPending();
+        return claimPending();
+    }
+
+    public synchronized void markCreateConfirmed() {
+        if (phase != Phase.PREPARING || pending != null || ioClaim != null) {
+            throw new IllegalStateException("create cannot be confirmed while its intent is pending");
+        }
+        phase = Phase.QUEUED;
     }
 
     public synchronized long freezeFinal(Object projection) {

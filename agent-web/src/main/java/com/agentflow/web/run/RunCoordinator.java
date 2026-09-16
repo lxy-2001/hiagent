@@ -28,7 +28,7 @@ public final class RunCoordinator implements AutoCloseable {
     public record RunAccepted(String taskId, String runId, String sessionId,
                               RunLifecycleStatus status) { }
 
-    private record OwnedRun(RunControl control, RunSnapshot accepted,
+    private record OwnedRun(RunControl control, RunPersistence.CreateCommand command,
                             AtomicBoolean observationsComplete) { }
 
     private final AgentRuntime runtime;
@@ -45,6 +45,7 @@ public final class RunCoordinator implements AutoCloseable {
     private final Map<String, BoundedRunExecutor.TaskHandle> handles = new ConcurrentHashMap<>();
     private final Object admissionLock = new Object();
     private volatile Availability availability = Availability.READY;
+    private volatile boolean startupRecoveryBlocked;
     private final ScheduledExecutorService maintenance;
     private int reserved;
 
@@ -84,25 +85,40 @@ public final class RunCoordinator implements AutoCloseable {
         long acceptedTick = monotonicNanos.getAsLong();
         long deadline = Math.addExact(acceptedTick, properties.queueTimeout().toNanos());
         RunControl control = RunControl.queued(taskId, userId, acceptedTick, deadline);
+        RunPersistence.CreateCommand command = new RunPersistence.CreateCommand(taskId,
+                sessionId, userId, normalized, title(normalized), createdAt);
+        OwnedRun owned = new OwnedRun(control, command, new AtomicBoolean(true));
+        RunSnapshot snapshot;
         try {
-            RunSnapshot snapshot = persistence.createQueued(new RunPersistence.CreateCommand(taskId,
-                    sessionId, userId, normalized, title(normalized), createdAt));
-            OwnedRun owned = new OwnedRun(control, snapshot, new AtomicBoolean(true));
-            runs.put(taskId, owned);
-            events.create(taskId);
-            publish(taskId, RunEvent.Type.RUN_CREATED, createdAt,
-                    Map.of("sessionId", sessionId, "status", RunLifecycleStatus.QUEUED.name()));
-            BoundedRunExecutor.Dispatch dispatch = executor.dispatch(() -> execute(owned),
-                    () -> rejectDispatch(owned), () -> workerLeft(owned));
-            if (dispatch.accepted()) {
-                handles.put(taskId, dispatch.handle());
-            }
-            return new RunAccepted(taskId, taskId, sessionId, RunLifecycleStatus.QUEUED);
+            snapshot = persistence.createQueued(command);
         } catch (RuntimeException failure) {
-            runs.remove(taskId);
-            releaseReservation();
-            throw failure;
+            synchronized (admissionLock) {
+                control.markCreateUncertain(command);
+                runs.put(taskId, owned);
+                availability = Availability.DEGRADED;
+            }
+            throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", taskId);
         }
+        runs.put(taskId, owned);
+        activateCommitted(owned, snapshot);
+        return new RunAccepted(taskId, taskId, sessionId, RunLifecycleStatus.QUEUED);
+    }
+
+    private void activateCommitted(OwnedRun owned, RunSnapshot snapshot) {
+        String taskId = owned.control().taskId();
+        announceCommitted(snapshot);
+        BoundedRunExecutor.Dispatch dispatch = executor.dispatch(() -> execute(owned),
+                () -> rejectDispatch(owned), () -> workerLeft(owned));
+        if (dispatch.accepted()) {
+            handles.put(taskId, dispatch.handle());
+        }
+    }
+
+    private void announceCommitted(RunSnapshot snapshot) {
+        String taskId = snapshot.taskId();
+        events.create(taskId);
+        publish(taskId, RunEvent.Type.RUN_CREATED, snapshot.createdAt(),
+                Map.of("sessionId", snapshot.sessionId(), "status", RunLifecycleStatus.QUEUED.name()));
     }
 
     private void execute(OwnedRun owned) {
@@ -125,10 +141,15 @@ public final class RunCoordinator implements AutoCloseable {
         try {
             start = persistence.markRunning(control.taskId(), startedAt);
         } catch (RuntimeException failure) {
-            availability = Availability.DEGRADED;
-            control.freezeFinal(resultProjector.projectFailure(control.taskId(),
-                    RunResultProjector.FailureKind.PERSISTENCE_UNAVAILABLE, clock.instant(), control.isCancelled()));
-            return;
+            synchronized (admissionLock) {
+                control.markStartUncertain(startedAt);
+                availability = Availability.DEGRADED;
+            }
+            RunControl.StartResolution resolution = control.awaitStartResolution();
+            if (resolution == RunControl.StartResolution.STOPPED) return;
+            if (resolution == RunControl.StartResolution.TERMINAL) return;
+            start = new RunPersistence.StartResult(
+                    RunPersistence.StartOutcome.ALREADY_RUNNING, null);
         }
         if (start.outcome() == RunPersistence.StartOutcome.TERMINAL) {
             control.markTerminalConfirmed();
@@ -151,8 +172,8 @@ public final class RunCoordinator implements AutoCloseable {
         }
         AgentResult result;
         try {
-            AgentRequest request = new AgentRequest(control.taskId(), owned.accepted().sessionId(),
-                    control.userId(), owned.accepted().input());
+            AgentRequest request = new AgentRequest(control.taskId(), owned.command().sessionId(),
+                    control.userId(), owned.command().input());
             result = runtime.run(request, event -> observe(owned, event),
                     new AgentRunOptions(ExecutionBudget.defaults(), control));
         } catch (RuntimeException failure) {
@@ -198,15 +219,19 @@ public final class RunCoordinator implements AutoCloseable {
         RunControl control = owned.control();
         control.freezeFinal(projection);
         RunControl.PendingClaim pending = control.claimPending().orElse(null);
+        if (pending == null) {
+            availability = Availability.DEGRADED;
+            tryRelease(owned);
+            return;
+        }
         try {
             RunPersistence.CommittedTerminal committed = persistence.complete(projection);
-            if (pending != null) control.finishPending(pending, RunControl.PendingOutcome.TERMINAL_CONFIRMED);
-            else control.markTerminalConfirmed();
+            control.finishPending(pending, RunControl.PendingOutcome.TERMINAL_CONFIRMED);
             RunSnapshot fact = committed.snapshot();
             publish(fact.taskId(), RunEvent.Type.RUN_TERMINATED, fact.finishedAt(), terminalPayload(fact));
             events.markTerminal(fact.taskId());
         } catch (RuntimeException failure) {
-            if (pending != null) control.finishPending(pending, RunControl.PendingOutcome.RETRY);
+            control.finishPending(pending, RunControl.PendingOutcome.RETRY);
             availability = Availability.DEGRADED;
         } finally {
             tryRelease(owned);
@@ -246,6 +271,9 @@ public final class RunCoordinator implements AutoCloseable {
         requireNonBlank(userId, "userId");
         requireNonBlank(taskId, "taskId");
         OwnedRun local = runs.get(taskId);
+        if (local != null && !userId.equals(local.control().userId())) {
+            throw new RunNotFoundException();
+        }
         if (local != null && local.control().pending().isPresent()) {
             throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", taskId);
         }
@@ -260,7 +288,23 @@ public final class RunCoordinator implements AutoCloseable {
     public record CancelReply(RunSnapshot snapshot, boolean accepted) { }
 
     public CancelReply cancel(String userId, String taskId) {
-        RunSnapshot current = getOwned(userId, taskId);
+        requireNonBlank(userId, "userId");
+        requireNonBlank(taskId, "taskId");
+        OwnedRun local = runs.get(taskId);
+        if (local != null && !userId.equals(local.control().userId())) {
+            throw new RunNotFoundException();
+        }
+        if (local != null) {
+            Optional<RunControl.PendingView> pending = local.control().pending();
+            if (pending.isPresent()) {
+                if (pending.orElseThrow().kind() == RunControl.PendingKind.START_UNCERTAIN) {
+                    local.control().requestCancel();
+                }
+                throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", taskId);
+            }
+        }
+        RunSnapshot current = persistence.getOwned(userId, taskId)
+                .orElseThrow(RunNotFoundException::new);
         if (current.status().isTerminal()) return new CancelReply(current, false);
         OwnedRun owned = runs.get(taskId);
         if (owned == null) throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", taskId);
@@ -273,15 +317,29 @@ public final class RunCoordinator implements AutoCloseable {
                     .orElseThrow(RunNotFoundException::new), false);
         }
         if (claim == RunControl.CancelClaim.TERMINAL) return new CancelReply(getOwned(userId, taskId), false);
+        RunControl.PendingClaim pending = owned.control().claimCancellationWrite().orElse(null);
+        if (pending == null || pending.kind() != RunControl.PendingKind.CANCEL_FLAG_PENDING) {
+            availability = Availability.DEGRADED;
+            throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", taskId);
+        }
         try {
             RunPersistence.CancelResult result = persistence.requestCancellation(taskId, clock.instant());
             if (result.outcome() == RunPersistence.CancelOutcome.MISSING) throw new RunNotFoundException();
-            if (result.outcome() == RunPersistence.CancelOutcome.TERMINAL) return new CancelReply(result.snapshot(), false);
+            boolean remains = owned.control().finishPending(pending,
+                    result.outcome() == RunPersistence.CancelOutcome.TERMINAL
+                            ? RunControl.PendingOutcome.TERMINAL_CONFIRMED
+                            : RunControl.PendingOutcome.CONFIRMED);
+            if (remains) availability = Availability.DEGRADED;
+            if (result.outcome() == RunPersistence.CancelOutcome.TERMINAL) {
+                tryRelease(owned);
+                return new CancelReply(result.snapshot(), false);
+            }
             return new CancelReply(result.snapshot(), true);
         } catch (RunNotFoundException exception) {
+            owned.control().finishPending(pending, RunControl.PendingOutcome.RETRY);
             throw exception;
         } catch (RuntimeException failure) {
-            owned.control().markCancellationPending();
+            owned.control().finishPending(pending, RunControl.PendingOutcome.RETRY);
             availability = Availability.DEGRADED;
             throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", taskId);
         }
@@ -293,7 +351,14 @@ public final class RunCoordinator implements AutoCloseable {
 
     public Availability availability() { return availability; }
 
-    public void markReady() { availability = Availability.READY; }
+    public void markReady() {
+        synchronized (admissionLock) {
+            if (!startupRecoveryBlocked && availability != Availability.STOPPING
+                    && runs.values().stream().noneMatch(run -> run.control().pending().isPresent())) {
+                availability = Availability.READY;
+            }
+        }
+    }
 
     /** Performs one bounded, serial retry pass; it never invokes the Runtime. */
     public void maintainOnce() {
@@ -312,6 +377,34 @@ public final class RunCoordinator implements AutoCloseable {
                     publish(fact.taskId(), RunEvent.Type.RUN_TERMINATED, fact.finishedAt(), terminalPayload(fact));
                     events.markTerminal(fact.taskId());
                     tryRelease(owned);
+                } else if (claim.kind() == RunControl.PendingKind.CREATE_UNCERTAIN) {
+                    Optional<RunSnapshot> committed = persistence.getOwned(
+                            owned.control().userId(), owned.control().taskId());
+                    if (committed.isEmpty()) {
+                        owned.control().finishPending(claim, RunControl.PendingOutcome.RETRY);
+                        failed = true;
+                        continue;
+                    }
+                    owned.control().finishPending(claim, RunControl.PendingOutcome.CONFIRMED);
+                    owned.control().markCreateConfirmed();
+                    announceCommitted(committed.orElseThrow());
+                    owned.control().markQueueDetached();
+                    failWithoutRuntime(owned, RunResultProjector.FailureKind.DISPATCH_REJECTED);
+                } else if (claim.kind() == RunControl.PendingKind.START_UNCERTAIN
+                        && claim.payload() instanceof Instant startedAt) {
+                    RunPersistence.StartResult result = persistence.markRunning(
+                            owned.control().taskId(), startedAt);
+                    if (result.outcome() == RunPersistence.StartOutcome.STARTED
+                            || result.outcome() == RunPersistence.StartOutcome.ALREADY_RUNNING) {
+                        owned.control().finishStartPending(
+                                claim, RunControl.StartResolution.RUNNING);
+                    } else if (result.outcome() == RunPersistence.StartOutcome.TERMINAL) {
+                        owned.control().finishStartPending(
+                                claim, RunControl.StartResolution.TERMINAL);
+                    } else {
+                        owned.control().finishPending(claim, RunControl.PendingOutcome.RETRY);
+                        failed = true;
+                    }
                 } else if (claim.kind() == RunControl.PendingKind.CANCEL_FLAG_PENDING) {
                     RunPersistence.CancelResult result = persistence.requestCancellation(
                             owned.control().taskId(), clock.instant());
@@ -325,9 +418,15 @@ public final class RunCoordinator implements AutoCloseable {
                 failed = true;
             }
         }
-        if (!failed && runs.values().stream().noneMatch(r -> r.control().pending().isPresent())) {
-            availability = Availability.READY;
-        } else if (failed) availability = Availability.DEGRADED;
+        synchronized (admissionLock) {
+            if (availability == Availability.STOPPING) {
+                return;
+            }
+            if (!startupRecoveryBlocked && !failed
+                    && runs.values().stream().noneMatch(r -> r.control().pending().isPresent())) {
+                availability = Availability.READY;
+            } else if (failed) availability = Availability.DEGRADED;
+        }
     }
 
     private void expireQueuedRuns() {
@@ -347,6 +446,7 @@ public final class RunCoordinator implements AutoCloseable {
     }
 
     public boolean recoverInterrupted() {
+        startupRecoveryBlocked = true;
         availability = Availability.RECOVERING;
         String after = "";
         try {
@@ -356,6 +456,7 @@ public final class RunCoordinator implements AutoCloseable {
                 after = batch.get(batch.size() - 1).taskId();
                 if (batch.size() < 100) break;
             }
+            startupRecoveryBlocked = false;
             availability = Availability.READY;
             return true;
         } catch (RuntimeException failure) {
@@ -412,7 +513,10 @@ public final class RunCoordinator implements AutoCloseable {
     public void close() {
         availability = Availability.STOPPING;
         maintenance.shutdownNow();
-        runs.values().forEach(run -> run.control().requestCancel());
+        runs.values().forEach(run -> {
+            run.control().requestCancel();
+            run.control().stopStartWaiter();
+        });
         events.closeSubscriptions();
         executor.shutdown();
         try {

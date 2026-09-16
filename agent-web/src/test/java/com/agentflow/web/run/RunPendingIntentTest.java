@@ -63,6 +63,27 @@ class RunPendingIntentTest {
     }
 
     @Test
+    void cancellationWriteCannotClaimAnAlreadyFrozenFinalIntent() {
+        RunControl control = control();
+        long finalRevision = control.freezeFinal("final-projection");
+
+        assertThat(control.claimCancellationWrite()).isEmpty();
+        assertThat(control.claimPending()).contains(new RunControl.PendingClaim(
+                1L, RunControl.PendingKind.FINAL_PENDING, finalRevision, "final-projection"));
+    }
+
+    @Test
+    void cancellationWriteCannotOvertakeAStartCommitInProgress() {
+        RunControl control = control();
+        assertThat(control.claimStart(1_100L)).isEqualTo(RunControl.StartClaim.START);
+        assertThat(control.requestCancel()).isEqualTo(RunControl.CancelClaim.SIGNALLED);
+
+        assertThat(control.claimCancellationWrite()).isEmpty();
+        assertThat(control.pending()).isEmpty();
+        assertThat(control.isCancelled()).isTrue();
+    }
+
+    @Test
     void releasesOnlyOnceAfterTerminalConfirmationAndWorkerExit() {
         RunControl control = control();
         control.markWorkerEntered();
