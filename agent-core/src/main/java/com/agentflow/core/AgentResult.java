@@ -3,6 +3,7 @@ package com.agentflow.core;
 import com.agentflow.core.chat.TokenUsage;
 import com.agentflow.core.runtime.RunStatus;
 import com.agentflow.core.runtime.TerminationReason;
+import com.agentflow.core.rag.Citation;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,9 +15,11 @@ public record AgentResult(
         RunStatus status,
         TerminationReason terminationReason,
         TokenUsage usage,
-        String diagnostic
+        String diagnostic,
+        List<Citation> citations
 ) {
     public AgentResult {
+        citations = List.copyOf(citations);
         Objects.requireNonNull(taskId, "taskId must not be null");
         if (taskId.isBlank()) {
             throw new IllegalArgumentException("taskId must not be blank");
@@ -26,6 +29,17 @@ public record AgentResult(
         Objects.requireNonNull(status, "status must not be null");
         Objects.requireNonNull(terminationReason, "terminationReason must not be null");
         Objects.requireNonNull(usage, "usage must not be null");
+        if (citations.size() > 32 || (status != RunStatus.SUCCEEDED && !citations.isEmpty())) {
+            throw new IllegalArgumentException("citations require successful result and at most 32 sources");
+        }
+        var citationIds = new java.util.HashSet<String>();
+        var chunkIds = new java.util.HashSet<String>();
+        for (var citation : citations) {
+            if (!citationIds.add(citation.id()) || !chunkIds.add(citation.chunkId())
+                    || !citations.get(0).snapshotId().equals(citation.snapshotId())) {
+                throw new IllegalArgumentException("citations must have unique identifiers and one snapshot");
+            }
+        }
         validateStatusReason(status, terminationReason);
         finalAnswer = finalAnswer == null ? null : redact(finalAnswer);
         diagnostic = sanitize(diagnostic);
@@ -47,6 +61,11 @@ public record AgentResult(
         if (status != RunStatus.SUCCEEDED && (finalAnswer == null || finalAnswer.isBlank())) {
             finalAnswer = null;
         }
+    }
+
+    public AgentResult(String taskId, String finalAnswer, List<AgentStepRecord> steps, RunStatus status,
+                       TerminationReason terminationReason, TokenUsage usage, String diagnostic) {
+        this(taskId, finalAnswer, steps, status, terminationReason, usage, diagnostic, List.of());
     }
 
     /** Compatibility constructor for the pre-Feature-002 result shape. */

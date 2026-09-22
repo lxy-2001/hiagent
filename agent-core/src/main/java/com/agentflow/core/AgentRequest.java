@@ -8,7 +8,8 @@ public record AgentRequest(
         String sessionId,
         String userId,
         String input,
-        ContextSeed contextSeed
+        ContextSeed contextSeed,
+        boolean requireEvidence
 ) {
     public AgentRequest {
         requireNonBlank(taskId, "taskId");
@@ -33,5 +34,9 @@ public record AgentRequest(
 
     public AgentRequest(String taskId, String sessionId, String userId, String input) {
         this(taskId, sessionId, userId, input, ContextSeed.empty());
+    }
+
+    public AgentRequest(String taskId, String sessionId, String userId, String input, ContextSeed contextSeed) {
+        this(taskId, sessionId, userId, input, contextSeed, false);
     }
 }

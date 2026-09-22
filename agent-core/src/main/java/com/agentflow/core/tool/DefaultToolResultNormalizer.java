@@ -18,17 +18,32 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
         if (raw.callId() != null && !call.callId().equals(raw.callId())) {
             return failure(call, "TOOL_RESULT_INVALID", "tool result call id does not match call");
         }
+        if (raw.status() == ToolResultStatus.SUCCESS && "knowledge.search".equals(call.name())
+                && raw.retrievalPayload() == null) {
+            return failure(call, "TOOL_RESULT_INVALID", "retrieval result requires source evidence");
+        }
         String output = raw.output();
         if (output != null && output.length() > MAX_OUTPUT_CHARS) {
             return failure(call, "TOOL_RESULT_TOO_LARGE", "tool result exceeds output limit");
         }
-        output = sanitize(output);
+        output = redact(output);
+        if (output != null && output.length() > MAX_OUTPUT_CHARS) {
+            return failure(call, "TOOL_RESULT_TOO_LARGE", "redacted tool result exceeds output limit");
+        }
+        if (raw.retrievalPayload() != null) {
+            if (!Objects.equals(output, raw.output()) || raw.retrievalPayload().hits().stream()
+                    .anyMatch(hit -> !hit.text().equals(redact(hit.text()))
+                            || !hit.title().equals(redact(hit.title()))
+                            || !hit.relativePath().equals(redact(hit.relativePath())))) {
+                return failure(call, "RAG_SOURCE_INVALID", "source requires redaction");
+            }
+        }
         if (raw.status() == ToolResultStatus.SUCCESS) {
             if (output == null || output.isBlank()) {
                 return failure(call, "TOOL_RESULT_INVALID", "successful tool result must have output");
             }
             return new ToolResult(call.name(), output, ToolResultStatus.SUCCESS, null,
-                    sanitize(raw.diagnostic()), raw.truncated(), call.callId());
+                    sanitize(raw.diagnostic()), raw.truncated(), call.callId(), raw.retrievalPayload());
         }
         if (raw.errorCode() == null || raw.errorCode().isBlank()) {
             return failure(call, "TOOL_RESULT_INVALID", "failed tool result must have error code");
@@ -46,13 +61,21 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
     }
 
     static String sanitize(String diagnostic) {
+        String value = redact(diagnostic);
+        if (value == null || value.length() <= 1024) {
+            return value;
+        }
+        int end = Character.isHighSurrogate(value.charAt(1023)) ? 1023 : 1024;
+        return value.substring(0, end);
+    }
+
+    private static String redact(String diagnostic) {
         if (diagnostic == null) {
             return null;
         }
-        String value = diagnostic
+        return diagnostic
                 .replaceAll("(?i)([\"']?(?:api[-_ ]?key|token|secret|password)[\"']?\\s*[:=]\\s*[\"']?)[^,;\\s\"'}]+", "$1[redacted]")
                 .replaceAll("(?i)Bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [redacted]")
                 .replaceAll("(?i)([?&](?:api[-_ ]?key|token|secret|password)=)[^&\\s]+", "$1[redacted]");
-        return value.length() <= 1024 ? value : value.substring(0, 1024);
     }
 }

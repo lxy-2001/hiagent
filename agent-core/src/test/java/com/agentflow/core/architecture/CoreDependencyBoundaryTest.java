@@ -7,6 +7,8 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CoreDependencyBoundaryTest {
@@ -35,7 +37,13 @@ class CoreDependencyBoundaryTest {
     private ArchRule coreDependencyRule() {
         return classes()
                 .that().resideInAnyPackage("com.agentflow.core..")
-                .should().onlyDependOnClassesThat().resideInAnyPackage(ALLOWED_PACKAGES);
+                .should().onlyDependOnClassesThat(resideInAnyPackage(ALLOWED_PACKAGES)
+                        .or(equivalentTo(java.security.MessageDigest.class))
+                        .or(equivalentTo(java.security.NoSuchAlgorithmException.class))
+                        .or(equivalentTo(java.nio.charset.StandardCharsets.class))
+                        .or(equivalentTo(java.nio.charset.Charset.class))
+                        .or(equivalentTo(java.text.Normalizer.class))
+                        .or(equivalentTo(java.text.Normalizer.Form.class)));
     }
 
     static final class UrlDependencyFixture {

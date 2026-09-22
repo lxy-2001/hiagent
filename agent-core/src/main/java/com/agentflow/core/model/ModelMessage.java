@@ -17,6 +17,10 @@ public record ModelMessage(
         Objects.requireNonNull(role, "role must not be null");
         Objects.requireNonNull(content, "content must not be null");
         role = role.strip().toLowerCase();
+        if ("tool".equals(role) && "knowledge.search".equals(name)
+                && ToolResult.RETRIEVAL_PENDING.equals(content)) {
+            throw new IllegalArgumentException("retrieval evidence must be bound before model delivery");
+        }
         if (role.isEmpty()) {
             throw new IllegalArgumentException("role must not be blank");
         }
