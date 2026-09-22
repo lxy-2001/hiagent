@@ -21,6 +21,8 @@ public final class RunApiErrorWriter {
             case "UNAUTHORIZED" -> "Authentication is required.";
             case "NOT_FOUND" -> "The run was not found.";
             case "RATE_LIMITED" -> "Too many requests.";
+            case "SESSION_BUSY" -> "The session already has an active run.";
+            case "TURN_SEQUENCE_EXHAUSTED" -> "The session turn sequence is exhausted.";
             case "RUN_CAPACITY_EXCEEDED" -> "Run capacity is currently full.";
             case "SUBSCRIPTION_CAPACITY_EXCEEDED" -> "Event subscription capacity is currently full.";
             case "INVALID_EVENT_CURSOR" -> "The event cursor is invalid.";

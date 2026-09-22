@@ -15,6 +15,7 @@ public class AgentSessionEntity {
     private String userId;
     private String title;
     private Instant createdAt;
+    private long lastTurnSequence;
 
     protected AgentSessionEntity() {
     }
@@ -24,6 +25,16 @@ public class AgentSessionEntity {
         this.userId = userId;
         this.title = title;
         this.createdAt = createdAt;
+    }
+
+    public String getUserId() { return userId; }
+    public String getTitle() { return title; }
+    public Instant getCreatedAt() { return createdAt; }
+    public long getLastTurnSequence() { return lastTurnSequence; }
+
+    public long allocateTurnSequence() {
+        lastTurnSequence = Math.addExact(lastTurnSequence, 1);
+        return lastTurnSequence;
     }
 
     public String getId() {

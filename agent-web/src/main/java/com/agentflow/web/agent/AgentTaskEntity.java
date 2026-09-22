@@ -18,6 +18,7 @@ public class AgentTaskEntity {
     @Id
     private String id;
     private String sessionId;
+    private long turnSequence;
     private String userId;
     @Column(columnDefinition = "text")
     private String userInput;
@@ -49,6 +50,15 @@ public class AgentTaskEntity {
         this.createdAt = now;
         this.updatedAt = now;
     }
+
+    public AgentTaskEntity(String id, String sessionId, String userId, String userInput, String status,
+                           Instant now, long turnSequence) {
+        this(id, sessionId, userId, userInput, status, now);
+        if (turnSequence < 1) throw new IllegalArgumentException("turnSequence must be positive");
+        this.turnSequence = turnSequence;
+    }
+
+    public long getTurnSequence() { return turnSequence; }
 
     public String getId() {
         return id;

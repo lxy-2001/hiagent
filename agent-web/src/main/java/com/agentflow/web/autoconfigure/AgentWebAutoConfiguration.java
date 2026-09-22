@@ -1,5 +1,9 @@
 package com.agentflow.web.autoconfigure;
 
+import com.agentflow.core.context.ContextSource;
+import com.agentflow.web.conversation.PersistentContextSource;
+import com.agentflow.web.conversation.ConversationProperties;
+
 import com.agentflow.core.AgentRuntime;
 import com.agentflow.core.context.ContextPolicy;
 import com.agentflow.core.context.ContextAssembler;
@@ -142,13 +146,26 @@ public class AgentWebAutoConfiguration {
         return new RunPersistence(sessions, tasks, steps, entityManager);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    ConversationProperties conversationProperties() {
+        return ConversationProperties.defaults();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ContextSource.class)
+    PersistentContextSource persistentContextSource(EntityManager entityManager, ContextTextPolicy textPolicy) {
+        return new PersistentContextSource(entityManager, textPolicy);
+    }
+
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean
-    RunCoordinator runCoordinator(AgentRuntime runtime, RunPersistence persistence, RunEventHub hub,
+    RunCoordinator runCoordinator(ContextSource contextSource, AgentRuntime runtime, RunPersistence persistence, RunEventHub hub,
                                   RunEventProjector eventProjector, RunResultProjector resultProjector,
-                                  BoundedRunExecutor executor, RunLifecycleProperties properties) {
-        RunCoordinator coordinator = new RunCoordinator(runtime, persistence, hub, eventProjector, resultProjector, executor,
-                properties, Clock.systemUTC(), System::nanoTime, Ids::newId);
+                                  BoundedRunExecutor executor, RunLifecycleProperties properties,
+                                  ConversationProperties conversationProperties) {
+        RunCoordinator coordinator = new RunCoordinator(contextSource, runtime, persistence, hub, eventProjector, resultProjector, executor,
+                properties, Clock.systemUTC(), System::nanoTime, Ids::newId, conversationProperties);
         coordinator.recoverInterrupted();
         return coordinator;
     }

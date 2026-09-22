@@ -121,7 +121,7 @@ class RunRestartTest {
                     java.time.Duration.ofMinutes(10), 16, 32, 32);
             InMemoryRunEventHub hub = new InMemoryRunEventHub(new tools.jackson.databind.ObjectMapper(),
                     256, 1_048_576, 16_384);
-            return new RunCoordinator(runtime, persistence, hub, new RunEventProjector(),
+            return new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), runtime, persistence, hub, new RunEventProjector(),
                     new RunResultProjector(), new BoundedRunExecutor(1, 1, Thread::new), limits,
                     java.time.Clock.fixed(now, java.time.ZoneOffset.UTC), System::nanoTime,
                     () -> "unused");

@@ -12,6 +12,8 @@ public class RunApiExceptionHandler {
     }
     @ExceptionHandler(RunCoordinator.RunNotFoundException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> notFound() { return response(HttpStatus.NOT_FOUND, "NOT_FOUND", null); }
+    @ExceptionHandler(RunCoordinator.SessionBusyException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> sessionBusy() { return response(HttpStatus.CONFLICT, "SESSION_BUSY", null); }
     @ExceptionHandler(RunCoordinator.RunCapacityException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> capacity() { return response(HttpStatus.TOO_MANY_REQUESTS, "RUN_CAPACITY_EXCEEDED", null); }
     @ExceptionHandler(RunCoordinator.RunUnavailableException.class)

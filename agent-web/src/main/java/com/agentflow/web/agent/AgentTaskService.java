@@ -11,6 +11,7 @@ public class AgentTaskService {
     private final RunCoordinator coordinator;
     public AgentTaskService(RunCoordinator coordinator) { this.coordinator = coordinator; }
     public RunCoordinator.RunAccepted create(String userId, String input) { return coordinator.create(userId, input); }
+    public RunCoordinator.RunAccepted create(String userId, String input, String sessionId) { return coordinator.create(userId, input, sessionId); }
     public RunSnapshot getTask(String userId, String taskId) { return coordinator.getOwned(userId, taskId); }
     public List<RunResultProjector.ProjectedStep> getSteps(String userId, String taskId) {
         return coordinator.getOwnedSteps(userId, taskId);

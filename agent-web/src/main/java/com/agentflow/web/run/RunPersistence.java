@@ -33,14 +33,28 @@ public class RunPersistence {
         this.entityManager = Objects.requireNonNull(entityManager, "entityManager must not be null");
     }
 
+    @Transactional(readOnly = true, timeout = 3)
+    public boolean ownsSession(String userId, String sessionId) {
+        return sessions.findByIdAndUserId(sessionId, userId).isPresent();
+    }
+
     @Transactional(timeout = 3)
     public RunSnapshot createQueued(CreateCommand command) {
         Objects.requireNonNull(command, "command must not be null");
-        entityManager.persist(new AgentSessionEntity(command.sessionId(), command.userId(),
-                command.title(), command.createdAt()));
+        AgentSessionEntity session;
+        if (command.createSession()) {
+            session = new AgentSessionEntity(command.sessionId(), command.userId(), command.title(), command.createdAt());
+            entityManager.persist(session);
+        } else {
+            session = sessions.findOwnedForUpdate(command.sessionId(), command.userId())
+                    .orElseThrow(() -> new CreateRejectedException("NOT_FOUND"));
+        }
+        long sequence;
+        try { sequence = session.allocateTurnSequence(); }
+        catch (ArithmeticException exhausted) { throw new CreateRejectedException("TURN_SEQUENCE_EXHAUSTED"); }
         AgentTaskEntity task = new AgentTaskEntity(command.taskId(), command.sessionId(),
                 command.userId(), command.input(), RunLifecycleStatus.QUEUED.name(),
-                command.createdAt());
+                command.createdAt(), sequence);
         entityManager.persist(task);
         entityManager.flush();
         return snapshot(task);
@@ -190,8 +204,18 @@ public class RunPersistence {
                 && actual.recordingComplete() == projection.recordingComplete();
     }
 
+    /** Definite domain rejection: no uncertain database commit needs recovery. */
+    public static final class CreateRejectedException extends RuntimeException {
+        private final String code;
+        public CreateRejectedException(String code) { super(code); this.code = code; }
+        public String code() { return code; }
+    }
+
     public record CreateCommand(String taskId, String sessionId, String userId, String input,
-                                String title, Instant createdAt) {
+                                String title, Instant createdAt, boolean createSession) {
+        public CreateCommand(String taskId, String sessionId, String userId, String input, String title, Instant createdAt) {
+            this(taskId, sessionId, userId, input, title, createdAt, true);
+        }
         public CreateCommand {
             requireNonBlank(taskId, "taskId");
             requireNonBlank(sessionId, "sessionId");

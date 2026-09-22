@@ -49,7 +49,7 @@ class RunStartTest {
         InMemoryRunEventHub hub = new InMemoryRunEventHub(new ObjectMapper(),256,1_048_576,16_384,
                 2,128,Duration.ofMinutes(10).toNanos(),System::nanoTime);
         AtomicInteger ids = new AtomicInteger();
-        return new RunCoordinator(runtime,p,hub,new RunEventProjector(),new RunResultProjector(),
+        return new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), runtime,p,hub,new RunEventProjector(),new RunResultProjector(),
                 new BoundedRunExecutor(1,1,Thread::new),limits,Clock.fixed(now, ZoneOffset.UTC),
                 System::nanoTime,()->ids.getAndIncrement()==0?"task":"session");
     }

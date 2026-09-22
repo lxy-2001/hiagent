@@ -85,7 +85,7 @@ final class RunCancellationTestSupport implements AutoCloseable {
                 capacity, queueTimeout, 256, 1_048_576, 16_384, 128, Duration.ofMinutes(10), 16, 32, 32);
         InMemoryRunEventHub hub = new InMemoryRunEventHub(new ObjectMapper(), 256, 1_048_576, 16_384,
                 capacity, 128, Duration.ofMinutes(10).toNanos(), time);
-        coordinator = new RunCoordinator(runtime, persistence, hub, new RunEventProjector(),
+        coordinator = new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), runtime, persistence, hub, new RunEventProjector(),
                 new RunResultProjector(), new BoundedRunExecutor(workers, Math.max(1, capacity - workers), Thread::new),
                 limits, time, time, this::nextId);
     }

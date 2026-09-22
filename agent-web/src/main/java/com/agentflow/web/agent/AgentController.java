@@ -28,7 +28,8 @@ public class AgentController {
     }
     @PostMapping("/tasks")
     public ResponseEntity<TaskResponse> createTask(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateTaskRequest request) {
-        RunCoordinator.RunAccepted a = taskService.create(jwt.getSubject(), request.input());
+        RunCoordinator.RunAccepted a = request.sessionId() == null ? taskService.create(jwt.getSubject(), request.input())
+                : taskService.create(jwt.getSubject(), request.input(), request.sessionId());
         return ResponseEntity.accepted().location(URI.create("/api/agent/tasks/" + a.taskId()))
                 .cacheControl(CacheControl.noStore()).body(new TaskResponse(a.taskId(), a.runId(), a.sessionId(), a.status().name()));
     }
@@ -81,7 +82,9 @@ public class AgentController {
         return ResponseEntity.status(status).cacheControl(CacheControl.noStore())
                 .body(new RunApiErrorWriter.ErrorResponse(code, RunApiErrorWriter.message(code), taskId));
     }
-    public record CreateTaskRequest(@NotBlank @Size(max=8000) String input) { }
+    public record CreateTaskRequest(@NotBlank @Size(max=8000) String input, @Size(max=36) String sessionId) {
+        public CreateTaskRequest(String input) { this(input, null); }
+    }
     public record TaskResponse(String taskId, String runId, String sessionId, String status) {
         public TaskResponse(String taskId, String sessionId, String status) { this(taskId, taskId, sessionId, status); }
     }

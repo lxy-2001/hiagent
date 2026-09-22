@@ -43,6 +43,7 @@ public final class RunResultProjector {
     }
 
     public enum FailureKind {
+        CONTEXT_SOURCE_UNAVAILABLE,
         QUEUE_TIMEOUT,
         DISPATCH_REJECTED,
         PERSISTENCE_UNAVAILABLE,

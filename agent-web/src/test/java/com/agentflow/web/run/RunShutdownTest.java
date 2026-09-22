@@ -50,7 +50,7 @@ class RunShutdownTest {
                 256, 1_048_576, 16_384, 2, 128,
                 Duration.ofMinutes(10).toNanos(), System::nanoTime));
         AtomicInteger ids = new AtomicInteger();
-        RunCoordinator coordinator = new RunCoordinator(runtime, persistence, hub,
+        RunCoordinator coordinator = new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), runtime, persistence, hub,
                 new RunEventProjector(), new RunResultProjector(),
                 new BoundedRunExecutor(1, 1, Thread::new), limits,
                 Clock.fixed(now, ZoneOffset.UTC), System::nanoTime,
@@ -111,7 +111,7 @@ class RunShutdownTest {
                 256, 1_048_576, 16_384, 2, 128,
                 Duration.ofMinutes(10).toNanos(), System::nanoTime);
         AtomicInteger ids = new AtomicInteger();
-        RunCoordinator coordinator = new RunCoordinator(runtime, persistence, hub,
+        RunCoordinator coordinator = new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), runtime, persistence, hub,
                 new RunEventProjector(), new RunResultProjector(),
                 new BoundedRunExecutor(1, 1, Thread::new), limits,
                 Clock.fixed(now, ZoneOffset.UTC), System::nanoTime,

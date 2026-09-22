@@ -263,7 +263,7 @@ class RunConvergenceTest {
                 256, 1_048_576, 16_384, 2, 128,
                 Duration.ofMinutes(10).toNanos(), System::nanoTime);
         AtomicInteger ids = new AtomicInteger();
-        return new RunCoordinator(runtime, persistence, hub,
+        return new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), runtime, persistence, hub,
                 new RunEventProjector(), new RunResultProjector(),
                 new BoundedRunExecutor(1, 1, Thread::new), limits,
                 Clock.fixed(NOW, ZoneOffset.UTC), System::nanoTime,

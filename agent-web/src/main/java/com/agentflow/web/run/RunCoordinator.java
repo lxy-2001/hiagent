@@ -1,5 +1,11 @@
 package com.agentflow.web.run;
 
+import com.agentflow.core.context.ContextSource;
+import com.agentflow.core.context.ContextSeed;
+import com.agentflow.core.context.ContextTextPolicy;
+import com.agentflow.web.conversation.ConversationProperties;
+import java.time.Duration;
+
 import com.agentflow.core.AgentEvent;
 import com.agentflow.core.AgentRequest;
 import com.agentflow.core.AgentResult;
@@ -32,6 +38,8 @@ public final class RunCoordinator implements AutoCloseable {
                             AtomicBoolean observationsComplete) { }
 
     private final AgentRuntime runtime;
+    private final ContextSource contextSource;
+    private final Duration sourceTimeout;
     private final RunPersistence persistence;
     private final RunEventHub events;
     private final RunEventProjector eventProjector;
@@ -48,11 +56,23 @@ public final class RunCoordinator implements AutoCloseable {
     private volatile boolean startupRecoveryBlocked;
     private final ScheduledExecutorService maintenance;
     private int reserved;
+    private final Map<String, String> sessionReservations = new java.util.HashMap<>();
+    private final ContextTextPolicy textPolicy = new ContextTextPolicy();
 
-    public RunCoordinator(AgentRuntime runtime, RunPersistence persistence, RunEventHub events,
+    public RunCoordinator(ContextSource contextSource, AgentRuntime runtime, RunPersistence persistence, RunEventHub events,
                           RunEventProjector eventProjector, RunResultProjector resultProjector,
                           BoundedRunExecutor executor, RunLifecycleProperties properties,
                           Clock clock, LongSupplier monotonicNanos, Supplier<String> ids) {
+        this(contextSource, runtime, persistence, events, eventProjector, resultProjector, executor, properties,
+                clock, monotonicNanos, ids, ConversationProperties.defaults());
+    }
+
+    public RunCoordinator(ContextSource contextSource, AgentRuntime runtime, RunPersistence persistence, RunEventHub events,
+                          RunEventProjector eventProjector, RunResultProjector resultProjector,
+                          BoundedRunExecutor executor, RunLifecycleProperties properties,
+                          Clock clock, LongSupplier monotonicNanos, Supplier<String> ids, ConversationProperties conversationProperties) {
+        this.sourceTimeout = Objects.requireNonNull(conversationProperties).sourceTimeout();
+        this.contextSource = Objects.requireNonNull(contextSource, "contextSource must not be null");
         this.runtime = Objects.requireNonNull(runtime, "runtime must not be null");
         this.persistence = Objects.requireNonNull(persistence, "persistence must not be null");
         this.events = Objects.requireNonNull(events, "events must not be null");
@@ -76,21 +96,35 @@ public final class RunCoordinator implements AutoCloseable {
     }
 
     public RunAccepted create(String userId, String input) {
+        return create(userId, input, null);
+    }
+
+    public RunAccepted create(String userId, String input, String requestedSessionId) {
         requireNonBlank(userId, "userId");
         String normalized = normalizeInput(input);
-        reserve();
+        boolean createSession = requestedSessionId == null;
+        if (!createSession) {
+            requireNonBlank(requestedSessionId, "sessionId");
+            if (requestedSessionId.length() > 36) throw new IllegalArgumentException("invalid sessionId");
+            if (!persistence.ownsSession(userId, requestedSessionId)) throw new RunNotFoundException();
+        }
         String taskId = ids.get();
-        String sessionId = ids.get();
+        String sessionId = createSession ? ids.get() : requestedSessionId;
         Instant createdAt = clock.instant();
         long acceptedTick = monotonicNanos.getAsLong();
         long deadline = Math.addExact(acceptedTick, properties.queueTimeout().toNanos());
         RunControl control = RunControl.queued(taskId, userId, acceptedTick, deadline);
         RunPersistence.CreateCommand command = new RunPersistence.CreateCommand(taskId,
-                sessionId, userId, normalized, title(normalized), createdAt);
+                sessionId, userId, normalized, title(normalized), createdAt, createSession);
         OwnedRun owned = new OwnedRun(control, command, new AtomicBoolean(true));
         RunSnapshot snapshot;
+        reserve(sessionId, taskId);
         try {
             snapshot = persistence.createQueued(command);
+        } catch (RunPersistence.CreateRejectedException rejected) {
+            releaseReservation(sessionId, taskId);
+            if ("NOT_FOUND".equals(rejected.code())) throw new RunNotFoundException();
+            throw new RunUnavailableException(rejected.code(), null);
         } catch (RuntimeException failure) {
             synchronized (admissionLock) {
                 control.markCreateUncertain(command);
@@ -170,12 +204,45 @@ public final class RunCoordinator implements AutoCloseable {
         if (runtimeClaim != RunControl.RuntimeCallClaim.CALL) {
             return;
         }
+        long preparationStarted = monotonicNanos.getAsLong();
+        ExecutionBudget totalBudget = ExecutionBudget.defaults();
+        ContextSeed seed = null;
+        boolean sourceFailed = false;
+        if (control.isCancelled()) {
+            finish(owned, cancelled(control.taskId(), clock.instant()));
+            return;
+        }
+        try {
+            seed = Objects.requireNonNull(contextSource.load(new ContextSource.Query(
+                    control.userId(), owned.command().sessionId(), control.taskId()), sourceTimeout, control));
+        } catch (RuntimeException failure) {
+            sourceFailed = true;
+        }
+        long preparationNanos;
+        try { preparationNanos = Math.max(0, Math.subtractExact(monotonicNanos.getAsLong(), preparationStarted)); }
+        catch (ArithmeticException overflow) { preparationNanos = Long.MAX_VALUE; }
+        if (control.isCancelled()) {
+            finish(owned, cancelled(control.taskId(), clock.instant()));
+            return;
+        }
+        if (preparationNanos >= totalBudget.maxDuration().toNanos()) {
+            finish(owned, new RunResultProjector.FinalProjection(control.taskId(), RunLifecycleStatus.TIMED_OUT,
+                    RunTerminationReason.TIMED_OUT, null, null, null, clock.instant(), false, false,
+                    "TIMED_OUT", java.util.List.of()));
+            return;
+        }
+        if (sourceFailed || preparationNanos >= sourceTimeout.toNanos()) {
+            failWithoutRuntime(owned, RunResultProjector.FailureKind.CONTEXT_SOURCE_UNAVAILABLE);
+            return;
+        }
         AgentResult result;
         try {
             AgentRequest request = new AgentRequest(control.taskId(), owned.command().sessionId(),
-                    control.userId(), owned.command().input());
+                    control.userId(), owned.command().input(), seed);
+            ExecutionBudget remaining = new ExecutionBudget(totalBudget.maxIterations(),
+                    totalBudget.maxDuration().minusNanos(preparationNanos), totalBudget.maxPromptTokens(), totalBudget.maxCompletionTokens());
             result = runtime.run(request, event -> observe(owned, event),
-                    new AgentRunOptions(ExecutionBudget.defaults(), control));
+                    new AgentRunOptions(remaining, control));
         } catch (RuntimeException failure) {
             result = null;
         }
@@ -254,7 +321,7 @@ public final class RunCoordinator implements AutoCloseable {
         if (owned.control().claimRelease()) {
             runs.remove(owned.control().taskId(), owned);
             handles.remove(owned.control().taskId());
-            releaseReservation();
+            releaseReservation(owned.command().sessionId(), owned.control().taskId());
         }
     }
 
@@ -475,7 +542,7 @@ public final class RunCoordinator implements AutoCloseable {
         return payload;
     }
 
-    private void reserve() {
+    private void reserve(String sessionId, String taskId) {
         synchronized (admissionLock) {
             if (availability == Availability.STOPPING) {
                 throw new RunUnavailableException("SERVICE_STOPPING", null);
@@ -483,27 +550,34 @@ public final class RunCoordinator implements AutoCloseable {
             if (availability != Availability.READY) {
                 throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", null);
             }
+            if (sessionReservations.containsKey(sessionId)) throw new SessionBusyException();
             if (reserved >= properties.inFlightCapacity()) {
                 throw new RunCapacityException();
             }
+            sessionReservations.put(sessionId, taskId);
             reserved++;
         }
     }
 
-    private void releaseReservation() {
+    private void releaseReservation(String sessionId, String taskId) {
         synchronized (admissionLock) {
-            if (reserved > 0) reserved--;
+            if (sessionReservations.remove(sessionId, taskId)) reserved--;
         }
     }
 
-    private static String normalizeInput(String input) {
+    private String normalizeInput(String input) {
         requireNonBlank(input, "input");
-        String value = input.strip();
+        if (input.length() > 8000) throw new IllegalArgumentException("input exceeds limit");
+        String value = textPolicy.sanitizeInput(input.strip());
         if (value.length() > 8_000) throw new IllegalArgumentException("input must contain at most 8000 characters");
         return value;
     }
 
-    private static String title(String input) { return input.length() <= 48 ? input : input.substring(0, 48); }
+    private static String title(String input) {
+        if (input.length() <= 48) return input;
+        int end = Character.isHighSurrogate(input.charAt(47)) ? 47 : 48;
+        return input.substring(0, end);
+    }
 
     private static void requireNonBlank(String value, String field) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " must not be blank");
@@ -520,11 +594,13 @@ public final class RunCoordinator implements AutoCloseable {
         events.closeSubscriptions();
         executor.shutdown();
         try {
-            executor.awaitTermination(java.time.Duration.ofSeconds(5));
+            executor.awaitTermination(Duration.ofSeconds(5));
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
         }
     }
+
+    public static final class SessionBusyException extends RuntimeException { }
 
     public static final class RunCapacityException extends RuntimeException { }
     public static final class RunNotFoundException extends RuntimeException { }

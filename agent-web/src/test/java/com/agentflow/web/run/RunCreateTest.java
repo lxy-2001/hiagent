@@ -61,7 +61,7 @@ class RunCreateTest {
         when(persistence.markRunning(any(), any())).thenAnswer(i -> new RunPersistence.StartResult(
                 RunPersistence.StartOutcome.STARTED, running(i.getArgument(0), "s", "x", now)));
         RunLifecycleProperties p = RunLifecycleProperties.defaults();
-        coordinator = new RunCoordinator((request, sink, options) -> {
+        coordinator = new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), (request, sink, options) -> {
             try { block.await(5, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
             return AgentResult.success(request.taskId(), "done", List.of(), TokenUsage.empty());
         }, persistence, hub(now, p),
@@ -79,7 +79,7 @@ class RunCreateTest {
                                        java.util.function.Supplier<String> second,
                                        java.util.function.Function<com.agentflow.core.AgentRequest, AgentResult> result) {
         AtomicInteger call = new AtomicInteger();
-        return new RunCoordinator((request, sink, options) -> result.apply(request), persistence, hub,
+        return new RunCoordinator((query, timeout, cancellation) -> com.agentflow.core.context.ContextSeed.empty(), (request, sink, options) -> result.apply(request), persistence, hub,
                 new RunEventProjector(), new RunResultProjector(), new BoundedRunExecutor(1, 1, Thread::new),
                 new RunLifecycleProperties(1, 1, 2, java.time.Duration.ofSeconds(30), 256, 1_048_576,
                         16_384, 128, java.time.Duration.ofMinutes(10), 16, 32, 32),
