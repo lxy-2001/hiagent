@@ -20,6 +20,72 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ContextAssemblerTest {
     @TestFactory
+    Stream<DynamicTest> multilingualCompleteToolChainsAtWindowBoundaries() {
+        var tests = new java.util.ArrayList<DynamicTest>();
+        String[] samples = {"A", "中文", "😀"};
+        int[] bytes = {1, 6, 4};
+        for (int sample = 0; sample < samples.length; sample++) {
+            for (int repeat = 1; repeat <= 4; repeat++) {
+                for (boolean withTool : new boolean[]{false, true}) {
+                    String input = samples[sample].repeat(repeat);
+                    int textBytes = bytes[sample] * repeat;
+                    int reserve = repeat % 2 == 0 ? 0 : 8;
+                    // system(s)=39; user=36+UTF8; call(c,t,{q:x})=55; result=38+UTF8.
+                    long mandatory = withTool ? 168 + 2L * textBytes : 75 + textBytes;
+                    for (int offset : new int[]{-1, 0, 1, 23, 57}) {
+                        int window = (int) mandatory + reserve + offset;
+                        tests.add(DynamicTest.dynamicTest("text-" + sample + "-repeat-" + repeat + "-tool-" + withTool + "-offset-" + offset, () -> {
+                            var request = new AgentRequest("r", "s", "u", input);
+                            var call = new ToolCall("c", "t", new ToolArguments(Map.of("q", "x")));
+                            var chain = withTool ? List.of(ModelMessage.user(input), ModelMessage.assistantToolCall(call),
+                                    new ModelMessage("tool", input, "t", "c", null)) : List.of(ModelMessage.user(input));
+                            var result = assembler(window).assemble(request, chain, List.of(), 1, reserve);
+                            assertEquals(offset >= 0, result.ready());
+                            if (result.ready()) {
+                                assertEquals(mandatory, result.diagnostics().estimatedInput());
+                                assertEquals(reserve, result.request().maxCompletionTokens());
+                                assertEquals(chain, result.request().messages().subList(1, result.request().messages().size()));
+                            } else {
+                                assertNull(result.request());
+                                assertEquals("CONTEXT_BUDGET_EXCEEDED", result.rejectionReason());
+                            }
+                        }));
+                    }
+                }
+            }
+        }
+        return tests.stream();
+    }
+
+    @Test
+    void optionalHistoryDropsWholeOldestPairsAtMessageAndTextHardLimits() {
+        TokenEstimator zero = new TokenEstimator() {
+            public long estimateInput(List<ModelMessage> messages, List<com.agentflow.core.tool.ToolDefinition> tools) { return 0; }
+            public String version() { return "zero-test"; }
+        };
+        var bounded = new ContextAssembler(new ContextPolicy("s", "p", 131072), zero, new ContextTextPolicy());
+        var history = IntStream.rangeClosed(1, 20).mapToObj(i -> new ConversationTurn("old-" + i, i, "q", "a")).toList();
+        var chain = new java.util.ArrayList<ModelMessage>();
+        chain.add(ModelMessage.user("current"));
+        for (int i = 0; i < 12; i++) {
+            var call = new ToolCall("c" + i, "t", new ToolArguments(Map.of()));
+            chain.add(ModelMessage.assistantToolCall(call));
+            chain.add(new ModelMessage("tool", "result", "t", "c" + i, null));
+        }
+        var result = bounded.assemble(new AgentRequest("r", "s", "u", "current", new ContextSeed(20, history, List.of(), false, 0)), chain, List.of(), 13, 0);
+        assertTrue(result.ready());
+        assertEquals(64, result.request().messages().size());
+        assertEquals(19, result.diagnostics().keptTurns());
+        assertEquals("MESSAGE_LIMIT", result.diagnostics().selections().get(0).reason());
+        var largeHistory = IntStream.rangeClosed(1, 5).mapToObj(i -> new ConversationTurn("large-" + i, i, "q", "a".repeat(65536))).toList();
+        var textLimited = bounded.assemble(new AgentRequest("r", "s", "u", "current", new ContextSeed(5, largeHistory, List.of(), false, 0)),
+                List.of(ModelMessage.user("current")), List.of(), 1, 0);
+        assertTrue(textLimited.ready());
+        assertEquals(3, textLimited.diagnostics().keptTurns());
+        assertEquals(2, textLimited.diagnostics().droppedTurns());
+        assertEquals("TEXT_LIMIT", textLimited.diagnostics().selections().get(0).reason());
+    }
+    @TestFactory
     Stream<DynamicTest> deterministicWindowBoundaries() {
         return IntStream.range(1, 121).mapToObj(window -> DynamicTest.dynamicTest("window-" + window, () -> {
             var assembler = assembler(window);

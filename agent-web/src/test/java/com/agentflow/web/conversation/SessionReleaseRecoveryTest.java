@@ -13,6 +13,56 @@ import static org.mockito.Mockito.*;
 
 class SessionReleaseRecoveryTest {
     @Test
+    void queuedTimeoutReleasesOnlyAfterQueueDetachmentAndAllowsTheSameSession() {
+        var callbacks = new ArrayList<Runnable[]>();
+        var persistence = persistence();
+        var executor = executor(callbacks);
+        var ticks = new AtomicLong();
+        when(executor.remove(any())).thenAnswer(invocation -> { callbacks.get(0)[2].run(); return true; });
+        try (var coordinator = coordinator(persistence, executor, ticks::get)) {
+            coordinator.create("owner", "queued", "session");
+            ticks.set(Duration.ofSeconds(30).toNanos());
+            coordinator.maintainOnce();
+            assertThat(coordinator.inFlightCount()).isZero();
+            verify(persistence).complete(argThat(result -> result.terminationReason() == RunTerminationReason.QUEUE_TIMEOUT));
+            assertThat(coordinator.create("owner", "after timeout", "session").sessionId()).isEqualTo("session");
+        }
+    }
+
+    @Test
+    void shutdownDoesNotPretendQueuedWorkerHasExitedAndRejectsNewAdmission() {
+        var callbacks = new ArrayList<Runnable[]>();
+        var persistence = persistence();
+        var coordinator = coordinator(persistence, executor(callbacks));
+        coordinator.create("owner", "queued", "session");
+        coordinator.close();
+        assertThat(coordinator.inFlightCount()).isOne();
+        assertThatThrownBy(() -> coordinator.create("owner", "after shutdown", "session"))
+                .isInstanceOfSatisfying(RunCoordinator.RunUnavailableException.class, e -> assertThat(e.code()).isEqualTo("SERVICE_STOPPING"));
+        callbacks.get(0)[0].run();
+        assertThat(coordinator.inFlightCount()).isOne();
+        callbacks.get(0)[2].run();
+        // Shutdown leaves this uncommitted terminal to startup recovery; worker exit alone cannot release it.
+        assertThat(coordinator.inFlightCount()).isOne();
+        verify(persistence, never()).complete(any());
+    }
+    @Test
+    void workerFinishingBeforeDispatchReturnsDoesNotLeaveAnExecutionHandle() {
+        var persistence = persistence();
+        var executor = mock(BoundedRunExecutor.class);
+        when(executor.dispatch(any(), any(), any())).thenAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            invocation.<Runnable>getArgument(2).run();
+            return new BoundedRunExecutor.Dispatch(true, mock(BoundedRunExecutor.TaskHandle.class));
+        });
+        try (var coordinator = coordinator(persistence, executor)) {
+            coordinator.create("owner", "fast", "session");
+            assertThat(coordinator.inFlightCount()).isZero();
+            assertThat((Map<?, ?>) org.springframework.test.util.ReflectionTestUtils.getField(coordinator, "handles")).isEmpty();
+            assertThat(coordinator.create("owner", "next", "session").sessionId()).isEqualTo("session");
+        }
+    }
+    @Test
     void confirmedTerminalDoesNotReleaseSessionUntilWorkerExit() {
         var callbacks = new ArrayList<Runnable[]>();
         var persistence = persistence();
@@ -112,9 +162,12 @@ class SessionReleaseRecoveryTest {
         return executor;
     }
     private static RunCoordinator coordinator(RunPersistence persistence, BoundedRunExecutor executor) {
+        return coordinator(persistence, executor, System::nanoTime);
+    }
+    private static RunCoordinator coordinator(RunPersistence persistence, BoundedRunExecutor executor, java.util.function.LongSupplier ticks) {
         var ids = new AtomicInteger();
         AgentRuntime runtime = (request, sink, options) -> AgentResult.success(request.taskId(), "answer", List.of(), TokenUsage.empty());
         return new RunCoordinator((q, t, c) -> ContextSeed.empty(), runtime, persistence, mock(RunEventHub.class), new RunEventProjector(),
-                new RunResultProjector(), executor, RunLifecycleProperties.defaults(), Clock.systemUTC(), System::nanoTime, () -> "run-" + ids.incrementAndGet());
+                new RunResultProjector(), executor, RunLifecycleProperties.defaults(), Clock.systemUTC(), ticks, () -> "run-" + ids.incrementAndGet());
     }
 }

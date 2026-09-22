@@ -84,6 +84,7 @@ class PersistentContextSourceTest {
                 });
         var hub = new InMemoryRunEventHub(new tools.jackson.databind.ObjectMapper(), 256, 1048576, 16384);
         var ids = new java.util.concurrent.atomic.AtomicInteger();
+        String session;
         try (var coordinator = new RunCoordinator(source, runtime, persistence, hub, new RunEventProjector(), new RunResultProjector(),
                 executor, RunLifecycleProperties.defaults(), java.time.Clock.systemUTC(), System::nanoTime, () -> "continuity-" + ids.incrementAndGet())) {
             var first = coordinator.create("owner", "token=private-value question");
@@ -91,12 +92,21 @@ class PersistentContextSourceTest {
             assertThat(coordinator.inFlightCount()).isZero();
             var failed = coordinator.create("owner", "fail", first.sessionId());
             assertThat(coordinator.getOwned("owner", failed.taskId()).status()).isEqualTo(RunLifecycleStatus.FAILED);
-            var last = coordinator.create("owner", "continue", first.sessionId());
+            session = first.sessionId();
+            assertThat(coordinator.getOwned("owner", first.taskId()).input()).isEqualTo(requests.get(0).input());
+        }
+        // Rebuild process-owned runtime, coordinator and event state; only database facts survive.
+        var restartedRuntime = new com.agentflow.core.runtime.DefaultAgentRuntime(model, registry, null);
+        var restartedHub = new InMemoryRunEventHub(new tools.jackson.databind.ObjectMapper(), 256, 1048576, 16384);
+        try (var coordinator = new RunCoordinator(source, restartedRuntime, persistence, restartedHub,
+                new RunEventProjector(), new RunResultProjector(), executor, RunLifecycleProperties.defaults(),
+                java.time.Clock.systemUTC(), System::nanoTime, () -> "continuity-" + ids.incrementAndGet())) {
+            assertThat(coordinator.recoverInterrupted()).isTrue();
+            var last = coordinator.create("owner", "continue", session);
             assertThat(coordinator.getOwned("owner", last.taskId()).status()).isEqualTo(RunLifecycleStatus.SUCCEEDED);
             assertThat(requests).hasSize(3);
             assertThat(requests.get(2).messages()).extracting(com.agentflow.core.model.ModelMessage::content)
                     .contains("token=[redacted] question", "answer-1", "continue").doesNotContain("fail", "private-value");
-            assertThat(coordinator.getOwned("owner", first.taskId()).input()).isEqualTo(requests.get(0).input());
         }
     }
 

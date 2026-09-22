@@ -145,6 +145,11 @@ public final class RunCoordinator implements AutoCloseable {
                 () -> rejectDispatch(owned), () -> workerLeft(owned));
         if (dispatch.accepted()) {
             handles.put(taskId, dispatch.handle());
+            // A fast worker can finish before dispatch returns its handle.
+            // Recheck after publication so either this branch or tryRelease removes it.
+            if (owned.control().phase() == RunControl.Phase.RELEASED) {
+                handles.remove(taskId, dispatch.handle());
+            }
         }
     }
 
