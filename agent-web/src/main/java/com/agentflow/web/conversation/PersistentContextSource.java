@@ -1,6 +1,7 @@
 package com.agentflow.web.conversation;
 
 import com.agentflow.core.context.ContextSeed;
+import com.agentflow.core.context.ConfirmedMemory;
 import com.agentflow.core.context.ContextSource;
 import com.agentflow.core.context.ContextTextPolicy;
 import com.agentflow.core.context.ConversationTurn;
@@ -78,8 +79,18 @@ public class PersistentContextSource implements ContextSource {
                         ((Number) candidate.get("sequence")).longValue(), input, answer));
             }
             Collections.reverse(turns);
+            var memories = timed(entityManager.createQuery("select m from ConfirmedMemoryEntity m where m.sessionId=:session "
+                            + "and m.state='ACTIVE' order by m.key", com.agentflow.web.memory.ConfirmedMemoryEntity.class)
+                    .setParameter("session", query.sessionId()).setMaxResults(3), started, allowance, cancellation).getResultList();
+            if (memories.size() > 2) throw unavailable();
+            var confirmed = new ArrayList<ConfirmedMemory>();
+            for (var memory : memories) {
+                if (!textPolicy.isMemoryValueAllowed(memory.getValue())) throw unavailable();
+                confirmed.add(new ConfirmedMemory(memory.getKey(), ConfirmedMemory.PREFERRED_LANGUAGE.equals(memory.getKey())
+                        ? "USER_PREFERENCE" : "PROJECT_FACT", memory.getValue(), memory.getVersion(), memory.getSource()));
+            }
             checkDeadline(started, allowance, cancellation);
-            return new ContextSeed(through, turns, List.of(), candidates.size() > 20, discarded);
+            return new ContextSeed(through, turns, confirmed, candidates.size() > 20, discarded);
         } catch (ContextSourceException failure) {
             throw failure;
         } catch (RuntimeException failure) {

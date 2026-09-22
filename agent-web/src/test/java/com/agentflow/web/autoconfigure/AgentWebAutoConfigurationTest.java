@@ -119,6 +119,7 @@ class AgentWebAutoConfigurationTest {
     @Configuration(proxyBeanMethods = false)
     @EnableWebSecurity
     static class TestDependencies {
+        @Bean com.agentflow.web.memory.ConfirmedMemoryRepository memories() { return mock(com.agentflow.web.memory.ConfirmedMemoryRepository.class); }
 
         @Bean
         AgentSessionRepository agentSessionRepository() {

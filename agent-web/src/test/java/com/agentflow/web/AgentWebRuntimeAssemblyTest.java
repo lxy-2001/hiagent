@@ -69,6 +69,7 @@ public class AgentWebRuntimeAssemblyTest {
     @Configuration(proxyBeanMethods = false)
     @EnableWebSecurity
     public static class Dependencies {
+        @Bean com.agentflow.web.memory.ConfirmedMemoryRepository memories() { return mock(com.agentflow.web.memory.ConfirmedMemoryRepository.class); }
         @Bean AgentSessionRepository sessions() { return mock(AgentSessionRepository.class); }
         @Bean AgentTaskRepository tasks() { return mock(AgentTaskRepository.class); }
         @Bean AgentStepRepository steps() { return mock(AgentStepRepository.class); }

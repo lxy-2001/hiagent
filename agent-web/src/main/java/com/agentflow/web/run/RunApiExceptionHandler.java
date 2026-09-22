@@ -6,12 +6,16 @@ import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class RunApiExceptionHandler {
-    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
+    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.bind.MissingServletRequestParameterException.class})
     ResponseEntity<RunApiErrorWriter.ErrorResponse> invalidRequest(Exception ignored) {
         return response(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", null);
     }
     @ExceptionHandler(RunCoordinator.RunNotFoundException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> notFound() { return response(HttpStatus.NOT_FOUND, "NOT_FOUND", null); }
+    @ExceptionHandler(com.agentflow.web.memory.ConfirmedMemoryService.VersionConflictException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> memoryConflict() { return response(HttpStatus.CONFLICT, "MEMORY_VERSION_CONFLICT", null); }
     @ExceptionHandler(RunCoordinator.SessionBusyException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> sessionBusy() { return response(HttpStatus.CONFLICT, "SESSION_BUSY", null); }
     @ExceptionHandler(RunCoordinator.RunCapacityException.class)

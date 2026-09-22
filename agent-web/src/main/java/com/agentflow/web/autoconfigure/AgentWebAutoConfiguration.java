@@ -1,6 +1,10 @@
 package com.agentflow.web.autoconfigure;
 
 import com.agentflow.core.context.ContextSource;
+import com.agentflow.web.memory.ConfirmedMemoryEntity;
+import com.agentflow.web.memory.ConfirmedMemoryRepository;
+import com.agentflow.web.memory.ConfirmedMemoryService;
+import com.agentflow.web.memory.ConfirmedMemoryController;
 import com.agentflow.web.conversation.PersistentContextSource;
 import com.agentflow.web.conversation.ConversationProperties;
 
@@ -54,10 +58,11 @@ import java.time.Clock;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @AutoConfiguration
-@AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class})
+@AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class, ConfirmedMemoryEntity.class})
 @EnableConfigurationProperties(AgentFlowProperties.class)
 @Import({
         AgentController.class,
+        ConfirmedMemoryController.class,
         AgentTaskService.class,
         RunApiExceptionHandler.class,
         AuthController.class,
@@ -144,6 +149,12 @@ public class AgentWebAutoConfiguration {
     RunPersistence runPersistence(AgentSessionRepository sessions, AgentTaskRepository tasks,
                                   AgentStepRepository steps, EntityManager entityManager) {
         return new RunPersistence(sessions, tasks, steps, entityManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ConfirmedMemoryService confirmedMemoryService(AgentSessionRepository sessions, ConfirmedMemoryRepository memories, ContextTextPolicy textPolicy) {
+        return new ConfirmedMemoryService(sessions, memories, textPolicy);
     }
 
     @Bean

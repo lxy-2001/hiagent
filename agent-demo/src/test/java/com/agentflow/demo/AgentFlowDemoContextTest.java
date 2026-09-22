@@ -104,6 +104,17 @@ class AgentFlowDemoContextTest {
     }
 
     @Test
+    void discoversAndPersistsConfirmedMemoryWithoutExpandingComponentScan() {
+        var sessions = context.getBean(AgentSessionRepository.class);
+        sessions.saveAndFlush(new com.agentflow.web.agent.AgentSessionEntity("memory-assembly", "owner", "title", java.time.Instant.now()));
+        var memories = context.getBean(com.agentflow.web.memory.ConfirmedMemoryService.class);
+        var written = memories.put("owner", "memory-assembly", "project_stack", "Java 17", 0);
+        assertThat(written.version()).isEqualTo("1");
+        assertThat(memories.get("owner", "memory-assembly").get(1)).isEqualTo(written);
+        assertThat(context.getBeansOfType(com.agentflow.web.memory.ConfirmedMemoryController.class)).hasSize(1);
+    }
+
+    @Test
     void runsTwoExplicitDemoToolsOfflineThroughTheCoreRuntime() {
         ToolRegistry registry = context.getBean(ToolRegistry.class);
         assertThat(registry.enabledToolNames())
