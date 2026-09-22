@@ -1,6 +1,8 @@
 package com.agentflow.core.runtime;
 
 public enum AgentErrorCode {
+    CITATION_INVALID,
+    INSUFFICIENT_EVIDENCE,
     INVALID_INPUT,
     INVALID_DECISION,
     MODEL_ERROR,

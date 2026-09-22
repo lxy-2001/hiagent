@@ -22,7 +22,7 @@ public final class ContextTextPolicy {
     }
 
     public String sanitizeHistory(String text) {
-        return sanitizeInput(text);
+        return sanitizeInput(text).replace("[S", "[prior-run-source:");
     }
 
     public boolean isMemoryValueAllowed(String value) {

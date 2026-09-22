@@ -41,6 +41,7 @@ public final class RuntimeTrace {
     public AgentStepRecord failure(AgentStepType type, String name, String input, String message,
                                    long latencyMs, String errorCode, String decisionId,
                                    String callId, boolean terminal) {
+        if ("knowledge.search".equals(name)) { message = "retrieval failed"; }
         AgentStepRecord step = AgentStepRecord.failed(taskId, nextStepNo++, type, name, safe(input),
                 safe(message), Math.max(0, latencyMs), errorCode, decisionId, callId, terminal);
         append(step);

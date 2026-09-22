@@ -17,6 +17,9 @@ public final class AgentExecutionContext {
     private final AgentRequest request;
     private final List<ToolDefinition> toolDefinitions;
     private final List<ModelMessage> messages = new ArrayList<>();
+    private final com.agentflow.core.rag.EvidenceLedger evidence = new com.agentflow.core.rag.EvidenceLedger();
+
+    public com.agentflow.core.rag.EvidenceLedger evidence() { return evidence; }
 
     public AgentExecutionContext(AgentRequest request, List<ToolDefinition> toolDefinitions) {
         this.request = Objects.requireNonNull(request, "request must not be null");

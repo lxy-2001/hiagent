@@ -2,6 +2,8 @@ package com.agentflow.core.runtime;
 
 public enum TerminationReason {
     COMPLETED,
+    CITATION_INVALID,
+    INSUFFICIENT_EVIDENCE,
     INVALID_INPUT,
     INVALID_DECISION,
     MODEL_ERROR,
