@@ -21,6 +21,7 @@ class AgentLlmAutoConfigurationTest {
             assertThat(context).hasSingleBean(AgentModelClient.class);
             assertThat(context).hasSingleBean(ChatModelClient.class);
             assertThat(context).hasSingleBean(EmbeddingClient.class);
+            assertThat(context).hasSingleBean(com.agentflow.core.model.DeadlineAwareEmbeddingClient.class);
             assertThat(context.getBean(AgentModelClient.class).getClass().getSimpleName())
                     .isEqualTo("OpenAiAgentModelClient");
             assertThat(context.getBean(ChatModelClient.class).getClass().getSimpleName())

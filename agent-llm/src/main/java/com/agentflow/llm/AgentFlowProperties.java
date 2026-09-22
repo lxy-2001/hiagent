@@ -50,6 +50,8 @@ public class AgentFlowProperties {
         private String apiKey = "";
         private String chatModel = "deepseek-v4-pro";
         private String embeddingModel = "text-embedding-v4";
+        private String embeddingBaseUrl = "";
+        private String embeddingApiKey = "";
         private int embeddingDimensions = 2048;
         private Duration timeout = Duration.ofSeconds(60);
 
@@ -88,6 +90,11 @@ public class AgentFlowProperties {
         public String getEmbeddingModel() {
             return embeddingModel;
         }
+
+        public String getEmbeddingBaseUrl() { return embeddingBaseUrl; }
+        public void setEmbeddingBaseUrl(String value) { embeddingBaseUrl = value; }
+        public String getEmbeddingApiKey() { return embeddingApiKey; }
+        public void setEmbeddingApiKey(String value) { embeddingApiKey = value; }
 
         public void setEmbeddingModel(String embeddingModel) {
             this.embeddingModel = embeddingModel;

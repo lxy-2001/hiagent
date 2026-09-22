@@ -47,8 +47,8 @@ public class AgentLlmAutoConfiguration {
     @Bean
     @ConditionalOnBean(OpenAiCompatibleModelClient.class)
     @ConditionalOnMissingBean(EmbeddingClient.class)
-    OpenAiEmbeddingClient embeddingClient(OpenAiCompatibleModelClient transport) {
-        return new OpenAiEmbeddingClient(transport);
+    OpenAiEmbeddingClient embeddingClient(AgentFlowProperties properties) {
+        return new OpenAiEmbeddingClient(properties);
     }
 
     static class AnyModelPortMissingCondition extends AnyNestedCondition {

@@ -41,6 +41,8 @@ public class OpenAiCompatibleModelClient {
     private final RestClient restClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    AgentFlowProperties properties() { return properties; }
+
     public OpenAiCompatibleModelClient(AgentFlowProperties properties, RestClient.Builder builder) {
         this.properties = properties;
         RestClient.Builder configured = builder.baseUrl(resolveBaseUrl());

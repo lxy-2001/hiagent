@@ -19,6 +19,9 @@ public record RetrievedChunk(String snapshotId, String docId, String documentVer
         requireText(relativePath, 256);
         requireText(title, 120);
         requireText(text, 1600);
+        if (relativePath.isBlank() || title.isBlank()) {
+            throw new IllegalArgumentException("source metadata must not be blank");
+        }
         if (relativePath.startsWith("/") || relativePath.contains("\\") || relativePath.contains(":")) {
             throw new IllegalArgumentException("invalid source path");
         }
@@ -49,7 +52,7 @@ public record RetrievedChunk(String snapshotId, String docId, String documentVer
     }
 
     private static void requireText(String text, int maxLength) {
-        if (text == null || text.isBlank() || text.length() > maxLength
+        if (text == null || text.isEmpty() || text.length() > maxLength
                 || !Normalizer.isNormalized(text, Normalizer.Form.NFC)) {
             throw new IllegalArgumentException("invalid source text");
         }
