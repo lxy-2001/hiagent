@@ -35,6 +35,20 @@ public final class KeywordIndex {
     public int termCount() { return postings.size(); }
     public int postingCount() { return postingCount; }
 
+    public java.util.List<ReciprocalRankFusion.Candidate> query(String query) {
+        var queryTerms = terms(query).stream().limit(64).toList();
+        if (queryTerms.isEmpty()) { return java.util.List.of(); }
+        var matches = new HashMap<String, Integer>();
+        for (String term : queryTerms) {
+            for (String id : postings.getOrDefault(term, Set.of())) {
+                matches.merge(id, 1, Integer::sum);
+            }
+        }
+        return matches.entrySet().stream()
+                .map(entry -> new ReciprocalRankFusion.Candidate(entry.getKey(), (double) entry.getValue() / queryTerms.size()))
+                .sorted(ReciprocalRankFusion.ORDER).limit(40).toList();
+    }
+
     public static Set<String> terms(String text) {
         var result = new LinkedHashSet<String>();
         var matcher = TOKENS.matcher(Normalizer.normalize(text, Normalizer.Form.NFC).toLowerCase(Locale.ROOT));
