@@ -80,10 +80,12 @@ public record AgentResult(
             case FAILED -> reason != TerminationReason.COMPLETED
                     && reason != TerminationReason.CANCELLED
                     && reason != TerminationReason.TIMED_OUT
-                    && reason != TerminationReason.BUDGET_EXCEEDED;
+                    && reason != TerminationReason.BUDGET_EXCEEDED
+                    && reason != TerminationReason.CONTEXT_BUDGET_EXCEEDED;
             case CANCELLED -> reason == TerminationReason.CANCELLED;
             case TIMED_OUT -> reason == TerminationReason.TIMED_OUT;
-            case BUDGET_EXCEEDED -> reason == TerminationReason.BUDGET_EXCEEDED;
+            case BUDGET_EXCEEDED -> reason == TerminationReason.BUDGET_EXCEEDED
+                    || reason == TerminationReason.CONTEXT_BUDGET_EXCEEDED;
         };
         if (!valid) {
             throw new IllegalArgumentException("status and terminationReason do not match");

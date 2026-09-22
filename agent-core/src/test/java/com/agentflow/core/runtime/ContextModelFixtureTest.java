@@ -85,10 +85,10 @@ class ContextModelFixtureTest {
         assertEquals("done", result.finalAnswer());
         assertEquals(2, model.callCount());
         var messages = model.requests().get(1).messages();
-        assertEquals(List.of("user", "assistant", "tool"), messages.stream().map(ModelMessage::role).toList());
-        assertEquals(call, messages.get(1).toolCall());
-        assertEquals("call-1", messages.get(2).toolCallId());
-        assertEquals("observation", messages.get(2).content());
+        assertEquals(List.of("system", "user", "assistant", "tool"), messages.stream().map(ModelMessage::role).toList());
+        assertEquals(call, messages.get(2).toolCall());
+        assertEquals("call-1", messages.get(3).toolCallId());
+        assertEquals("observation", messages.get(3).content());
     }
 
     private static AgentModelRequest request(int iteration, List<ModelMessage> messages) {

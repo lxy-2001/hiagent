@@ -5,6 +5,11 @@ import com.agentflow.core.AgentRequest;
 import com.agentflow.core.AgentResult;
 import com.agentflow.core.AgentStepType;
 import com.agentflow.core.chat.TokenUsage;
+import com.agentflow.core.context.ContextAssembler;
+import com.agentflow.core.context.ContextAssembly;
+import com.agentflow.core.context.ContextPolicy;
+import com.agentflow.core.context.ContextTextPolicy;
+import com.agentflow.core.context.Utf8TokenEstimator;
 import com.agentflow.core.model.AgentModelClient;
 import com.agentflow.core.model.AgentModelRequest;
 import com.agentflow.core.model.FinalAnswerDecision;
@@ -39,16 +44,26 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
     private final StepRecorder stepRecorder;
     private final ToolResultNormalizer resultNormalizer;
     private final TimeSource timeSource;
+    private final ContextAssembler contextAssembler;
 
     public DefaultAgentRuntime(AgentModelClient modelClient, ToolRegistry toolRegistry,
                                ToolExecutor toolExecutor, StepRecorder stepRecorder,
                                ToolResultNormalizer resultNormalizer, TimeSource timeSource) {
+        this(modelClient, toolRegistry, toolExecutor, stepRecorder, resultNormalizer, timeSource,
+                new ContextAssembler(ContextPolicy.defaults(), new Utf8TokenEstimator(), new ContextTextPolicy()));
+    }
+
+    public DefaultAgentRuntime(AgentModelClient modelClient, ToolRegistry toolRegistry,
+                               ToolExecutor toolExecutor, StepRecorder stepRecorder,
+                               ToolResultNormalizer resultNormalizer, TimeSource timeSource,
+                               ContextAssembler contextAssembler) {
         this.modelClient = Objects.requireNonNull(modelClient, "modelClient must not be null");
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry must not be null");
         this.toolExecutor = Objects.requireNonNull(toolExecutor, "toolExecutor must not be null");
         this.stepRecorder = stepRecorder == null ? step -> { } : stepRecorder;
         this.resultNormalizer = resultNormalizer == null ? new com.agentflow.core.tool.DefaultToolResultNormalizer() : resultNormalizer;
         this.timeSource = timeSource == null ? TimeSource.system() : timeSource;
+        this.contextAssembler = Objects.requireNonNull(contextAssembler, "contextAssembler must not be null");
     }
 
     public DefaultAgentRuntime(AgentModelClient modelClient, ToolRegistry toolRegistry,
@@ -96,7 +111,26 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     return finishFailure(request, trace, budget, boundary.reason(), boundary.status(), boundary.diagnostic());
                 }
 
-                AgentModelRequest modelRequest = context.modelRequest(iteration, budget.remainingCompletionTokens());
+                ContextAssembly assembly = contextAssembler.assemble(request, context.messages(), definitions,
+                        iteration, budget.remainingCompletionTokens());
+                if (assembly.ready()) {
+                    trace.success(AgentStepType.CONTEXT_ASSEMBLY, "context", null, assembly.diagnostics().summary(),
+                            0, null, null, null, false);
+                } else {
+                    trace.failure(AgentStepType.CONTEXT_ASSEMBLY, "context", null, assembly.diagnostics().summary(),
+                            0, assembly.rejectionReason(), null, null, false);
+                }
+                boundary = boundary(effectiveOptions, budget, iteration, startedAt);
+                if (boundary != null) {
+                    return finishFailure(request, trace, budget, boundary.reason(), boundary.status(), boundary.diagnostic());
+                }
+                if (!assembly.ready()) {
+                    TerminationReason reason = TerminationReason.valueOf(assembly.rejectionReason());
+                    RunStatus status = reason == TerminationReason.CONTEXT_BUDGET_EXCEEDED
+                            ? RunStatus.BUDGET_EXCEEDED : RunStatus.FAILED;
+                    return finishFailure(request, trace, budget, reason, status, "context assembly rejected");
+                }
+                AgentModelRequest modelRequest = assembly.request();
                 long actionStarted = timeSource.nanoTime();
                 ModelDecision decision;
                 try {

@@ -1,6 +1,12 @@
 package com.agentflow.web.autoconfigure;
 
 import com.agentflow.core.AgentRuntime;
+import com.agentflow.core.context.ContextPolicy;
+import com.agentflow.core.context.ContextAssembler;
+import com.agentflow.core.context.ContextTextPolicy;
+import com.agentflow.core.context.TokenEstimator;
+import com.agentflow.core.context.Utf8TokenEstimator;
+import com.agentflow.core.runtime.TimeSource;
 import com.agentflow.core.memory.ShortTermMemory;
 import com.agentflow.core.model.AgentModelClient;
 import com.agentflow.core.runtime.DefaultAgentRuntime;
@@ -160,13 +166,33 @@ public class AgentWebAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean
+    ContextPolicy contextPolicy() { return ContextPolicy.defaults(); }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ContextTextPolicy contextTextPolicy() { return new ContextTextPolicy(); }
+
+    @Bean
+    @ConditionalOnMissingBean(TokenEstimator.class)
+    TokenEstimator tokenEstimator() { return new Utf8TokenEstimator(); }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ContextAssembler contextAssembler(ContextPolicy policy, TokenEstimator estimator, ContextTextPolicy textPolicy) {
+        return new ContextAssembler(policy, estimator, textPolicy);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(AgentRuntime.class)
     AgentRuntime agentRuntime(
             AgentModelClient modelClient,
             ToolRegistry toolRegistry,
             ToolExecutor toolExecutor,
             StepRecorder stepRecorder,
-            ToolResultNormalizer resultNormalizer) {
-        return new DefaultAgentRuntime(modelClient, toolRegistry, toolExecutor, stepRecorder, resultNormalizer);
+            ToolResultNormalizer resultNormalizer,
+            ContextAssembler contextAssembler) {
+        return new DefaultAgentRuntime(modelClient, toolRegistry, toolExecutor, stepRecorder, resultNormalizer,
+                TimeSource.system(), contextAssembler);
     }
 }

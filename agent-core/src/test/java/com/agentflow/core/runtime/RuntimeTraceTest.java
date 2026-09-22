@@ -48,7 +48,7 @@ class RuntimeTraceTest {
         var result = runtime.run(new AgentRequest("t", "s", "u", "input"), events::add);
 
         List<Integer> stepNumbers = result.steps().stream().map(AgentStepRecord::stepNo).toList();
-        assertEquals(List.of(1, 2, 3, 4, 5, 6), stepNumbers);
+        assertEquals(List.of(1, 2, 3, 4, 5, 6, 7, 8), stepNumbers);
         List<Long> eventSequences = events.stream().map(AgentEvent::sequence).toList();
         assertTrue(eventSequences.stream().allMatch(sequence -> sequence > 0));
         assertTrue(eventSequences.stream().allMatch(sequence -> eventSequences.indexOf(sequence) == eventSequences.lastIndexOf(sequence)));
@@ -58,7 +58,7 @@ class RuntimeTraceTest {
         String callId = result.steps().stream().filter(s -> s.callId() != null)
                 .map(AgentStepRecord::callId).findFirst().orElseThrow();
         assertEquals("call-1", callId);
-        assertEquals(AgentStepType.TERMINATION, result.steps().get(5).stepType());
+        assertEquals(AgentStepType.TERMINATION, result.steps().get(7).stepType());
     }
 
     @Test

@@ -24,14 +24,7 @@ public final class Utf8TokenEstimator implements TokenEstimator {
         if (messages.size() > MESSAGE_LIMIT || tools.size() > TOOL_LIMIT) {
             throw new IllegalArgumentException("context item count exceeds limit");
         }
-        Counter text = new Counter(false, TEXT_LIMIT);
-        for (ModelMessage message : messages) {
-            countMessage(text, message, false);
-        }
-        Counter metadata = new Counter(false, TOOL_TEXT_LIMIT);
-        for (ToolDefinition tool : tools) {
-            countTool(metadata, tool, false);
-        }
+        validateTextLimits(messages, tools);
         Counter estimate = new Counter(true, Long.MAX_VALUE);
         for (ModelMessage message : messages) {
             countMessage(estimate, message, true);
@@ -40,6 +33,17 @@ public final class Utf8TokenEstimator implements TokenEstimator {
             countTool(estimate, tool, true);
         }
         return estimate.total;
+    }
+
+    static void validateTextLimits(List<ModelMessage> messages, List<ToolDefinition> tools) {
+        Counter text = new Counter(false, TEXT_LIMIT);
+        for (ModelMessage message : messages) {
+            countMessage(text, message, false);
+        }
+        Counter metadata = new Counter(false, TOOL_TEXT_LIMIT);
+        for (ToolDefinition tool : tools) {
+            countTool(metadata, tool, false);
+        }
     }
 
     @Override

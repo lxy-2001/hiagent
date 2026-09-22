@@ -28,7 +28,7 @@ import java.util.concurrent.Executor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-class AgentWebRuntimeAssemblyTest {
+public class AgentWebRuntimeAssemblyTest {
 
     @Test
     void coreRuntimeIsTheOnlyRuntimeAndRagIsOptional() {
@@ -68,7 +68,7 @@ class AgentWebRuntimeAssemblyTest {
 
     @Configuration(proxyBeanMethods = false)
     @EnableWebSecurity
-    static class Dependencies {
+    public static class Dependencies {
         @Bean AgentSessionRepository sessions() { return mock(AgentSessionRepository.class); }
         @Bean AgentTaskRepository tasks() { return mock(AgentTaskRepository.class); }
         @Bean AgentStepRepository steps() { return mock(AgentStepRepository.class); }

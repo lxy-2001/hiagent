@@ -13,5 +13,6 @@ public enum TerminationReason {
     TOOL_RESULT_TOO_LARGE,
     CANCELLED,
     TIMED_OUT,
-    BUDGET_EXCEEDED
+    BUDGET_EXCEEDED,
+    CONTEXT_BUDGET_EXCEEDED
 }

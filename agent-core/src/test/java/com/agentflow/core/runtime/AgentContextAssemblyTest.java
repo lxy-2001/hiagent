@@ -48,14 +48,14 @@ class AgentContextAssemblyTest {
         AgentModelClient model = request -> {
             requests.add(request);
             if (request.iteration() == 1) {
-                assertEquals(List.of("user"), request.messages().stream().map(ModelMessage::role).toList());
+                assertEquals(List.of("system", "user"), request.messages().stream().map(ModelMessage::role).toList());
                 return new ToolCallDecision("d1", new ToolCall("c1", "echo",
                         new ToolArguments(Map.of("text", "x"))), TokenUsage.empty());
             }
-            assertEquals(List.of("user", "assistant", "tool"),
+            assertEquals(List.of("system", "user", "assistant", "tool"),
                     request.messages().stream().map(ModelMessage::role).toList());
-            assertEquals("observed", request.messages().get(2).content());
-            assertEquals("echo", request.messages().get(1).name());
+            assertEquals("observed", request.messages().get(3).content());
+            assertEquals("echo", request.messages().get(2).name());
             return new FinalAnswerDecision("d2", "final", TokenUsage.empty());
         };
         DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry,
