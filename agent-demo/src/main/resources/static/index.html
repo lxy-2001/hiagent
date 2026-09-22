@@ -167,6 +167,18 @@
         <button id="reloadBtn" class="secondary" disabled>重载知识库</button>
         <div id="loginStatus" class="status"></div>
 
+        <h2>会话</h2>
+        <button id="newSessionBtn" class="secondary">新建会话</button>
+        <button id="refreshSessionsBtn" disabled>刷新会话</button>
+        <select id="sessionSelect" aria-label="选择会话"><option value="">新会话</option></select>
+        <button id="moreSessionsBtn" disabled>更多会话</button>
+        <div id="conversationStatus" class="status"></div>
+        <div id="history" class="steps"></div>
+        <button id="moreTurnsBtn" disabled>更多历史</button>
+        <h2>已确认记忆</h2>
+        <p>仅保存你明确提交的编程语言偏好和项目技术栈。</p>
+        <div id="memories"></div>
+        <button id="refreshMemoryBtn" disabled>重新读取记忆</button>
         <label for="taskInput">任务</label>
         <textarea id="taskInput">帮我设计一个秒杀库存扣减接口，要求考虑 Redis 缓存、MySQL 一致性和并发安全。</textarea>
         <button id="runBtn" disabled>运行 Agent</button>
@@ -183,6 +195,7 @@
 
 <script type="module">
     import {observeRun} from "/run-events.js";
+    import {createConversationClient} from "/conversation.js";
     let accessToken = "";
     let refreshToken = "";
     let currentTaskId = "";
@@ -191,6 +204,108 @@
 
     const output = document.querySelector("#output");
     const steps = document.querySelector("#steps");
+    const conversation = createConversationClient(authedFetch);
+    let selectionGeneration = 0;
+    let nextBefore = null;
+    let nextAfter = "0";
+    let untilSequence = null;
+    const conversationStatus = document.querySelector("#conversationStatus");
+    function stopObservation() {
+        currentObserver?.stop();
+        observationGeneration++;
+        currentTaskId = "";
+        document.querySelector("#cancelBtn").disabled = true;
+    }
+    function reportConversationError(error) { conversationStatus.textContent = error.message; }
+    async function refreshSessions(append = false) {
+        const generation = selectionGeneration;
+        try {
+            const page = await conversation.list(append ? nextBefore : null);
+            if (generation !== selectionGeneration) return;
+            const select = document.querySelector("#sessionSelect");
+            const selected = select.value;
+            if (!append) select.replaceChildren(new Option("新会话", ""));
+            page.items.forEach(item => select.add(new Option(item.title || item.sessionId, item.sessionId)));
+            if (selected) select.value = selected;
+            nextBefore = page.nextBefore;
+            document.querySelector("#moreSessionsBtn").disabled = !page.hasMore;
+        } catch (error) { if (generation === selectionGeneration) reportConversationError(error); }
+    }
+    async function refreshTurns(append = false) {
+        const generation = selectionGeneration;
+        try {
+            const page = await conversation.turns(append ? nextAfter : "0", append ? untilSequence : null);
+            if (generation !== selectionGeneration) return;
+            const history = document.querySelector("#history");
+            if (!append) history.replaceChildren();
+            for (const turn of page.items) {
+                const row = document.createElement("pre");
+                row.textContent = `#${turn.turnSequence} ${turn.status}\n${turn.contentUnavailable ? "内容超出展示上限" : (turn.input || "") + "\n" + (turn.finalAnswer || "")}`;
+                history.append(row);
+            }
+            nextAfter = page.nextAfterSequence;
+            untilSequence = page.untilSequence;
+            document.querySelector("#moreTurnsBtn").disabled = !page.hasMore;
+        } catch (error) { if (generation === selectionGeneration) reportConversationError(error); }
+    }
+    async function refreshMemories() {
+        const generation = selectionGeneration;
+        try {
+            const slots = await conversation.memories();
+            if (generation !== selectionGeneration) return;
+            const container = document.querySelector("#memories");
+            container.replaceChildren();
+            for (const slot of slots) {
+                const row = document.createElement("div");
+                const label = document.createElement("label");
+                label.textContent = `${slot.key === "preferred_language" ? "编程语言偏好" : "项目技术栈"} · ${slot.state} · v${slot.version}`;
+                const input = document.createElement("input");
+                input.value = slot.value || "";
+                input.maxLength = 512;
+                label.append(input);
+                const save = document.createElement("button");
+                save.textContent = "确认保存";
+                const remove = document.createElement("button");
+                remove.textContent = "删除";
+                async function write(deleting) {
+                    if (generation !== selectionGeneration) return;
+                    save.disabled = remove.disabled = true;
+                    try {
+                        if (deleting) await conversation.deleteMemory(slot.key, slot.version);
+                        else await conversation.writeMemory(slot.key, input.value, slot.version);
+                        if (generation === selectionGeneration) await refreshMemories();
+                    } catch (error) { if (generation === selectionGeneration) reportConversationError(error); }
+                    finally { save.disabled = remove.disabled = false; }
+                }
+                save.addEventListener("click", () => write(false));
+                remove.addEventListener("click", () => write(true));
+                row.append(label, save, remove);
+                container.append(row);
+            }
+        } catch (error) { if (generation === selectionGeneration) reportConversationError(error); }
+    }
+    function selectSession(id) {
+        selectionGeneration++;
+        stopObservation();
+        conversationStatus.textContent = id ? `当前会话：${id}` : "下一次运行将创建新会话";
+        conversation.select(id || null);
+        document.querySelector("#history").replaceChildren();
+        document.querySelector("#memories").replaceChildren();
+        document.querySelector("#moreTurnsBtn").disabled = true;
+        document.querySelector("#refreshMemoryBtn").disabled = !id;
+        output.textContent = "";
+        steps.replaceChildren();
+        if (id) { refreshTurns(); refreshMemories(); }
+    }
+    document.querySelector("#sessionSelect").addEventListener("change", event => selectSession(event.target.value));
+    document.querySelector("#newSessionBtn").addEventListener("click", () => {
+        document.querySelector("#sessionSelect").value = "";
+        selectSession(null);
+    });
+    document.querySelector("#refreshSessionsBtn").addEventListener("click", () => refreshSessions());
+    document.querySelector("#moreSessionsBtn").addEventListener("click", () => refreshSessions(true));
+    document.querySelector("#moreTurnsBtn").addEventListener("click", () => refreshTurns(true));
+    document.querySelector("#refreshMemoryBtn").addEventListener("click", refreshMemories);
 
     document.querySelector("#loginBtn").addEventListener("click", async () => {
         const response = await fetch("/api/auth/login", {
@@ -206,11 +321,14 @@
             return;
         }
         const data = await response.json();
+        selectSession(null);
         accessToken = data.accessToken;
         refreshToken = data.refreshToken;
         document.querySelector("#loginStatus").textContent = "已登录";
         document.querySelector("#runBtn").disabled = false;
         document.querySelector("#reloadBtn").disabled = false;
+        document.querySelector("#refreshSessionsBtn").disabled = false;
+        await refreshSessions();
     });
 
     document.querySelector("#reloadBtn").addEventListener("click", async () => {
@@ -222,14 +340,25 @@
         currentObserver?.stop();
         const generation = ++observationGeneration;
         output.textContent = "";
-        steps.innerHTML = "";
-        document.querySelector("#taskStatus").textContent = "任务已提交";
+        steps.replaceChildren();
+        document.querySelector("#taskStatus").textContent = "正在提交";
+        document.querySelector("#runBtn").disabled = true;
+        try {
         const response = await authedFetch("/api/agent/tasks", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({input: document.querySelector("#taskInput").value})
+            body: JSON.stringify(conversation.request(document.querySelector("#taskInput").value))
         });
         const task = await response.json();
+        if (generation !== observationGeneration) return;
+        if (!response.ok) {
+            document.querySelector("#taskStatus").textContent = `${task.code || response.status}：请检查后手动重试${task.taskId ? "；先查询任务 " + task.taskId : ""}`;
+            return;
+        }
+        conversation.select(task.sessionId);
+        conversationStatus.textContent = `当前会话：${task.sessionId}`;
+        document.querySelector("#refreshMemoryBtn").disabled = false;
+        refreshMemories();
         currentTaskId = task.taskId;
         document.querySelector("#cancelBtn").disabled = false;
         document.querySelector("#taskStatus").textContent = `运行中：${currentTaskId}`;
@@ -244,6 +373,10 @@
             onState: state => document.querySelector("#taskStatus").textContent = state
         });
         await currentObserver.start();
+        if (generation === observationGeneration) { await refreshTurns(); await refreshSessions(); }
+        } catch (error) {
+            if (generation === observationGeneration) document.querySelector("#taskStatus").textContent = `请求未确认，请先检查历史后手动重试：${error.message}`;
+        } finally { document.querySelector("#runBtn").disabled = false; }
     });
 
     document.querySelector("#cancelBtn").addEventListener("click", async () => {

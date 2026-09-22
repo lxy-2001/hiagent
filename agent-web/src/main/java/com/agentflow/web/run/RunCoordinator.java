@@ -417,6 +417,7 @@ public final class RunCoordinator implements AutoCloseable {
     }
 
     public Availability availability() { return availability; }
+    public boolean isStartupRecoveryBlocked() { return startupRecoveryBlocked; }
 
     public void markReady() {
         synchronized (admissionLock) {

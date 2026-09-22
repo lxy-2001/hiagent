@@ -1,0 +1,793 @@
+openapi: 3.1.0
+info:
+  title: HiAgent Feature004 Conversation and Explicit Memory API
+  version: 0.4.0-redesign
+  description: Feature004实现契约。基于main@a9f0774。定义004新增/修改操作；003既有GET任务/steps/cancel/events继续有效，外层四类事件不变。所有操作复用JWT、owner和no-store；默认限流可以先于业务返回429/503。
+servers:
+- url: /
+security:
+- BearerAuth: []
+x-existing-run-extensions:
+  stepType: CONTEXT_ASSEMBLY（通过现有AGENT_STEP，摘要≤1024码元，无正文）
+  terminationReason:
+  - CONTEXT_BUDGET_EXCEEDED
+  - CONTEXT_SOURCE_UNAVAILABLE
+  runtimeReason: CONTEXT_BUDGET_EXCEEDED只由Core产生；来源准备失败runtimeReason=null，status=FAILED；预算不足status=BUDGET_EXCEEDED。实施时同步受版本控制的Run契约Fixture。
+paths:
+  /api/agent/tasks:
+    post:
+      operationId: createConversationRun
+      summary: 新建会话或向owner会话追加Run
+      description: 首次创建不传sessionId；继续同会话需等待上一Run真正释放。409 SESSION_BUSY零新增Run。提交未确认503可含taskId及Location，客户端先查询，不自动重复POST。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '202':
+          description: 已提交接受；当前状态仍需GET查询。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Location:
+              schema:
+                type: string
+              description: /api/agent/tasks/{taskId}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: SESSION_BUSY；已认证同会话占用中，无新增Run。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/sessions:
+    get:
+      operationId: listConversations
+      summary: 按(createdAt,id)倒序列owner会话
+      description: before是Base64URL编码的{createdAt,id}，服务器校验长度、字段及日期；不含可执行SQL，不授权资源访问；不承诺跨页全库快照。
+      parameters:
+      - name: before
+        in: query
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 512
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      responses:
+        '200':
+          description: 只含当前owner；无结果为空items。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/sessions/{sessionId}:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    get:
+      operationId: getConversation
+      responses:
+        '200':
+          description: owner会话；lastTurnSequence包含已接受但未结束Run。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/sessions/{sessionId}/turns:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    get:
+      operationId: listConversationTurns
+      summary: 固定序号窗口内的已终态轮次
+      description: 第一页afterSequence默认0、untilSequence省略则捕获最高已终态序号；after>0必须带until。0≤after≤until≤已终态最高序号，否则400。按序号升序，追加不改窗口。失败输入可见但不作模型历史。contentUnavailable=true时input/answer均null。
+        启动恢复未完成时503/SERVICE_RECOVERING；正常运行DEGRADED仍可查询已提交历史。DB字符长度仅作有界预检，读取后及脱敏后均按UTF-16复核。
+      parameters:
+      - name: afterSequence
+        in: query
+        schema:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+          maxLength: 19
+          description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+          default: '0'
+      - name: untilSequence
+        in: query
+        schema:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+          maxLength: 19
+          description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 20
+      responses:
+        '200':
+          description: items仅终态；nextAfterSequence为最后项序号，无项则保留after；空会话until=0。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TurnPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/sessions/{sessionId}/memories:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    get:
+      operationId: listConfirmedMemory
+      description: 固定顺序preferred_language（编程语言偏好）、project_stack；缺失和删除也返回槽位及当前版本。
+      responses:
+        '200':
+          description: 两槽位，不包含自动抽取或旧agent_memory行。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 2
+                maxItems: 2
+                prefixItems:
+                - allOf:
+                  - $ref: '#/components/schemas/MemorySlot'
+                  - properties:
+                      key:
+                        const: preferred_language
+                - allOf:
+                  - $ref: '#/components/schemas/MemorySlot'
+                  - properties:
+                      key:
+                        const: project_stack
+                items:
+                  $ref: '#/components/schemas/MemorySlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/sessions/{sessionId}/memories/{key}:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    - name: key
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+        - preferred_language
+        - project_stack
+    put:
+      operationId: putConfirmedMemory
+      description: 先owner再版本比较。新建expectedVersion=0；墓碑重建用其当前version；同值同版本幂等。请求不接受source/type/role/confidence等字段。准备完成的Run仍使用旧快照。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryWrite'
+      responses:
+        '200':
+          description: 已确认写入或幂等，返回ACTIVE槽位。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemorySlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: MEMORY_VERSION_CONFLICT，无修改；重新GET后由用户决定。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      operationId: deleteConfirmedMemory
+      description: 活动转DELETED，清正文、递增版本；匹配已删除或ABSENT版本为幂等。返回当前槽位以支持重建，旧版本409。
+      parameters:
+      - name: expectedVersion
+        in: query
+        required: true
+        schema:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+          maxLength: 19
+          description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+      responses:
+        '200':
+          description: 返回DELETED或ABSENT及当前版本。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemorySlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: MEMORY_VERSION_CONFLICT，无修改。
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/Limited'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Sequence:
+      type: string
+      pattern: ^(0|[1-9][0-9]{0,18})$
+      maxLength: 19
+      description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - input
+      properties:
+        input:
+          type: string
+          minLength: 1
+          maxLength: 8000
+          description: 额外以Java UTF-16码元校验≤8000；空白无效；沿用003长度，不扩为20000。
+        sessionId:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 36
+          description: 省略/null新建；非空已有owner会话续接。
+    RunAccepted:
+      type: object
+      additionalProperties: false
+      required:
+      - taskId
+      - runId
+      - sessionId
+      - status
+      properties:
+        taskId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        runId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        status:
+          type: string
+          const: QUEUED
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      - taskId
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        taskId:
+          type:
+          - string
+          - 'null'
+          maxLength: 36
+    Conversation:
+      type: object
+      additionalProperties: false
+      required:
+      - sessionId
+      - title
+      - createdAt
+      - lastTurnSequence
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        title:
+          type: string
+          maxLength: 200
+          description: 新会话标题≤48码元，旧标题允许既有200列宽；均脱敏展示。
+        createdAt:
+          type: string
+          format: date-time
+        lastTurnSequence:
+          $ref: '#/components/schemas/Sequence'
+    ConversationPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - hasMore
+      - nextBefore
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Conversation'
+        hasMore:
+          type: boolean
+        nextBefore:
+          type:
+          - string
+          - 'null'
+          maxLength: 512
+    Turn:
+      type: object
+      additionalProperties: false
+      required:
+      - runId
+      - sessionId
+      - turnSequence
+      - status
+      - input
+      - finalAnswer
+      - terminationReason
+      - recordingComplete
+      - contentUnavailable
+      - createdAt
+      - finishedAt
+      properties:
+        runId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        turnSequence:
+          type: string
+          pattern: ^[1-9][0-9]{0,18}$
+          maxLength: 19
+          description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+        status:
+          type: string
+          enum:
+          - SUCCEEDED
+          - FAILED
+          - CANCELLED
+          - TIMED_OUT
+          - BUDGET_EXCEEDED
+        input:
+          type:
+          - string
+          - 'null'
+          maxLength: 8000
+        finalAnswer:
+          type:
+          - string
+          - 'null'
+          maxLength: 65536
+        terminationReason:
+          type: string
+        recordingComplete:
+          type: boolean
+        contentUnavailable:
+          type: boolean
+          description: 旧行正文超当前安全上限时true，仅给元数据；不会自动把截断文本当完整历史。
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      allOf:
+      - if:
+          properties:
+            contentUnavailable:
+              const: true
+        then:
+          properties:
+            input:
+              type: 'null'
+            finalAnswer:
+              type: 'null'
+        else:
+          properties:
+            input:
+              type: string
+          if:
+            properties:
+              status:
+                const: SUCCEEDED
+          then:
+            properties:
+              finalAnswer:
+                type: string
+      - if:
+          properties:
+            status:
+              not:
+                const: SUCCEEDED
+        then:
+          properties:
+            finalAnswer:
+              type: 'null'
+    TurnPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - hasMore
+      - nextAfterSequence
+      - untilSequence
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: '#/components/schemas/Turn'
+        hasMore:
+          type: boolean
+        nextAfterSequence:
+          $ref: '#/components/schemas/Sequence'
+        untilSequence:
+          $ref: '#/components/schemas/Sequence'
+    MemorySlot:
+      type: object
+      additionalProperties: false
+      required:
+      - sessionId
+      - key
+      - type
+      - state
+      - value
+      - version
+      - source
+      - updatedAt
+      properties:
+        sessionId:
+          type: string
+          minLength: 1
+          maxLength: 36
+        key:
+          type: string
+          enum:
+          - preferred_language
+          - project_stack
+        type:
+          type: string
+          enum:
+          - USER_PREFERENCE
+          - PROJECT_FACT
+        state:
+          type: string
+          enum:
+          - ABSENT
+          - ACTIVE
+          - DELETED
+        value:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 512
+        version:
+          $ref: '#/components/schemas/Sequence'
+        source:
+          type:
+          - string
+          - 'null'
+          enum:
+          - USER_CONFIRMED
+          - null
+        updatedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+      allOf:
+      - if:
+          properties:
+            state:
+              const: ABSENT
+        then:
+          properties:
+            version:
+              const: '0'
+            value:
+              type: 'null'
+            source:
+              type: 'null'
+            updatedAt:
+              type: 'null'
+      - if:
+          properties:
+            state:
+              const: ACTIVE
+        then:
+          properties:
+            version:
+              type: string
+              pattern: ^[1-9][0-9]{0,18}$
+              maxLength: 19
+              description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+            value:
+              type: string
+              minLength: 1
+              maxLength: 512
+            source:
+              const: USER_CONFIRMED
+            updatedAt:
+              type: string
+              format: date-time
+      - if:
+          properties:
+            state:
+              const: DELETED
+        then:
+          properties:
+            version:
+              type: string
+              pattern: ^[1-9][0-9]{0,18}$
+              maxLength: 19
+              description: 规范十进制int64字符串，服务端另检查≤9223372036854775807，禁止负号/前导零/浮点。
+            value:
+              type: 'null'
+            source:
+              type: 'null'
+            updatedAt:
+              type: string
+              format: date-time
+      - if:
+          properties:
+            key:
+              const: preferred_language
+        then:
+          properties:
+            type:
+              const: USER_PREFERENCE
+        else:
+          properties:
+            type:
+              const: PROJECT_FACT
+    MemoryWrite:
+      type: object
+      additionalProperties: false
+      required:
+      - value
+      - expectedVersion
+      properties:
+        value:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: 编程语言或项目技术栈；strip后非空，UTF-16≤512，不允许已知凭据模式。
+        expectedVersion:
+          $ref: '#/components/schemas/Sequence'
+  responses:
+    BadRequest:
+      description: INVALID_REQUEST：输入/游标/版本/记忆字段非法；参数不回显。
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: UNAUTHORIZED：身份无效或已撤销。
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: NOT_FOUND：资源不存在或非owner，外观一致。
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Limited:
+      description: RATE_LIMITED，或创建时RUN_CAPACITY_EXCEEDED。
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unavailable:
+      description: PERSISTENCE_UNAVAILABLE / DEPENDENCY_UNAVAILABLE / SERVICE_STOPPING / TURN_SEQUENCE_EXHAUSTED
+        / MEMORY_VERSION_EXHAUSTED。无模型假成功。只有已分配且提交可能生效的Run错误含taskId。 启动恢复尚未完成的轮次查询使用SERVICE_RECOVERING。
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+        Location:
+          schema:
+            type: string
+          description: 仅存在有效taskId时给查询地址。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: INTERNAL_ERROR：固定文本，不暴露异常或输入正文。
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

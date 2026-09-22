@@ -72,7 +72,13 @@ class TemporaryDemoEndpointSnapshotTest {
             new Operation("GET", "/api/agent/tasks/{taskId}/steps"),
             new Operation("GET", "/api/agent/tasks/{taskId}/events"),
             new Operation("POST", "/api/agent/tasks/{taskId}/cancel"),
-            new Operation("POST", "/api/knowledge/reload")
+            new Operation("POST", "/api/knowledge/reload"),
+            new Operation("GET", "/api/agent/sessions"),
+            new Operation("GET", "/api/agent/sessions/{sessionId}"),
+            new Operation("GET", "/api/agent/sessions/{sessionId}/turns"),
+            new Operation("GET", "/api/agent/sessions/{sessionId}/memories"),
+            new Operation("PUT", "/api/agent/sessions/{sessionId}/memories/{key}"),
+            new Operation("DELETE", "/api/agent/sessions/{sessionId}/memories/{key}")
     );
 
     @Autowired
@@ -123,12 +129,14 @@ class TemporaryDemoEndpointSnapshotTest {
     }
 
     @Test
-    void registersExactlyTwelveTemporaryDemoOperations() {
+    void registersEighteenOperationsPreservingTheOriginalTwelve() {
         Set<Operation> actual = new HashSet<>();
         handlerMapping.getHandlerMethods().forEach((mapping, handler) -> {
             Class<?> beanType = handler.getBeanType();
             if (!Set.of(AuthController.class, ChatController.class, AgentController.class,
-                    com.agentflow.demo.knowledge.KnowledgeController.class).contains(beanType)) {
+                    com.agentflow.demo.knowledge.KnowledgeController.class,
+                    com.agentflow.web.conversation.ConversationController.class,
+                    com.agentflow.web.memory.ConfirmedMemoryController.class).contains(beanType)) {
                 return;
             }
             for (String pattern : mapping.getPatternValues()) {
@@ -138,7 +146,7 @@ class TemporaryDemoEndpointSnapshotTest {
             }
         });
 
-        assertThat(actual).hasSize(12).containsExactlyInAnyOrderElementsOf(EXPECTED_OPERATIONS);
+        assertThat(actual).hasSize(18).containsExactlyInAnyOrderElementsOf(EXPECTED_OPERATIONS);
     }
 
     @Test

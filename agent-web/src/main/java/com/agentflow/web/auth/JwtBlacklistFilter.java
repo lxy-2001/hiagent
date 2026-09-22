@@ -37,12 +37,12 @@ public class JwtBlacklistFilter extends OncePerRequestFilter {
             try {
                 blacklisted = redisTemplate.hasKey("auth:blacklist:" + jwt.getId());
             } catch (RuntimeException dependencyFailure) {
-                if (isTaskPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
+                if (isRunOrSessionPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
                 throw dependencyFailure;
             }
             if (Boolean.TRUE.equals(blacklisted)) {
                 SecurityContextHolder.clearContext();
-                if (isTaskPath(request)) errors.write(response, 401, "UNAUTHORIZED", null);
+                if (isRunOrSessionPath(request)) errors.write(response, 401, "UNAUTHORIZED", null);
                 else response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Token has been revoked");
                 return;
             }
@@ -50,8 +50,10 @@ public class JwtBlacklistFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isTaskPath(HttpServletRequest request) {
+    private boolean isRunOrSessionPath(HttpServletRequest request) {
         return request.getRequestURI().equals("/api/agent/tasks")
-                || request.getRequestURI().startsWith("/api/agent/tasks/");
+                || request.getRequestURI().startsWith("/api/agent/tasks/")
+                || request.getRequestURI().equals("/api/agent/sessions")
+                || request.getRequestURI().startsWith("/api/agent/sessions/");
     }
 }

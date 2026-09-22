@@ -38,6 +38,17 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: SESSION_BUSY; no new run accepted
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
           $ref: '#/components/responses/Capacity'
         '503':
@@ -359,6 +370,10 @@ components:
           minLength: 1
           maxLength: 8000
           description: 不得仅含空白；服务端按UTF-16码元数校验≤8000，JSON Schema字符计数不替代该校验。
+        sessionId:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 36
     RunAccepted:
       type: object
       additionalProperties: false
@@ -413,6 +428,8 @@ components:
       - INVALID_RUNTIME_RESULT
       - OUTPUT_TOO_LARGE
       - PROCESS_INTERRUPTED
+      - CONTEXT_BUDGET_EXCEEDED
+      - CONTEXT_SOURCE_UNAVAILABLE
       - LEGACY_FAILURE
     Usage:
       type: object
@@ -547,6 +564,7 @@ components:
             - CANCELLED
             - TIMED_OUT
             - BUDGET_EXCEEDED
+            - CONTEXT_BUDGET_EXCEEDED
           - type: 'null'
         errorCode:
           anyOf:
@@ -693,7 +711,7 @@ components:
         then:
           properties:
             terminationReason:
-              const: BUDGET_EXCEEDED
+              enum: [BUDGET_EXCEEDED, CONTEXT_BUDGET_EXCEEDED]
       - if:
           properties:
             status:
@@ -714,6 +732,7 @@ components:
               - TOOL_ERROR
               - TOOL_RESULT_INVALID
               - TOOL_RESULT_TOO_LARGE
+              - CONTEXT_SOURCE_UNAVAILABLE
               - DISPATCH_REJECTED
               - PERSISTENCE_UNAVAILABLE
               - INTERNAL_ERROR
@@ -750,6 +769,7 @@ components:
           - MEMORY
           - RAG
           - LLM
+          - CONTEXT_ASSEMBLY
           - MODEL_DECISION
           - TOOL
           - TOOL_CALL
@@ -931,6 +951,7 @@ components:
                 - MEMORY
                 - RAG
                 - LLM
+                - CONTEXT_ASSEMBLY
                 - MODEL_DECISION
                 - TOOL
                 - TOOL_CALL

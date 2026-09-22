@@ -56,6 +56,12 @@ class RunDemoPageTest {
     }
 
     @Test void exposesTheRealObserverScriptButKeepsTaskRoutesAuthenticated() throws Exception {
+        mvc.perform(get("/conversation.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/javascript"))
+                .andExpect(content().string(containsString("createConversationClient")));
+        mvc.perform(get("/api/agent/sessions"))
+                .andExpect(status().isUnauthorized());
         mvc.perform(get("/run-events.js"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/javascript"))

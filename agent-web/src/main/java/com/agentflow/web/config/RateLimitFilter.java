@@ -42,20 +42,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
             count = redisTemplate.opsForValue().increment(key);
             if (count != null && count == 1) redisTemplate.expire(key, Duration.ofMinutes(2));
         } catch (RuntimeException dependencyFailure) {
-            if (isTaskPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
+            if (isRunOrSessionPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
             throw dependencyFailure;
         }
         if (count != null && count > LIMIT_PER_MINUTE) {
-            if (isTaskPath(request)) errors.write(response, 429, "RATE_LIMITED", null);
+            if (isRunOrSessionPath(request)) errors.write(response, 429, "RATE_LIMITED", null);
             else response.sendError(429, "Too many requests");
             return;
         }
         filterChain.doFilter(request, response);
     }
 
-    private boolean isTaskPath(HttpServletRequest request) {
+    private boolean isRunOrSessionPath(HttpServletRequest request) {
         return request.getRequestURI().equals("/api/agent/tasks")
-                || request.getRequestURI().startsWith("/api/agent/tasks/");
+                || request.getRequestURI().startsWith("/api/agent/tasks/")
+                || request.getRequestURI().equals("/api/agent/sessions")
+                || request.getRequestURI().startsWith("/api/agent/sessions/");
     }
 
     private String clientIp(HttpServletRequest request) {

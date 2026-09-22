@@ -24,6 +24,7 @@ public final class RunApiErrorWriter {
             case "MEMORY_VERSION_CONFLICT" -> "The memory version has changed; reload before editing.";
             case "MEMORY_VERSION_EXHAUSTED" -> "The memory version is exhausted.";
             case "SESSION_BUSY" -> "The session already has an active run.";
+            case "SERVICE_RECOVERING" -> "Conversation history is recovering; retry later.";
             case "TURN_SEQUENCE_EXHAUSTED" -> "The session turn sequence is exhausted.";
             case "RUN_CAPACITY_EXCEEDED" -> "Run capacity is currently full.";
             case "SUBSCRIPTION_CAPACITY_EXCEEDED" -> "Event subscription capacity is currently full.";

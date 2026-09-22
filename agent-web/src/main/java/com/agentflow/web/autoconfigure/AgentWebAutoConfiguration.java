@@ -6,6 +6,8 @@ import com.agentflow.web.memory.ConfirmedMemoryRepository;
 import com.agentflow.web.memory.ConfirmedMemoryService;
 import com.agentflow.web.memory.ConfirmedMemoryController;
 import com.agentflow.web.conversation.PersistentContextSource;
+import com.agentflow.web.conversation.ConversationService;
+import com.agentflow.web.conversation.ConversationController;
 import com.agentflow.web.conversation.ConversationProperties;
 
 import com.agentflow.core.AgentRuntime;
@@ -63,6 +65,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Import({
         AgentController.class,
         ConfirmedMemoryController.class,
+        ConversationController.class,
         AgentTaskService.class,
         RunApiExceptionHandler.class,
         AuthController.class,
@@ -149,6 +152,12 @@ public class AgentWebAutoConfiguration {
     RunPersistence runPersistence(AgentSessionRepository sessions, AgentTaskRepository tasks,
                                   AgentStepRepository steps, EntityManager entityManager) {
         return new RunPersistence(sessions, tasks, steps, entityManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ConversationService conversationService(EntityManager em, AgentSessionRepository sessions, ContextTextPolicy policy, RunCoordinator coordinator) {
+        return new ConversationService(em, sessions, policy, coordinator);
     }
 
     @Bean

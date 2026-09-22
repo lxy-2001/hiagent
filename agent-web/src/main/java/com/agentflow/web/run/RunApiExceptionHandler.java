@@ -8,7 +8,8 @@ import org.springframework.web.bind.annotation.*;
 public class RunApiExceptionHandler {
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class,
             org.springframework.http.converter.HttpMessageNotReadableException.class,
-            org.springframework.web.bind.MissingServletRequestParameterException.class})
+            org.springframework.web.bind.MissingServletRequestParameterException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
     ResponseEntity<RunApiErrorWriter.ErrorResponse> invalidRequest(Exception ignored) {
         return response(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", null);
     }
