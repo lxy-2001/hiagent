@@ -69,7 +69,11 @@ class CorpusPathPolicyTest {
                 assertThat(process.waitFor()).as(output).isZero();
             } else { Files.createSymbolicLink(link, target); }
             assertThatThrownBy(() -> policy.read(root)).hasMessage("INVALID_PATH");
+            assertThatThrownBy(() -> { try (var ignored = new CorpusSnapshotStore(link.resolve("must-not-create"))) { } })
+                    .hasMessage("INVALID_PATH");
+            assertThat(target.resolve("must-not-create")).doesNotExist();
         } finally {
+            Files.deleteIfExists(target.resolve("must-not-create"));
             Files.deleteIfExists(link);
             Files.deleteIfExists(target.resolve("outside.md"));
             Files.deleteIfExists(target);

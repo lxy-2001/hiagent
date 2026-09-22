@@ -297,16 +297,19 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                                 null, bound.summary(), false, call.callId(), normalized.retrievalPayload()));
                     }
                 } catch (RuntimeException ex) {
+                    boolean invalidSource = "knowledge.search".equals(call.name())
+                            && "RAG_SOURCE_INVALID".equals(ex.getMessage());
+                    String code = invalidSource ? "RAG_SOURCE_INVALID" : AgentErrorCode.TOOL_RESULT_INVALID.name();
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),
-                            ex.getMessage(), elapsed(toolStarted), AgentErrorCode.TOOL_RESULT_INVALID.name(),
+                            ex.getMessage(), elapsed(toolStarted), code,
                             toolDecision.decisionId(), call.callId(), false);
                     Termination afterTool = afterToolBoundary(effectiveOptions, startedAt);
                     if (afterTool != null) {
                         return finishFailure(request, trace, budget, afterTool.reason(),
                                 afterTool.status(), afterTool.diagnostic());
                     }
-                    return finishFailure(request, trace, budget, TerminationReason.TOOL_RESULT_INVALID,
-                            RunStatus.FAILED, "tool result invalid");
+                    return finishFailure(request, trace, budget, terminationReasonFor(code),
+                            RunStatus.FAILED, invalidSource ? "retrieval source invalid" : "tool result invalid");
                 }
                 if (normalized.outputOrEmpty().length() > 8192) {
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),

@@ -12,6 +12,35 @@ class CorpusSnapshotStoreTest {
     private final CorpusManifest.IndexProfile profile = new CorpusManifest.IndexProfile("test", "fixed", 3, 800, 100);
 
     @Test
+    void manifestContainsMetadataOnlyAndReloadsFullTextFromVerifiedFiles() throws Exception {
+        var corpus=manifest("unique document body that belongs only in source files");
+        Path root=temporary.resolve("store");
+        try(var store=new CorpusSnapshotStore(root)) {
+            store.prepare(corpus); store.complete(corpus); store.activate(corpus.snapshotId());
+            String stored=Files.readString(root.resolve("snapshots/"+corpus.snapshotId()+"/manifest.json"));
+            assertThat(stored).doesNotContain("unique document body", "\"text\"");
+            assertThat(store.loadActive(profile).chunks().values()).extracting(c -> c.text())
+                    .containsExactly(corpus.documents().get(0).text());
+        }
+    }
+
+    @Test
+    void recoveryRejectsCorruptActiveHashBeforeRemovingPreparation() throws Exception {
+        var corpus=manifest("recovery");
+        Path root=temporary.resolve("store");
+        byte[] prepared;
+        try(var store=new CorpusSnapshotStore(root)) {
+            store.prepare(corpus); store.complete(corpus);
+            prepared=Files.readAllBytes(root.resolve("prepared.json"));
+            store.activate(corpus.snapshotId());
+        }
+        Files.write(root.resolve("prepared.json"),prepared);
+        Files.writeString(root.resolve("active.json"),"{\"snapshotId\":\""+corpus.snapshotId()+"\",\"manifestHash\":\""+"f".repeat(64)+"\"}");
+        assertThatThrownBy(() -> { try(var ignored=new CorpusSnapshotStore(root)) { } }).hasMessage("STORAGE_FAILURE");
+        assertThat(root.resolve("prepared.json")).exists();
+    }
+
+    @Test
     void holdsExclusiveLockAndPersistsStoreIdentity() {
         String id;
         Path root = temporary.resolve("store");

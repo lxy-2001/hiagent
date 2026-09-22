@@ -24,10 +24,14 @@ public final class DocumentChunker {
                         int ordinal, int start, int end, String text) { }
 
     public Document read(String relativePath, byte[] bytes, int size, int overlap) {
+        return readBounded(relativePath, bytes, size, overlap, 1_048_576);
+    }
+
+    private Document readBounded(String relativePath, byte[] bytes, int size, int overlap, int byteLimit) {
         if (size < 200 || size > 800 || overlap < 0 || overlap > Math.min(200, size - 1)) {
             throw new IllegalArgumentException("INDEX_PROFILE_MISMATCH");
         }
-        if (bytes.length > 1_048_576) {
+        if (bytes.length > byteLimit) {
             throw new IllegalArgumentException("CORPUS_LIMIT");
         }
         String text;
@@ -72,5 +76,13 @@ public final class DocumentChunker {
             }
         }
         return new Document(docId, version, relativePath, title, CorpusHash.content(text), text, chunks);
+    }
+
+    Document readStored(String relativePath, byte[] bytes, int size, int overlap) {
+        var document = readBounded(relativePath, bytes, size, overlap, 3 * 1_048_576);
+        if (!java.util.Arrays.equals(bytes, document.text().getBytes(StandardCharsets.UTF_8))) {
+            throw new IllegalArgumentException("STORAGE_FAILURE");
+        }
+        return document;
     }
 }

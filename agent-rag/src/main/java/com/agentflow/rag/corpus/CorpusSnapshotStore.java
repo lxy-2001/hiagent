@@ -42,11 +42,30 @@ public final class CorpusSnapshotStore implements AutoCloseable {
         public Retired { snapshots = List.copyOf(snapshots); }
     }
     public record StoredManifest(int schemaVersion, String state, String storeId, String collectionName,
-                                 CorpusManifest corpus) { }
+                                 StoredCorpus corpus) { }
+    public record StoredCorpus(String snapshotId, CorpusManifest.IndexProfile profile,
+                               List<StoredDocument> documents, long inputBytes, int skippedEmptyCount, int chunkCount) {
+        public StoredCorpus { documents = List.copyOf(documents); }
+        static StoredCorpus from(CorpusManifest corpus) {
+            return new StoredCorpus(corpus.snapshotId(), corpus.profile(), corpus.documents().stream()
+                    .map(StoredDocument::from).toList(), corpus.inputBytes(), corpus.skippedEmptyCount(), corpus.chunkCount());
+        }
+    }
+    public record StoredDocument(String docId, String version, String relativePath, String title,
+                                 String contentHash, List<StoredChunk> chunks) {
+        public StoredDocument { chunks = List.copyOf(chunks); }
+        static StoredDocument from(DocumentChunker.Document document) {
+            return new StoredDocument(document.docId(), document.version(), document.relativePath(), document.title(),
+                    document.contentHash(), document.chunks().stream().map(chunk -> new StoredChunk(chunk.chunkId(),
+                    chunk.contentHash(), chunk.ordinal(), chunk.start(), chunk.end())).toList());
+        }
+    }
+    public record StoredChunk(String chunkId, String contentHash, int ordinal, int start, int end) { }
 
     public CorpusSnapshotStore(Path root) {
         this.root = Objects.requireNonNull(root).toAbsolutePath().normalize();
         try {
+            CorpusPathPolicy.checkExistingAncestors(this.root);
             Files.createDirectories(this.root);
             CorpusPathPolicy.checkAncestors(this.root);
             Path lockPath = this.root.resolve("corpus.lock");
@@ -187,6 +206,11 @@ public final class CorpusSnapshotStore implements AutoCloseable {
         if (!collectionName(prepared.snapshotId()).equals(prepared.collectionName())) { throw failure("STORAGE_FAILURE"); }
         Pointer active = active();
         if (active != null && active.snapshotId().equals(prepared.snapshotId())) {
+            byte[] bytes = readBytes(manifestName(active.snapshotId()), 8 * 1_048_576);
+            if (!CorpusHash.bytes(bytes).equals(active.manifestHash())) { throw failure("STORAGE_FAILURE"); }
+            StoredManifest manifest = read(manifestName(active.snapshotId()), StoredManifest.class);
+            validateManifest(manifest, active.snapshotId());
+            if (!"COMPLETE".equals(manifest.state())) { throw failure("STORAGE_FAILURE"); }
             var retired = new ArrayList<>(retired());
             if (prepared.previousActive() != null && !retired.contains(prepared.previousActive())) {
                 if (retired.size() >= 2) { throw failure("RETIRED_LIMIT"); }
@@ -208,10 +232,11 @@ public final class CorpusSnapshotStore implements AutoCloseable {
                 writeBytes(base + "chunks/" + chunk.chunkId() + ".txt", chunk.text().getBytes(StandardCharsets.UTF_8));
             }
         }
-        write(manifestName(manifest.snapshotId()), new StoredManifest(1, state, storeId, collectionName(manifest.snapshotId()), manifest));
+        write(manifestName(manifest.snapshotId()), new StoredManifest(1, state, storeId,
+                collectionName(manifest.snapshotId()), StoredCorpus.from(manifest)));
     }
 
-    private HashMap<String, RetrievedChunk> validateSources(CorpusManifest manifest) {
+    private HashMap<String, RetrievedChunk> validateSources(StoredCorpus manifest) {
         var result = new HashMap<String, RetrievedChunk>();
         var texts = new HashMap<String, String>();
         var tuple = new ArrayList<String>(List.of("snapshot-v1", manifest.profile().id()));
@@ -220,12 +245,12 @@ public final class CorpusSnapshotStore implements AutoCloseable {
             for (var document : manifest.documents()) {
                 String name = "snapshots/" + manifest.snapshotId() + "/documents/" + document.docId() + ".txt";
                 byte[] source = readBytes(name, 3 * 1_048_576);
-                var rebuilt = new DocumentChunker().read(document.relativePath(), source,
+                var rebuilt = new DocumentChunker().readStored(document.relativePath(), source,
                         manifest.profile().chunkSize(), manifest.profile().overlap());
-                if (!rebuilt.equals(document)) { throw failure("STORAGE_FAILURE"); }
+                if (!StoredDocument.from(rebuilt).equals(document)) { throw failure("STORAGE_FAILURE"); }
                 tuple.add(document.docId()); tuple.add(document.version());
                 if (document.chunks().isEmpty()) { skipped++; }
-                for (var chunk : document.chunks()) {
+                for (var chunk : rebuilt.chunks()) {
                     byte[] bytes = readBytes("snapshots/" + manifest.snapshotId() + "/chunks/" + chunk.chunkId() + ".txt", 3200);
                     if (!CorpusHash.bytes(bytes).equals(chunk.contentHash())) { throw failure("STORAGE_FAILURE"); }
                     var value = new RetrievedChunk(manifest.snapshotId(), document.docId(), document.version(), chunk.chunkId(),
@@ -291,6 +316,7 @@ public final class CorpusSnapshotStore implements AutoCloseable {
         Path destination = resolve(name);
         checkDisk(bytes.length);
         try {
+            CorpusPathPolicy.checkExistingAncestors(destination.getParent());
             Files.createDirectories(destination.getParent());
             CorpusPathPolicy.checkAncestors(destination.getParent());
             Path temporary = destination.resolveSibling(destination.getFileName() + ".tmp");

@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "status": "NOT_RUN",
+  "method": "Human review of whether each material claim is supported by its cited excerpt; no scores without recorded model answers.",
+  "items": [
+    {
+      "questionId": "q01",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q02",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q03",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q04",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q05",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q06",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q07",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q08",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q09",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q10",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q11",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q12",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q13",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q14",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q15",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q16",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q17",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q18",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q19",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    },
+    {
+      "questionId": "q20",
+      "answer": null,
+      "claims": [],
+      "supported": null,
+      "reason": null
+    }
+  ]
+}

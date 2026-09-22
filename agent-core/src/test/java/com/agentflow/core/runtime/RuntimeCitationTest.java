@@ -17,6 +17,25 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class RuntimeCitationTest {
     @Test
+    void conflictingSourcesRetainTheRetrievalErrorCodeAndNeverReachAnotherModelCall() throws Exception {
+        var first = payload();
+        var other = new RetrievalPayload("f".repeat(64), RetrievalPayload.Mode.HYBRID, RetrievalPayload.SemanticState.OK,
+                RetrievalPayload.KeywordState.OK, null, RetrievalPayload.EmptyReason.NO_MATCH, false, 0, List.of());
+        var calls = new AtomicInteger();
+        var toolCalls = new AtomicInteger();
+        var tool = RuntimeTestSupport.tool("knowledge.search", (arguments, context) ->
+                ToolResult.retrieval("knowledge.search", toolCalls.getAndIncrement() == 0 ? first : other));
+        var runtime = new DefaultAgentRuntime(request -> {
+            int number = calls.incrementAndGet();
+            return new ToolCallDecision("d" + number, new ToolCall("c" + number, "knowledge.search", new ToolArguments(Map.of())), TokenUsage.empty());
+        }, RuntimeTestSupport.registry(tool), null);
+        var result = runtime.run(new AgentRequest("t", "s", "u", "question"), null, null);
+        assertEquals(TerminationReason.TOOL_ERROR, result.terminationReason());
+        assertTrue(result.steps().stream().anyMatch(step -> "RAG_SOURCE_INVALID".equals(step.errorCode())));
+        assertEquals(2, calls.get());
+        assertTrue(result.citations().isEmpty());
+    }
+    @Test
     void bindsDeliveredSourceBeforeFinalSuccessAndKeepsPublicTraceFreeOfExcerpt() throws Exception {
         var calls = new AtomicInteger();
         var payload = payload();

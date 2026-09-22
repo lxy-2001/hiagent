@@ -1087,6 +1087,36 @@ components:
           maxLength: 800
       description: Source snapshot. Runtime checks code-point range, SHA-256, unique
         id and UTF-16 metadata lengths; schema alone does not prove provenance.
+    RunStatus:
+      type: string
+      enum:
+      - QUEUED
+      - RUNNING
+      - SUCCEEDED
+      - FAILED
+      - CANCELLED
+      - TIMED_OUT
+      - BUDGET_EXCEEDED
+    Usage:
+      type: object
+      additionalProperties: false
+      required:
+      - promptTokens
+      - completionTokens
+      - totalTokens
+      properties:
+        promptTokens:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        completionTokens:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        totalTokens:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
   responses:
     BadRequest:
       description: INVALID_REQUEST：输入/游标/版本/记忆字段非法；参数不回显。

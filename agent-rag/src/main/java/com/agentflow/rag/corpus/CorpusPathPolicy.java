@@ -82,6 +82,15 @@ public final class CorpusPathPolicy {
         }
     }
 
+    static void checkExistingAncestors(Path absolute) throws IOException {
+        Path current = absolute.getRoot();
+        for (Path part : absolute) {
+            current = current.resolve(part);
+            if (!Files.exists(current, LinkOption.NOFOLLOW_LINKS)) { return; }
+            checkedAttributes(current);
+        }
+    }
+
     private static BasicFileAttributes checkedAttributes(Path path) throws IOException {
         var attributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         // The Windows NIO provider marks junction/reparse entries as symbolic links or other.

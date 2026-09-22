@@ -10,6 +10,38 @@ class RagImportApplicationTest {
     @TempDir Path temporary;
 
     @Test
+    void importsThroughRealCliAndBoundedHttpAdaptersThenReusesWithoutNetwork() throws Exception {
+        var source=temporary.resolve("source"); Files.createDirectories(source);
+        Files.writeString(source.resolve("java.md"),"Constructor injection declares dependencies.");
+        var profile=new com.agentflow.rag.corpus.CorpusManifest.IndexProfile("test","fixed",3,800,100);
+        var corpus=com.agentflow.rag.corpus.CorpusManifest.read(source,profile);
+        var chunk=corpus.documents().get(0).chunks().get(0);
+        try (var vector=new com.agentflow.rag.support.QdrantProtocolFixture();
+             var embedding=new com.agentflow.rag.support.QdrantProtocolFixture()) {
+            vector.enqueue(404,"{\"status\":\"missing\"}");
+            vector.enqueue(404,"{\"status\":\"missing\"}");
+            vector.enqueue(200,"{\"status\":\"ok\",\"result\":true}");
+            vector.enqueue(200,"{\"status\":\"ok\",\"result\":{\"status\":\"completed\"}}");
+            vector.enqueue(200,"{\"status\":\"ok\",\"result\":{\"count\":1}}");
+            vector.enqueue(200,new tools.jackson.databind.json.JsonMapper().writeValueAsString(java.util.Map.of("status","ok","result",java.util.List.of(java.util.Map.of(
+                    "id",com.agentflow.rag.corpus.CorpusManifest.pointId(chunk.chunkId()).toString(),
+                    "payload",java.util.Map.of("snapshotId",corpus.snapshotId(),"chunkId",chunk.chunkId(),"contentHash",chunk.contentHash()))))));
+            embedding.enqueue(200,"{\"data\":[{\"index\":0,\"embedding\":[1,2,3]}]}");
+            String[] args={"--agentflow.rag.command=import","--agentflow.rag.source-directory="+source,
+                    "--agentflow.rag.store-directory="+temporary.resolve("store"),"--agentflow.rag.embedding-space-id=test",
+                    "--agentflow.model.embedding-model=fixed","--agentflow.model.embedding-dimensions=3",
+                    "--agentflow.model.embedding-base-url="+embedding.uri(),"--agentflow.model.embedding-api-key=fixture-only",
+                    "--agentflow.rag.qdrant.base-url="+vector.uri()};
+            var result=RagImportApplication.execute(args);
+            assertThat(result.exitCode()).withFailMessage(result.toString()).isZero();
+            assertThat(result.report().snapshotId()).isEqualTo(corpus.snapshotId());
+            assertThat(RagImportApplication.execute(args).report().reused()).isTrue();
+            assertThat(embedding.requests()).hasSize(1);
+            assertThat(vector.requests()).hasSize(6);
+        }
+    }
+
+    @Test
     void noCommandIsUsageAndNeverImports() {
         var result = RagImportApplication.execute();
         assertThat(result.exitCode()).isEqualTo(2);
