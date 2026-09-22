@@ -17,7 +17,17 @@ class ConversationOpenApiContractTest {
             assertThat((List<String>) schemas.get("TerminationReason").get("enum"))
                     .contains("CONTEXT_BUDGET_EXCEEDED", "CONTEXT_SOURCE_UNAVAILABLE");
             assertThat((Map) schemas.get("CreateTaskRequest").get("properties")).containsKey("sessionId");
+            var reasons = maps(contract).filter(map -> map.containsKey("runtimeReason"))
+                    .flatMap(map -> maps(map.get("runtimeReason")))
+                    .filter(map -> map.containsKey("enum")).toList();
+            assertThat(reasons).hasSize(2);
+            reasons.forEach(reason -> assertThat((List<String>) reason.get("enum")).contains("CONTEXT_BUDGET_EXCEEDED"));
         }
+    }
+    private static java.util.stream.Stream<Map<?, ?>> maps(Object node) {
+        if (node instanceof Map<?, ?> map) return java.util.stream.Stream.concat(java.util.stream.Stream.of(map), map.values().stream().flatMap(ConversationOpenApiContractTest::maps));
+        if (node instanceof List<?> list) return list.stream().flatMap(ConversationOpenApiContractTest::maps);
+        return java.util.stream.Stream.empty();
     }
     @Test void trackedContractHasSevenOperationsAndStringVersionsMatchingDtos() throws Exception {
         try (var input = getClass().getResourceAsStream("/contracts/feature004-openapi.yaml")) {

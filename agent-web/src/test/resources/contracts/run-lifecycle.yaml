@@ -1035,6 +1035,7 @@ components:
                   - CANCELLED
                   - TIMED_OUT
                   - BUDGET_EXCEEDED
+                  - CONTEXT_BUDGET_EXCEEDED
                 - type: 'null'
               finishedAt:
                 type: string
