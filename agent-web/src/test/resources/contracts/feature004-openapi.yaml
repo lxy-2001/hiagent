@@ -382,14 +382,15 @@ components:
           type: string
           minLength: 1
           maxLength: 8000
-          description: 额外以Java UTF-16码元校验≤8000；空白无效；沿用003长度，不扩为20000。
         sessionId:
           type:
           - string
           - 'null'
           minLength: 1
           maxLength: 36
-          description: 省略/null新建；非空已有owner会话续接。
+        requireEvidence:
+          type: boolean
+          default: false
     RunAccepted:
       type: object
       additionalProperties: false
@@ -719,6 +720,373 @@ components:
           description: 编程语言或项目技术栈；strip后非空，UTF-16≤512，不允许已知凭据模式。
         expectedVersion:
           $ref: '#/components/schemas/Sequence'
+    RunSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - taskId
+      - runId
+      - sessionId
+      - status
+      - input
+      - finalAnswer
+      - createdAt
+      - updatedAt
+      - startedAt
+      - finishedAt
+      - cancelRequested
+      - terminationReason
+      - runtimeReason
+      - errorCode
+      - recordingComplete
+      - usage
+      - requireEvidence
+      - citations
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        runId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        input:
+          type: string
+          maxLength: 8000
+        finalAnswer:
+          anyOf:
+          - type: string
+            maxLength: 65536
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        startedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        finishedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        cancelRequested:
+          type: boolean
+        terminationReason:
+          anyOf:
+          - $ref: '#/components/schemas/TerminationReason'
+          - type: 'null'
+        runtimeReason:
+          anyOf:
+          - type: string
+            enum:
+            - COMPLETED
+            - INVALID_INPUT
+            - INVALID_DECISION
+            - MODEL_ERROR
+            - UNKNOWN_TOOL
+            - DISABLED_TOOL
+            - INVALID_TOOL_ARGUMENTS
+            - TOOL_ERROR
+            - TOOL_RESULT_INVALID
+            - TOOL_RESULT_TOO_LARGE
+            - CANCELLED
+            - TIMED_OUT
+            - BUDGET_EXCEEDED
+            - CONTEXT_BUDGET_EXCEEDED
+            - CITATION_INVALID
+            - INSUFFICIENT_EVIDENCE
+          - type: 'null'
+        errorCode:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+        recordingComplete:
+          type: boolean
+        usage:
+          anyOf:
+          - $ref: '#/components/schemas/Usage'
+          - type: 'null'
+        requireEvidence:
+          type: boolean
+        citations:
+          type: array
+          maxItems: 32
+          items:
+            $ref: '#/components/schemas/Citation'
+      allOf:
+      - if:
+          properties:
+            status:
+              enum:
+              - QUEUED
+              - RUNNING
+          required:
+          - status
+        then:
+          properties:
+            finishedAt:
+              type: 'null'
+            terminationReason:
+              type: 'null'
+            runtimeReason:
+              type: 'null'
+            errorCode:
+              type: 'null'
+            finalAnswer:
+              type: 'null'
+            usage:
+              type: 'null'
+            recordingComplete:
+              const: false
+      - if:
+          properties:
+            status:
+              enum:
+              - QUEUED
+          required:
+          - status
+        then:
+          properties:
+            startedAt:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              enum:
+              - RUNNING
+          required:
+          - status
+        then:
+          properties:
+            startedAt:
+              type: string
+              format: date-time
+      - if:
+          properties:
+            status:
+              enum:
+              - SUCCEEDED
+              - FAILED
+              - CANCELLED
+              - TIMED_OUT
+              - BUDGET_EXCEEDED
+          required:
+          - status
+        then:
+          properties:
+            finishedAt:
+              type: string
+              format: date-time
+            terminationReason:
+              type: string
+      - if:
+          properties:
+            status:
+              enum:
+              - SUCCEEDED
+          required:
+          - status
+        then:
+          properties:
+            finalAnswer:
+              type: string
+              minLength: 1
+            terminationReason:
+              const: COMPLETED
+            errorCode:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              enum:
+              - FAILED
+              - CANCELLED
+              - TIMED_OUT
+              - BUDGET_EXCEEDED
+          required:
+          - status
+        then:
+          properties:
+            finalAnswer:
+              type: 'null'
+            errorCode:
+              type: string
+              minLength: 1
+      - if:
+          properties:
+            status:
+              enum:
+              - CANCELLED
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              const: CANCELLED
+      - if:
+          properties:
+            status:
+              enum:
+              - TIMED_OUT
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              enum:
+              - TIMED_OUT
+              - QUEUE_TIMEOUT
+      - if:
+          properties:
+            status:
+              enum:
+              - BUDGET_EXCEEDED
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              enum:
+              - BUDGET_EXCEEDED
+              - CONTEXT_BUDGET_EXCEEDED
+      - if:
+          properties:
+            status:
+              enum:
+              - FAILED
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              enum:
+              - INVALID_INPUT
+              - INVALID_DECISION
+              - MODEL_ERROR
+              - UNKNOWN_TOOL
+              - DISABLED_TOOL
+              - INVALID_TOOL_ARGUMENTS
+              - TOOL_ERROR
+              - TOOL_RESULT_INVALID
+              - TOOL_RESULT_TOO_LARGE
+              - CONTEXT_SOURCE_UNAVAILABLE
+              - DISPATCH_REJECTED
+              - PERSISTENCE_UNAVAILABLE
+              - INTERNAL_ERROR
+              - INVALID_RUNTIME_RESULT
+              - OUTPUT_TOO_LARGE
+              - PROCESS_INTERRUPTED
+              - LEGACY_FAILURE
+              - CITATION_INVALID
+              - INSUFFICIENT_EVIDENCE
+      - if:
+          properties:
+            status:
+              const: SUCCEEDED
+        else:
+          properties:
+            citations:
+              maxItems: 0
+      - if:
+          properties:
+            status:
+              const: SUCCEEDED
+            requireEvidence:
+              const: true
+          required:
+          - status
+          - requireEvidence
+        then:
+          properties:
+            citations:
+              minItems: 1
+    TerminationReason:
+      type: string
+      enum:
+      - COMPLETED
+      - INVALID_INPUT
+      - INVALID_DECISION
+      - MODEL_ERROR
+      - UNKNOWN_TOOL
+      - DISABLED_TOOL
+      - INVALID_TOOL_ARGUMENTS
+      - TOOL_ERROR
+      - TOOL_RESULT_INVALID
+      - TOOL_RESULT_TOO_LARGE
+      - CANCELLED
+      - TIMED_OUT
+      - BUDGET_EXCEEDED
+      - QUEUE_TIMEOUT
+      - DISPATCH_REJECTED
+      - PERSISTENCE_UNAVAILABLE
+      - INTERNAL_ERROR
+      - INVALID_RUNTIME_RESULT
+      - OUTPUT_TOO_LARGE
+      - PROCESS_INTERRUPTED
+      - CONTEXT_BUDGET_EXCEEDED
+      - CONTEXT_SOURCE_UNAVAILABLE
+      - LEGACY_FAILURE
+      - CITATION_INVALID
+      - INSUFFICIENT_EVIDENCE
+    Citation:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - snapshotId
+      - docId
+      - documentVersion
+      - chunkId
+      - contentHash
+      - sourcePath
+      - title
+      - start
+      - end
+      - excerpt
+      properties:
+        id:
+          type: string
+          pattern: ^S(?:[1-9]|[12][0-9]|3[0-2])$
+        snapshotId: &id001
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        docId: *id001
+        documentVersion: *id001
+        chunkId: *id001
+        contentHash: *id001
+        sourcePath:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^(?!/)(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*[\\:\u0000-\u001f])[^/]+(?:/[^/]+)*$
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        start:
+          type: integer
+          minimum: 0
+          maximum: 1048576
+        end:
+          type: integer
+          minimum: 1
+          maximum: 1048576
+        excerpt:
+          type: string
+          minLength: 1
+          maxLength: 800
+      description: Source snapshot. Runtime checks code-point range, SHA-256, unique
+        id and UTF-16 metadata lengths; schema alone does not prove provenance.
   responses:
     BadRequest:
       description: INVALID_REQUEST：输入/游标/版本/记忆字段非法；参数不回显。
@@ -765,8 +1133,9 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
     Unavailable:
-      description: PERSISTENCE_UNAVAILABLE / DEPENDENCY_UNAVAILABLE / SERVICE_STOPPING / TURN_SEQUENCE_EXHAUSTED
-        / MEMORY_VERSION_EXHAUSTED。无模型假成功。只有已分配且提交可能生效的Run错误含taskId。 启动恢复尚未完成的轮次查询使用SERVICE_RECOVERING。
+      description: PERSISTENCE_UNAVAILABLE / DEPENDENCY_UNAVAILABLE / SERVICE_STOPPING
+        / TURN_SEQUENCE_EXHAUSTED / MEMORY_VERSION_EXHAUSTED。无模型假成功。只有已分配且提交可能生效的Run错误含taskId。
+        启动恢复尚未完成的轮次查询使用SERVICE_RECOVERING。
       headers:
         Cache-Control:
           schema:

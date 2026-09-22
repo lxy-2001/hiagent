@@ -14,11 +14,7 @@ import com.agentflow.core.step.StepRecorder;
 import com.agentflow.core.tool.ToolArguments;
 import com.agentflow.core.tool.ToolCall;
 import com.agentflow.core.tool.ToolRegistry;
-import com.agentflow.demo.knowledge.KnowledgeChunkRepository;
 import com.agentflow.demo.knowledge.KnowledgeController;
-import com.agentflow.demo.knowledge.KnowledgeDocumentRepository;
-import com.agentflow.demo.knowledge.KnowledgeRagRetriever;
-import com.agentflow.demo.knowledge.KnowledgeService;
 import com.agentflow.demo.tool.AgentToolRepository;
 import com.agentflow.core.runtime.DefaultAgentRuntime;
 import com.agentflow.web.agent.AgentController;
@@ -69,15 +65,12 @@ class AgentFlowDemoContextTest {
         assertThat(context.getBeansOfType(AgentTaskService.class)).hasSize(1);
         assertThat(context.getBeansOfType(AuthService.class)).hasSize(1);
         assertThat(context.getBeansOfType(ChatService.class)).hasSize(1);
-        assertThat(context.getBeansOfType(KnowledgeService.class)).hasSize(1);
 
         assertThat(context.getBeansOfType(AgentSessionRepository.class)).hasSize(1);
         assertThat(context.getBeansOfType(AgentTaskRepository.class)).hasSize(1);
         assertThat(context.getBeansOfType(AgentStepRepository.class)).hasSize(1);
         assertThat(context.getBeansOfType(SysUserRepository.class)).hasSize(1);
         assertThat(context.getBeansOfType(AuthRefreshTokenRepository.class)).hasSize(1);
-        assertThat(context.getBeansOfType(KnowledgeDocumentRepository.class)).hasSize(1);
-        assertThat(context.getBeansOfType(KnowledgeChunkRepository.class)).hasSize(1);
         assertThat(context.getBeansOfType(AgentToolRepository.class)).hasSize(1);
 
         assertThat(context.getBeansOfType(AgentRuntime.class)).hasSize(1);
@@ -86,7 +79,7 @@ class AgentFlowDemoContextTest {
         assertThat(context.getBeansOfType(ChatModelClient.class)).hasSize(1);
         assertThat(context.getBeansOfType(EmbeddingClient.class)).hasSize(1);
         assertThat(context.getBeansOfType(ToolRegistry.class)).hasSize(1);
-        assertThat(context.getBeansOfType(RagRetriever.class)).hasSize(1);
+        assertThat(context.getBeansOfType(RagRetriever.class)).isEmpty();
         assertThat(context.getBeansOfType(StepRecorder.class)).hasSize(1);
         assertThat(context.getBeansOfType(ShortTermMemory.class)).hasSize(1);
 
@@ -98,7 +91,7 @@ class AgentFlowDemoContextTest {
                 .isEqualTo("OpenAiEmbeddingClient");
         assertThat(context.getBean(ToolRegistry.class).getClass().getSimpleName())
                 .isEqualTo("InMemoryToolRegistry");
-        assertThat(context.getBean(RagRetriever.class)).isInstanceOf(KnowledgeRagRetriever.class);
+        assertThat(context.getBeansOfType(RagRetriever.class)).isEmpty();
         assertThat(context.getBean(StepRecorder.class)).isInstanceOf(JpaStepRecorder.class);
         assertThat(context.getBean(ShortTermMemory.class)).isInstanceOf(InMemoryShortTermMemory.class);
     }

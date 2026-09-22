@@ -54,7 +54,7 @@ public class RunPersistence {
         catch (ArithmeticException exhausted) { throw new CreateRejectedException("TURN_SEQUENCE_EXHAUSTED"); }
         AgentTaskEntity task = new AgentTaskEntity(command.taskId(), command.sessionId(),
                 command.userId(), command.input(), RunLifecycleStatus.QUEUED.name(),
-                command.createdAt(), sequence);
+                command.createdAt(), sequence, command.requireEvidence());
         entityManager.persist(task);
         entityManager.flush();
         return snapshot(task);
@@ -146,6 +146,9 @@ public class RunPersistence {
     public Optional<RunSnapshot> getOwned(String userId, String taskId) {
         requireNonBlank(userId, "userId");
         requireNonBlank(taskId, "taskId");
+        Long bytes = tasks.ownedCitationBytes(taskId, userId);
+        if (bytes == null) { return Optional.empty(); }
+        if (bytes > CitationSnapshotCodec.MAX_BYTES) { throw new CitationSnapshotCodec.UnavailableException(); }
         return tasks.findById(taskId).filter(task -> userId.equals(task.getUserId()))
                 .map(RunPersistence::snapshot);
     }
@@ -198,6 +201,7 @@ public class RunPersistence {
                 && actual.terminationReason() == projection.terminationReason()
                 && actual.runtimeReason() == projection.runtimeReason()
                 && Objects.equals(actual.finalAnswer(), projection.finalAnswer())
+                && actual.citations().equals(projection.citations())
                 && Objects.equals(actual.usage(), projection.usage())
                 && Objects.equals(actual.finishedAt(), projection.finishedAt())
                 && actual.cancelRequested() == projection.cancelRequested()
@@ -212,7 +216,10 @@ public class RunPersistence {
     }
 
     public record CreateCommand(String taskId, String sessionId, String userId, String input,
-                                String title, Instant createdAt, boolean createSession) {
+                                String title, Instant createdAt, boolean createSession, boolean requireEvidence) {
+        public CreateCommand(String taskId, String sessionId, String userId, String input, String title, Instant createdAt, boolean createSession) {
+            this(taskId, sessionId, userId, input, title, createdAt, createSession, false);
+        }
         public CreateCommand(String taskId, String sessionId, String userId, String input, String title, Instant createdAt) {
             this(taskId, sessionId, userId, input, title, createdAt, true);
         }
@@ -238,7 +245,8 @@ public class RunPersistence {
                         : RunTerminationReason.valueOf(task.getTerminationReason()),
                 task.getRuntimeReason() == null ? null
                         : com.agentflow.core.runtime.TerminationReason.valueOf(task.getRuntimeReason()),
-                task.getErrorCode(), task.isRecordingComplete(), usage);
+                task.getErrorCode(), task.isRecordingComplete(), usage, task.isRequireEvidence(),
+                new CitationSnapshotCodec().decode(task.getCitationsJson()));
     }
 
     private static void requireNonBlank(String value, String field) {

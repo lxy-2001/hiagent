@@ -62,9 +62,21 @@ public final class RunResultProjector {
             boolean cancelRequested,
             boolean recordingComplete,
             String errorCode,
-            List<ProjectedStep> steps
+            List<ProjectedStep> steps,
+            List<com.agentflow.core.rag.Citation> citations
     ) {
+        public FinalProjection(String taskId, RunLifecycleStatus status, RunTerminationReason terminationReason,
+                TerminationReason runtimeReason, String finalAnswer, TokenUsage usage, Instant finishedAt,
+                boolean cancelRequested, boolean recordingComplete, String errorCode, List<ProjectedStep> steps) {
+            this(taskId, status, terminationReason, runtimeReason, finalAnswer, usage, finishedAt,
+                    cancelRequested, recordingComplete, errorCode, steps, List.of());
+        }
         public FinalProjection {
+            citations = List.copyOf(citations);
+            if (status != RunLifecycleStatus.SUCCEEDED && !citations.isEmpty()) {
+                throw new IllegalArgumentException("only successful runs have citations");
+            }
+            new CitationSnapshotCodec().encode(citations);
             steps = List.copyOf(Objects.requireNonNull(steps, "steps must not be null"));
         }
     }
@@ -93,10 +105,14 @@ public final class RunResultProjector {
                     RunTerminationReason.OUTPUT_TOO_LARGE, result.terminationReason(), null,
                     result.usage(), terminalTime, cancelRequested, false, "OUTPUT_TOO_LARGE", List.of());
         }
+        try { new CitationSnapshotCodec().encode(result.citations()); }
+        catch (IllegalArgumentException invalid) {
+            return serviceFailure(taskId, RunTerminationReason.OUTPUT_TOO_LARGE, terminalTime, cancelRequested);
+        }
         StepProjection stepProjection = projectSteps(taskId, result);
         FinalProjection projection = new FinalProjection(taskId, status, reason, result.terminationReason(),
                 result.finalAnswer(), result.usage(), terminalTime, cancelRequested, false,
-                status == RunLifecycleStatus.SUCCEEDED ? null : reason.name(), stepProjection.steps());
+                status == RunLifecycleStatus.SUCCEEDED ? null : reason.name(), stepProjection.steps(), result.citations());
         boolean complete = observationComplete && stepProjection.complete();
         return fitProjection(projection, complete);
     }
@@ -208,7 +224,7 @@ public final class RunResultProjector {
                                              boolean recordingComplete) {
         return new FinalProjection(source.taskId(), source.status(), source.terminationReason(),
                 source.runtimeReason(), source.finalAnswer(), source.usage(), source.finishedAt(),
-                source.cancelRequested(), recordingComplete, source.errorCode(), steps);
+                source.cancelRequested(), recordingComplete, source.errorCode(), steps, source.citations());
     }
 
     private int serializedSize(FinalProjection projection) {

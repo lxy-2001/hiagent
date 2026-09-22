@@ -164,7 +164,6 @@
         <input id="password" type="password" placeholder="请输入已配置的密码" autocomplete="current-password">
         <p class="hint">管理员账号需通过 AGENTFLOW_INITIAL_ADMIN_USERNAME / AGENTFLOW_INITIAL_ADMIN_PASSWORD 显式配置。</p>
         <button id="loginBtn">登录</button>
-        <button id="reloadBtn" class="secondary" disabled>重载知识库</button>
         <div id="loginStatus" class="status"></div>
 
         <h2>会话</h2>
@@ -181,6 +180,7 @@
         <button id="refreshMemoryBtn" disabled>重新读取记忆</button>
         <label for="taskInput">任务</label>
         <textarea id="taskInput">帮我设计一个秒杀库存扣减接口，要求考虑 Redis 缓存、MySQL 一致性和并发安全。</textarea>
+        <label><input id="requireEvidence" type="checkbox">必须提供当前知识库引用</label>
         <button id="runBtn" disabled>运行 Agent</button>
         <button id="cancelBtn" class="secondary" disabled>取消运行</button>
         <div id="taskStatus" class="status"></div>
@@ -190,6 +190,9 @@
         <h2>执行结果</h2>
         <div id="output" class="output"></div>
         <div id="steps" class="steps"></div>
+        <h2>引用来源</h2>
+        <p>引用校验证明片段来源与送达，不保证答案在语义上正确。知识库需离线导入并显式启用。</p>
+        <div id="citations" class="steps"></div>
     </section>
 </main>
 
@@ -295,6 +298,7 @@
         document.querySelector("#refreshMemoryBtn").disabled = !id;
         output.textContent = "";
         steps.replaceChildren();
+        document.querySelector("#citations").replaceChildren();
         if (id) { refreshTurns(); refreshMemories(); }
     }
     document.querySelector("#sessionSelect").addEventListener("change", event => selectSession(event.target.value));
@@ -326,14 +330,9 @@
         refreshToken = data.refreshToken;
         document.querySelector("#loginStatus").textContent = "已登录";
         document.querySelector("#runBtn").disabled = false;
-        document.querySelector("#reloadBtn").disabled = false;
+
         document.querySelector("#refreshSessionsBtn").disabled = false;
         await refreshSessions();
-    });
-
-    document.querySelector("#reloadBtn").addEventListener("click", async () => {
-        const data = await authedFetch("/api/knowledge/reload", {method: "POST"}).then(r => r.json());
-        document.querySelector("#loginStatus").textContent = `知识库导入 ${data.importedCount} 个文件`;
     });
 
     document.querySelector("#runBtn").addEventListener("click", async () => {
@@ -341,13 +340,14 @@
         const generation = ++observationGeneration;
         output.textContent = "";
         steps.replaceChildren();
+        document.querySelector("#citations").replaceChildren();
         document.querySelector("#taskStatus").textContent = "正在提交";
         document.querySelector("#runBtn").disabled = true;
         try {
         const response = await authedFetch("/api/agent/tasks", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(conversation.request(document.querySelector("#taskInput").value))
+            body: JSON.stringify(conversation.request(document.querySelector("#taskInput").value, document.querySelector("#requireEvidence").checked))
         });
         const task = await response.json();
         if (generation !== observationGeneration) return;
@@ -368,7 +368,7 @@
             generation,
             isCurrent: value => value === observationGeneration,
             onEvent: appendEvent,
-            onSnapshot: renderSnapshot,
+            onSnapshot: task => { if (generation === observationGeneration) renderSnapshot(task); },
             onSteps: renderSteps,
             onState: state => document.querySelector("#taskStatus").textContent = state
         });
@@ -397,6 +397,16 @@
     }
 
     function renderSnapshot(task) {
+        document.querySelector("#citations").replaceChildren(...(task.citations || []).map(citation => {
+            const card = document.createElement("div");
+            card.className = "step";
+            const label = document.createElement("strong");
+            label.textContent = `[${citation.id}] ${citation.title} — ${citation.sourcePath} (${citation.start}:${citation.end})`;
+            const excerpt = document.createElement("pre");
+            excerpt.textContent = citation.excerpt;
+            card.append(label, excerpt);
+            return card;
+        }));
         document.querySelector("#taskStatus").textContent = `${task.status}：${task.taskId}`;
         document.querySelector("#cancelBtn").disabled = Boolean(task.finishedAt);
         if (task.finalAnswer) output.textContent += `\n[FINAL ANSWER]\n${task.finalAnswer}\n`;

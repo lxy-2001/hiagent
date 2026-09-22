@@ -1,6 +1,5 @@
 package com.agentflow.demo;
 
-import com.agentflow.demo.knowledge.KnowledgeService;
 import com.agentflow.demo.tool.AgentToolRepository;
 import com.agentflow.web.agent.AgentTaskService;
 import com.agentflow.web.auth.AuthService;
@@ -41,7 +40,6 @@ class RunDemoPageTest {
     @MockitoBean AuthService authService;
     @MockitoBean AgentTaskService taskService;
     @MockitoBean ChatService chatService;
-    @MockitoBean KnowledgeService knowledgeService;
     @MockitoBean SysUserRepository users;
     @MockitoBean AgentToolRepository tools;
     @MockitoBean StringRedisTemplate redis;

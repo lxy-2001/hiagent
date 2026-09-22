@@ -37,6 +37,12 @@ public class AgentTaskEntity {
     private Integer promptTokens;
     private Integer completionTokens;
     private Integer totalTokens;
+    private boolean requireEvidence;
+    @Column(columnDefinition = "longtext")
+    private String citationsJson;
+
+    public boolean isRequireEvidence() { return requireEvidence; }
+    public String getCitationsJson() { return citationsJson; }
 
     protected AgentTaskEntity() {
     }
@@ -56,6 +62,12 @@ public class AgentTaskEntity {
         this(id, sessionId, userId, userInput, status, now);
         if (turnSequence < 1) throw new IllegalArgumentException("turnSequence must be positive");
         this.turnSequence = turnSequence;
+    }
+
+    public AgentTaskEntity(String id, String sessionId, String userId, String userInput, String status,
+                           Instant now, long turnSequence, boolean requireEvidence) {
+        this(id, sessionId, userId, userInput, status, now, turnSequence);
+        this.requireEvidence = requireEvidence;
     }
 
     public long getTurnSequence() { return turnSequence; }
@@ -148,6 +160,8 @@ public class AgentTaskEntity {
         if (!id.equals(projection.taskId())) {
             throw new IllegalArgumentException("projection belongs to another task");
         }
+        this.citationsJson = projection.status() == RunLifecycleStatus.SUCCEEDED
+                ? new com.agentflow.web.run.CitationSnapshotCodec().encode(projection.citations()) : null;
         this.status = projection.status().name();
         this.finalAnswer = projection.finalAnswer();
         this.finishedAt = projection.finishedAt();

@@ -22,9 +22,23 @@ public record RunSnapshot(
         TerminationReason runtimeReason,
         String errorCode,
         boolean recordingComplete,
-        TokenUsage usage
+        TokenUsage usage,
+        boolean requireEvidence,
+        java.util.List<com.agentflow.core.rag.Citation> citations
 ) {
+    public RunSnapshot(String taskId, String runId, String sessionId, RunLifecycleStatus status,
+            String input, String finalAnswer, Instant createdAt, Instant updatedAt, Instant startedAt,
+            Instant finishedAt, boolean cancelRequested, RunTerminationReason terminationReason,
+            TerminationReason runtimeReason, String errorCode, boolean recordingComplete, TokenUsage usage) {
+        this(taskId, runId, sessionId, status, input, finalAnswer, createdAt, updatedAt, startedAt,
+                finishedAt, cancelRequested, terminationReason, runtimeReason, errorCode, recordingComplete,
+                usage, false, java.util.List.of());
+    }
     public RunSnapshot {
+        citations = java.util.List.copyOf(citations);
+        if (status != RunLifecycleStatus.SUCCEEDED && !citations.isEmpty()) {
+            throw new IllegalArgumentException("only successful snapshots have citations");
+        }
         requireNonBlank(taskId, "taskId");
         requireNonBlank(runId, "runId");
         requireNonBlank(sessionId, "sessionId");

@@ -17,6 +17,7 @@ public final class RunApiErrorWriter {
     }
     public static String message(String code) {
         return switch (code) {
+            case "CITATION_DATA_UNAVAILABLE" -> "Stored citation data is unavailable.";
             case "INVALID_REQUEST" -> "The request is invalid.";
             case "UNAUTHORIZED" -> "Authentication is required.";
             case "NOT_FOUND" -> "The run was not found.";

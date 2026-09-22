@@ -17,7 +17,11 @@ export function createConversationClient(fetcher) {
     return {
         select(id) { sessionId = id; },
         reset() { sessionId = null; },
-        request(input) { return sessionId ? {input, sessionId} : {input}; },
+        request(input, requireEvidence = false) {
+            const request = sessionId ? {input, sessionId} : {input};
+            if (requireEvidence) request.requireEvidence = true;
+            return request;
+        },
         list(before = null) { return json(`/api/agent/sessions${before ? `?before=${encodeURIComponent(before)}` : ''}`); },
         turns(after = '0', until = null) {
             const query = new URLSearchParams({afterSequence: after});

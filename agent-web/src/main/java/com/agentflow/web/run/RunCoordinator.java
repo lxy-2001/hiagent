@@ -100,6 +100,10 @@ public final class RunCoordinator implements AutoCloseable {
     }
 
     public RunAccepted create(String userId, String input, String requestedSessionId) {
+        return create(userId, input, requestedSessionId, false);
+    }
+
+    public RunAccepted create(String userId, String input, String requestedSessionId, boolean requireEvidence) {
         requireNonBlank(userId, "userId");
         String normalized = normalizeInput(input);
         boolean createSession = requestedSessionId == null;
@@ -115,7 +119,7 @@ public final class RunCoordinator implements AutoCloseable {
         long deadline = Math.addExact(acceptedTick, properties.queueTimeout().toNanos());
         RunControl control = RunControl.queued(taskId, userId, acceptedTick, deadline);
         RunPersistence.CreateCommand command = new RunPersistence.CreateCommand(taskId,
-                sessionId, userId, normalized, title(normalized), createdAt, createSession);
+                sessionId, userId, normalized, title(normalized), createdAt, createSession, requireEvidence);
         OwnedRun owned = new OwnedRun(control, command, new AtomicBoolean(true));
         RunSnapshot snapshot;
         reserve(sessionId, taskId);
@@ -243,7 +247,7 @@ public final class RunCoordinator implements AutoCloseable {
         AgentResult result;
         try {
             AgentRequest request = new AgentRequest(control.taskId(), owned.command().sessionId(),
-                    control.userId(), owned.command().input(), seed);
+                    control.userId(), owned.command().input(), seed, owned.command().requireEvidence());
             ExecutionBudget remaining = new ExecutionBudget(totalBudget.maxIterations(),
                     totalBudget.maxDuration().minusNanos(preparationNanos), totalBudget.maxPromptTokens(), totalBudget.maxCompletionTokens());
             result = runtime.run(request, event -> observe(owned, event),

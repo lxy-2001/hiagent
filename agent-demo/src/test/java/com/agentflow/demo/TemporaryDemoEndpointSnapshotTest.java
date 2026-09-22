@@ -1,7 +1,6 @@
 package com.agentflow.demo;
 
 import com.agentflow.core.chat.TokenUsage;
-import com.agentflow.demo.knowledge.KnowledgeService;
 import com.agentflow.demo.tool.AgentToolRepository;
 import com.agentflow.web.agent.AgentController;
 import com.agentflow.web.agent.AgentTaskService;
@@ -97,9 +96,6 @@ class TemporaryDemoEndpointSnapshotTest {
     private ChatService chatService;
 
     @MockitoBean
-    private KnowledgeService knowledgeService;
-
-    @MockitoBean
     private SysUserRepository sysUserRepository;
 
     @MockitoBean
@@ -124,8 +120,6 @@ class TemporaryDemoEndpointSnapshotTest {
                 .thenReturn(new ChatResponse("session-1", "test", "test-model", "ok", TokenUsage.empty(), false));
         when(agentTaskService.create("user-1", "hello"))
                 .thenReturn(new RunCoordinator.RunAccepted("task-1", "task-1", "session-1", RunLifecycleStatus.QUEUED));
-        when(knowledgeService.reloadBuiltInKnowledge())
-                .thenReturn(new KnowledgeService.ReloadResult(0, List.of()));
     }
 
     @Test
@@ -173,8 +167,9 @@ class TemporaryDemoEndpointSnapshotTest {
 
         mockMvc.perform(post("/api/knowledge/reload")
                         .with(jwt().jwt(token -> token.subject("user-1"))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.importedCount").value(0));
+                .andExpect(status().isGone())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.code").value("KNOWLEDGE_RELOAD_RETIRED"));
     }
 
     private record Operation(String method, String path) {

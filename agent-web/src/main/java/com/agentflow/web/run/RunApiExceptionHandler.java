@@ -6,6 +6,10 @@ import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class RunApiExceptionHandler {
+    @ExceptionHandler(CitationSnapshotCodec.UnavailableException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> citationUnavailable() {
+        return response(HttpStatus.SERVICE_UNAVAILABLE, "CITATION_DATA_UNAVAILABLE", null);
+    }
     @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class,
             org.springframework.http.converter.HttpMessageNotReadableException.class,
             org.springframework.web.bind.MissingServletRequestParameterException.class,

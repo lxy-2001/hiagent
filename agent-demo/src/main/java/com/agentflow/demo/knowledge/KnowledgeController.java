@@ -8,14 +8,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/knowledge")
 public class KnowledgeController {
 
-    private final KnowledgeService knowledgeService;
-
-    public KnowledgeController(KnowledgeService knowledgeService) {
-        this.knowledgeService = knowledgeService;
-    }
-
     @PostMapping("/reload")
-    public KnowledgeService.ReloadResult reload() {
-        return knowledgeService.reloadBuiltInKnowledge();
+    public org.springframework.http.ResponseEntity<java.util.Map<String, String>> reload() {
+        return org.springframework.http.ResponseEntity.status(410)
+                .header("Cache-Control", "no-store")
+                .body(java.util.Map.of("code", "KNOWLEDGE_RELOAD_RETIRED",
+                        "message", "Use the offline RAG import command."));
     }
 }

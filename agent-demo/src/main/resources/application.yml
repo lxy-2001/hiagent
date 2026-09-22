@@ -34,13 +34,23 @@ springdoc:
     path: /swagger-ui.html
 
 agentflow:
+  rag:
+    enabled: ${AGENTFLOW_RAG_ENABLED:false}
+    store-directory: ${AGENTFLOW_RAG_STORE_DIRECTORY:}
+    embedding-space-id: ${AGENTFLOW_RAG_EMBEDDING_SPACE_ID:}
+    allow-keyword-fallback: ${AGENTFLOW_RAG_ALLOW_KEYWORD_FALLBACK:false}
+    qdrant:
+      base-url: ${QDRANT_BASE_URL:http://localhost:6333}
+      api-key: ${QDRANT_API_KEY:}
   model:
     provider: ${AGENTFLOW_MODEL_PROVIDER:deepseek}
     base-url: ${AGENTFLOW_MODEL_BASE_URL:}
     api-key: ${AGENTFLOW_MODEL_API_KEY:}
     chat-model: ${AGENTFLOW_MODEL_CHAT_MODEL:deepseek-v4-pro}
     embedding-model: ${AGENTFLOW_MODEL_EMBEDDING_MODEL:text-embedding-v4}
-    embedding-dimensions: 2048
+    embedding-dimensions: ${AGENTFLOW_MODEL_EMBEDDING_DIMENSIONS:2048}
+    embedding-base-url: ${AGENTFLOW_MODEL_EMBEDDING_BASE_URL:}
+    embedding-api-key: ${AGENTFLOW_MODEL_EMBEDDING_API_KEY:}
   tools:
     max-steps: 6
   security:
@@ -53,8 +63,3 @@ agentflow:
   initial-admin:
     username: ${AGENTFLOW_INITIAL_ADMIN_USERNAME:}
     password: ${AGENTFLOW_INITIAL_ADMIN_PASSWORD:}
-
-app:
-  qdrant:
-    base-url: ${QDRANT_BASE_URL:http://localhost:6333}
-    collection: agentflow_knowledge

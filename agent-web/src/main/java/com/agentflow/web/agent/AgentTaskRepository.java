@@ -13,6 +13,9 @@ import java.util.Optional;
 
 public interface AgentTaskRepository extends JpaRepository<AgentTaskEntity, String> {
 
+    @Query(value = "select coalesce(octet_length(citations_json),0) from agent_task where id=:taskId and user_id=:userId", nativeQuery = true)
+    Long ownedCitationBytes(@Param("taskId") String taskId, @Param("userId") String userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select task from AgentTaskEntity task where task.id = :taskId")
     Optional<AgentTaskEntity> findByIdForUpdate(@Param("taskId") String taskId);
