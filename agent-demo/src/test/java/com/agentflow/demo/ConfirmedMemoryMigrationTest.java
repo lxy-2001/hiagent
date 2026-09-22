@@ -10,8 +10,12 @@ import static org.assertj.core.api.Assertions.*;
 class ConfirmedMemoryMigrationTest {
     @Test void createsConstrainedSlotsWithoutImportingLegacyMemory() throws Exception {
         try (var input = new ClassPathResource("db/migration/V3__conversation_turns.sql").getInputStream()) {
-            assertThat(java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(input.readAllBytes())))
-                    .isEqualTo("619ef1dcf9237e51facb5a91b19e48384b7ca14dc13ab55fbb93fd1c3773043c");
+            // Git requires LF; checkout line endings must not change the content guard.
+            var sql = new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("\r\n", "\n");
+            assertThat(java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(sql.getBytes(java.nio.charset.StandardCharsets.UTF_8))))
+                    .isEqualTo("be2dda29d798bf203e690386e2638f74e4709bbb7643508f6a94990069373e20");
         }
         var ds = new JdbcDataSource();
         ds.setURL("jdbc:h2:mem:confirmed-memory-migration;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");

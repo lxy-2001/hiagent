@@ -1,0 +1,245 @@
+{
+  "schemaVersion": 1,
+  "questions": [
+    {
+      "id": "q01",
+      "query": "Runtime 如何处理模型返回的工具调用？",
+      "gold": [
+        {
+          "sourcePath": "runtime.md",
+          "start": 16,
+          "end": 84,
+          "excerpt": "Runtime 每轮装配上下文并调用模型。模型可以返回工具调用或最终回答。工具结果进入下一轮上下文；预算、取消和终止状态由项目核心管理。"
+        }
+      ]
+    },
+    {
+      "id": "q02",
+      "query": "取消请求是否马上释放执行槽？",
+      "gold": [
+        {
+          "sourcePath": "cancel.md",
+          "start": 10,
+          "end": 68,
+          "excerpt": "取消请求会传播取消信号。执行槽必须在实际执行退出后释放，不能仅收到取消请求就释放，否则未结束的任务可能突破并发上限。"
+        }
+      ]
+    },
+    {
+      "id": "q03",
+      "query": "agent-core 为什么不能依赖 Spring？",
+      "gold": [
+        {
+          "sourcePath": "core.md",
+          "start": 13,
+          "end": 88,
+          "excerpt": "agent-core 是纯 Java 模块，负责决策循环、工具模型与预算。核心不依赖 Spring、数据库或模型厂商 SDK，适配器通过公开端口接入。"
+        }
+      ]
+    },
+    {
+      "id": "q04",
+      "query": "工具执行前如何校验参数？",
+      "gold": [
+        {
+          "sourcePath": "tool.md",
+          "start": 11,
+          "end": 82,
+          "excerpt": "Tool Registry 根据工具名找到实现。执行前校验参数 Schema；执行结果统一归一化，失败必须有明确状态，不能把异常当作成功结果。"
+        }
+      ]
+    },
+    {
+      "id": "q05",
+      "query": "上下文窗口不足时如何保护工具链？",
+      "gold": [
+        {
+          "sourcePath": "context.md",
+          "start": 9,
+          "end": 70,
+          "excerpt": "上下文装配需要保护当前工具调用与结果链。历史轮次可以按预算选择；必需工具链超过窗口时应返回预算错误，不能发送残缺工具消息。"
+        }
+      ]
+    },
+    {
+      "id": "q06",
+      "query": "长期记忆与历史消息有什么区别？",
+      "gold": [
+        {
+          "sourcePath": "memory.md",
+          "start": 9,
+          "end": 64,
+          "excerpt": "长期记忆只保存用户明确确认的信息。删除记忆后不应继续把其内容加入模型上下文；历史消息和确认记忆是不同数据来源。"
+        }
+      ]
+    },
+    {
+      "id": "q07",
+      "query": "SSE 断开后如何查询运行结果？",
+      "gold": [
+        {
+          "sourcePath": "sse.md",
+          "start": 10,
+          "end": 66,
+          "excerpt": "SSE 用于传递运行事件。客户端断开后可以重连；运行终态的完整结果通过查询接口读取，不能把连接断开当成任务失败。"
+        }
+      ]
+    },
+    {
+      "id": "q08",
+      "query": "Flyway 新增字段应该修改旧迁移吗？",
+      "gold": [
+        {
+          "sourcePath": "migration.md",
+          "start": 9,
+          "end": 72,
+          "excerpt": "Flyway 通过有版本的 SQL 脚本演进数据库。已发布迁移应保持内容不变；新增字段使用向前迁移，避免修改已有迁移破坏校验。"
+        }
+      ]
+    },
+    {
+      "id": "q09",
+      "query": "检索文档能否授予工具权限？",
+      "gold": [
+        {
+          "sourcePath": "injection.md",
+          "start": 9,
+          "end": 74,
+          "excerpt": "检索文档和工具输出属于不可信数据。它们不能提升成 system 指令，也不能授予新的工具权限。模型输入需要区分可信规则与外部资料。"
+        }
+      ]
+    },
+    {
+      "id": "q10",
+      "query": "为什么答案和引用要在同一事务保存？",
+      "gold": [
+        {
+          "sourcePath": "transaction.md",
+          "start": 9,
+          "end": 59,
+          "excerpt": "事务使相关写操作一起提交或一起回滚。保存成功答案及其引用应处于同一终态事务，避免答案存在而来源缺失。"
+        }
+      ]
+    },
+    {
+      "id": "q11",
+      "query": "Java record 中的 List 如何保证不可变？",
+      "gold": [
+        {
+          "sourcePath": "immutable.md",
+          "start": 9,
+          "end": 83,
+          "excerpt": "Java record 简化值对象定义，但集合成员仍可能可变。构造器使用 List.copyOf 做防御性复制，避免调用者修改原列表影响已创建对象。"
+        }
+      ]
+    },
+    {
+      "id": "q12",
+      "query": "Java 分块如何避免切断 emoji？",
+      "gold": [
+        {
+          "sourcePath": "unicode.md",
+          "start": 14,
+          "end": 112,
+          "excerpt": "Java String.length 返回 UTF-16 码元数。补充平面字符占两个码元；按码点分块应使用 codePointCount 和 offsetByCodePoints，避免切断代理对。"
+        }
+      ]
+    },
+    {
+      "id": "q13",
+      "query": "任务截止时间为什么使用 nanoTime？",
+      "gold": [
+        {
+          "sourcePath": "deadline.md",
+          "start": 8,
+          "end": 69,
+          "excerpt": "持续时间和截止时间应使用 System.nanoTime 的差值。系统墙上时钟可能被校时调整，不适合直接计算任务剩余预算。"
+        }
+      ]
+    },
+    {
+      "id": "q14",
+      "query": "HTTP 响应正文如何限制内存占用？",
+      "gold": [
+        {
+          "sourcePath": "http.md",
+          "start": 13,
+          "end": 77,
+          "excerpt": "HTTP 超时应覆盖响应正文读取，而不仅是连接建立。读取器限制累计字节数，并在取消或超时时终止未完成请求，避免无限响应占用内存。"
+        }
+      ]
+    },
+    {
+      "id": "q15",
+      "query": "ExecutorService 由谁关闭？",
+      "gold": [
+        {
+          "sourcePath": "executor.md",
+          "start": 9,
+          "end": 78,
+          "excerpt": "ExecutorService 的拥有者负责关闭线程池。任务结束、取消与异常路径都需要释放资源；不能为每个短请求创建一个永不关闭的线程池。"
+        }
+      ]
+    },
+    {
+      "id": "q16",
+      "query": "组合字段计算 SHA-256 为什么需要长度前缀？",
+      "gold": [
+        {
+          "sourcePath": "hash.md",
+          "start": 9,
+          "end": 69,
+          "excerpt": "SHA-256 可用于标识内容变化。组合多个字符串时使用长度前缀编码，避免简单拼接导致不同字段组合产生同一输入字节序列。"
+        }
+      ]
+    },
+    {
+      "id": "q17",
+      "query": "导入语料如何防止路径穿越？",
+      "gold": [
+        {
+          "sourcePath": "path.md",
+          "start": 10,
+          "end": 79,
+          "excerpt": "语料只能从指定目录内读取。拒绝路径穿越、符号链接和 Windows reparse point；不能仅依赖字符串包含目录名来判断文件归属。"
+        }
+      ]
+    },
+    {
+      "id": "q18",
+      "query": "自动配置遇到应用自定义 Bean 怎么处理？",
+      "gold": [
+        {
+          "sourcePath": "di.md",
+          "start": 8,
+          "end": 66,
+          "excerpt": "构造注入显式表达类的必需依赖，便于单元测试替换外部实现。自动配置应在应用提供同类型 Bean 时退让，避免重复装配。"
+        }
+      ]
+    },
+    {
+      "id": "q19",
+      "query": "余弦检索为什么要求相同模型和维度？",
+      "gold": [
+        {
+          "sourcePath": "cosine.md",
+          "start": 10,
+          "end": 63,
+          "excerpt": "余弦相似度衡量向量方向接近程度。查询向量与索引必须使用相同语义空间和维度；零向量或非有限数值不应进入索引。"
+        }
+      ]
+    },
+    {
+      "id": "q20",
+      "query": "RRF 如何融合关键词和向量排名？",
+      "gold": [
+        {
+          "sourcePath": "rrf.md",
+          "start": 10,
+          "end": 82,
+          "excerpt": "RRF 按每个通道的排名累加 1/(60+rank)，rank 从 1 开始。融合不要求关键词分数与向量分数有相同量纲；同分结果用稳定标识排序。"
+        }
+      ]
+    }
+  ]
+}

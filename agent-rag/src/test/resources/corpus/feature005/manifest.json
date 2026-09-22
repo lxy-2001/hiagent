@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "provenance": "Original public educational notes; no private project data.",
+  "documents": [
+    {
+      "sourcePath": "runtime.md",
+      "title": "Runtime 决策循环",
+      "contentHash": "a05b8c3ca8cede29afa1254d35ff6649858cefacc3950fd8422c7691d04e124a"
+    },
+    {
+      "sourcePath": "cancel.md",
+      "title": "取消与执行槽",
+      "contentHash": "f76976daa2c83f184d1534b945befbc55184a787aa5beee517f87f0562d2a1e1"
+    },
+    {
+      "sourcePath": "core.md",
+      "title": "纯 Java 核心",
+      "contentHash": "b2f8c2f8efb1480209ca149adaf8f947999f56b2959290c5e1541b21b1e4653f"
+    },
+    {
+      "sourcePath": "tool.md",
+      "title": "工具注册与校验",
+      "contentHash": "d770381c3fcc4540bb47eabcacbe9ef637e108cc4d455e715adf130d5aa0d417"
+    },
+    {
+      "sourcePath": "context.md",
+      "title": "上下文窗口",
+      "contentHash": "cbe20e18148a3ddf2fb1119c5b703fbb806258dff5de2117c9ba82b052ff82f5"
+    },
+    {
+      "sourcePath": "memory.md",
+      "title": "确认式记忆",
+      "contentHash": "81378a981abafc0244c191a4b958293ce8200c12b0c0154fad87eefea1e8dfbb"
+    },
+    {
+      "sourcePath": "sse.md",
+      "title": "SSE 重连",
+      "contentHash": "ea543812f2f668c57ead1441b9f9f00d7f4591c2f75d2cc46d202fed21230cf6"
+    },
+    {
+      "sourcePath": "migration.md",
+      "title": "数据库迁移",
+      "contentHash": "1c4700e9de8e032aedf055d8428e63dc2bb856804c483339e4885572f34d7a6c"
+    },
+    {
+      "sourcePath": "injection.md",
+      "title": "不可信内容",
+      "contentHash": "ff3947b3a270b01451372a484754ebea9a85cd6342e10484af5a02552040c93d"
+    },
+    {
+      "sourcePath": "transaction.md",
+      "title": "事务原子性",
+      "contentHash": "462ff3434b7d72b3c744703102078113a4c45eb7bf2725e9d728bfd5d3579762"
+    },
+    {
+      "sourcePath": "immutable.md",
+      "title": "不可变对象",
+      "contentHash": "5b179b789741523b874cf0d4238265a0ca8263455746e09219841a82ca08ec0d"
+    },
+    {
+      "sourcePath": "unicode.md",
+      "title": "Unicode 码点",
+      "contentHash": "b5c7553f0fea46dda2b8040c9f53997879d9ef32f33fee095353642fe153151c"
+    },
+    {
+      "sourcePath": "deadline.md",
+      "title": "单调时钟",
+      "contentHash": "5bffc5944c033164af7da6c9e1f7556b08a86961a0ffc78300a4b5275851bd38"
+    },
+    {
+      "sourcePath": "http.md",
+      "title": "HTTP 有界读取",
+      "contentHash": "7e7df78d90668689b69bac1ba792b264e3521a9471c45400d70c08b932c8efa8"
+    },
+    {
+      "sourcePath": "executor.md",
+      "title": "线程池释放",
+      "contentHash": "756c17193407e1e79c31a8303244a3f54b6dfabc92763d14e707335f5da373a1"
+    },
+    {
+      "sourcePath": "hash.md",
+      "title": "确定性摘要",
+      "contentHash": "414c12dc625a3f63d706afb8e880b4a41f0ecc3ade7edb79cca6f15dd82d0dc4"
+    },
+    {
+      "sourcePath": "path.md",
+      "title": "文件路径边界",
+      "contentHash": "a8fdd919fd7a4bb12bb149cb2dca6413dbfc938017083db00c8214ef88d7c54f"
+    },
+    {
+      "sourcePath": "di.md",
+      "title": "构造注入",
+      "contentHash": "a67123a6c3741cb589885cb1a400da476db612e8bec52fc4270ac10eada28e35"
+    },
+    {
+      "sourcePath": "cosine.md",
+      "title": "余弦向量检索",
+      "contentHash": "e5f4085860ec506edf805f878e36e744b37881b324635ae658bddf3f29844c76"
+    },
+    {
+      "sourcePath": "rrf.md",
+      "title": "倒数排名融合",
+      "contentHash": "c0088fe07f1c51cfbe42a5b756da3ac507e2fc2657461f88f9b994bf31a3276f"
+    }
+  ]
+}
