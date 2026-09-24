@@ -19,7 +19,9 @@ public final class OpenAiAgentModelClient implements AgentModelClient {
     public ModelDecision decide(AgentModelRequest request) {
         Objects.requireNonNull(request, "request must not be null");
         try {
-            return ProviderDecisionMapper.decision(transport.completeAgent(request), transport.objectMapper());
+            var aliases = ProviderToolNames.aliases(request);
+            return ProviderToolNames.restore(ProviderDecisionMapper.decision(
+                    transport.completeAgent(request), transport.objectMapper()), aliases);
         } catch (ModelClientException ex) {
             throw ex;
         } catch (RuntimeException ex) {

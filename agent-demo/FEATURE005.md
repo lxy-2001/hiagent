@@ -61,10 +61,20 @@ java -cp $ragClasspath com.agentflow.rag.cli.RagImportApplication --agentflow.ra
 - `agent-core/.../rag/EvidenceLedger`、`CitationValidator`：每 Run 的绑定、精确送达匹配及最终校验。
 - `agent-web/.../run/RunResultProjector`、`RunPersistence`、`CitationSnapshotCodec`：引用投影、终态原子保存、有界读取。
 
-真实 Qdrant 和真实 embedding/模型尚未执行，不把 Fixture 结果当作服务或语义质量证明。对专用 Qdrant 1.13.4 实例，可显式运行：
+2026-09-22 已在本机 Qdrant v1.17.0 上执行真实协议测试，20 份文档经真实 embedding 导入并成功复用快照；不代表已验证 v1.13.4。对专用 Qdrant 1.13.4 实例，可显式运行：
 
 ```powershell
 .\mvnw.cmd -pl agent-rag -am test '-Dtest=RealQdrantSmokeTest' '-Dsurefire.failIfNoSpecifiedTests=false' '-Dfeature005.realQdrant=true' '-Dfeature005.qdrantUrl=http://127.0.0.1:16333'
 ```
 
 该测试创建并清理独立名称的测试 collection，使用确定性向量。默认不执行。
+
+## 真实模型适配修复（2026-09-24）
+
+OpenAI 兼容函数名只允许有界字母、数字、下划线和连字符。适配层为 `knowledge.search` 等内部名称生成稳定别名，统一用于工具定义、历史调用和结果；响应按当前请求工具集合还原内部名称。合法名称保持原样，保留前缀名称同样编码，避免与别名冲突。Registry、持久化和公开工具名不变。
+
+请求显式发送 `parallel_tool_calls=false`，默认 `context-rag-v2` 提示要求每轮一个工具、等待结果后继续；提示进入既有预算。服务商若仍返回多个调用，继续按现有契约拒绝，不丢弃调用、不暗中增加模型重试。
+
+真实服务已跑通检索回答与5条引用持久化；无证据强制引用请求以 `INSUFFICIENT_EVIDENCE` 终止，取消进入 `CANCELLED`。这些是有限场景验收，不是模型正确率或稳定性保证。启动提交未确认时取消可返回503；查询同一任务的最终结果，不能把503当作取消必定未生效。启动屏障回归验证最终取消、0次Runtime与槽释放。
+
+本次最终Java验证691项（690通过、1个可选真实服务测试默认跳过）、JS14项通过；重启后的引用逐字段一致。真实故障降级实验被执行环境审批阻止，尚未执行；离线降级测试通过，两者分开记录。

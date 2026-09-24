@@ -29,6 +29,7 @@ public final class ProviderDecisionMapper {
     public static Map<String, Object> requestBody(AgentModelRequest request, String model,
                                                     ObjectMapper mapper) {
         Map<String, Object> body = new LinkedHashMap<>();
+        ProviderToolNames.aliases(request);
         body.put("model", model);
         if (request.maxCompletionTokens() != null) {
             body.put("max_tokens", request.maxCompletionTokens());
@@ -39,6 +40,7 @@ public final class ProviderDecisionMapper {
             body.put("tools", request.tools().stream()
                     .map(definition -> toolMap(definition)).toList());
             body.put("tool_choice", "auto");
+            body.put("parallel_tool_calls", false);
         }
         return body;
     }
@@ -134,7 +136,7 @@ public final class ProviderDecisionMapper {
         result.put("role", message.role());
         if (message.toolCall() != null) {
             Map<String, Object> function = new LinkedHashMap<>();
-            function.put("name", message.toolCall().name());
+            function.put("name", ProviderToolNames.encode(message.toolCall().name()));
             try {
                 function.put("arguments", mapper.writeValueAsString(message.toolCall().arguments().values()));
             } catch (JacksonException ex) {
@@ -146,7 +148,7 @@ public final class ProviderDecisionMapper {
         } else {
             result.put("content", message.content());
             if (message.name() != null) {
-                result.put("name", message.name());
+                result.put("name", ProviderToolNames.encode(message.name()));
             }
             if (message.toolCallId() != null) {
                 result.put("tool_call_id", message.toolCallId());
@@ -157,7 +159,7 @@ public final class ProviderDecisionMapper {
 
     private static Map<String, Object> toolMap(ToolDefinition definition) {
         Map<String, Object> function = new LinkedHashMap<>();
-        function.put("name", definition.name());
+        function.put("name", ProviderToolNames.encode(definition.name()));
         function.put("description", definition.description());
         function.put("parameters", schemaMap(definition.schema()));
         return Map.of("type", "function", "function", function);
