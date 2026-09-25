@@ -23,6 +23,7 @@
         <module>agent-llm</module>
         <module>agent-tool</module>
         <module>agent-rag</module>
+        <module>agent-mcp</module>
         <module>agent-web</module>
         <module>agent-demo</module>
     </modules>
