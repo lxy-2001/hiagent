@@ -12,7 +12,7 @@
 
     <artifactId>agent-mcp</artifactId>
     <name>AgentFlow MCP</name>
-    <description>Optional MCP 2025-11-25 adapter using Java SDK 1.1.4.</description>
+    <description>Optional MCP 2025-11-25 and 2025-06-18 adapter using Java SDK 1.1.4.</description>
 
     <dependencies>
         <dependency>

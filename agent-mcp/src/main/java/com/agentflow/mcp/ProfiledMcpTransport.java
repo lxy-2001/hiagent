@@ -29,11 +29,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Streamable HTTP transport with the Feature 006 profile: MCP 2025-11-25 only,
+ * Streamable HTTP transport with the Feature 006 profile: MCP 2025-11-25 and 2025-06-18,
  * 256KiB inbound messages, no resumability or auth retry, and unused notifications
  * dropped before SDK handlers (so list_changed cannot start unbounded listTools).
  */
 public final class ProfiledMcpTransport implements McpClientTransport {
+
+    // SDK 1.1.4 proposes the last supported version during initialization.
+    static final List<String> SUPPORTED_PROTOCOL_VERSIONS =
+            List.of(ProtocolVersions.MCP_2025_06_18, ProtocolVersions.MCP_2025_11_25);
 
     public static final int MAX_INBOUND_MESSAGE_BYTES = 256 * 1024;
     public static final int MAX_NON_FINAL_MESSAGES = 32;
@@ -102,7 +106,7 @@ public final class ProfiledMcpTransport implements McpClientTransport {
                 .openConnectionOnStartup(false)
                 .connectTimeout(CONNECT_TIMEOUT)
                 .maxResponseSize(MAX_INBOUND_MESSAGE_BYTES)
-                .supportedProtocolVersions(List.of(ProtocolVersions.MCP_2025_11_25))
+                .supportedProtocolVersions(SUPPORTED_PROTOCOL_VERSIONS)
                 .authorizationErrorHandler(NO_AUTH_RETRY)
                 .customizeRequest(request -> {
                     if (apiKey != null && !apiKey.isBlank()) request.header("Authorization", "Bearer " + apiKey);
@@ -116,7 +120,7 @@ public final class ProfiledMcpTransport implements McpClientTransport {
 
     @Override
     public List<String> protocolVersions() {
-        return List.of(ProtocolVersions.MCP_2025_11_25);
+        return SUPPORTED_PROTOCOL_VERSIONS;
     }
 
     @Override

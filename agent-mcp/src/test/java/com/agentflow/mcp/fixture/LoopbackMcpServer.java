@@ -49,6 +49,10 @@ public final class LoopbackMcpServer implements AutoCloseable {
     private final AtomicInteger callCount = new AtomicInteger();
     private final AtomicInteger initializedCount = new AtomicInteger();
 
+    public record Request(String method, String protocol, String session, String proposedVersion) { }
+    private final List<Request> requests = new CopyOnWriteArrayList<>();
+    public List<Request> requests() { return List.copyOf(requests); }
+
     private volatile String sessionId;
 
     private LoopbackMcpServer(Scenario scenario) {
@@ -243,6 +247,9 @@ public final class LoopbackMcpServer implements AutoCloseable {
         JsonNode root = JSON.readTree(raw);
         String rpcMethod = text(root, "method");
         JsonNode id = root.get("id");
+        requests.add(new Request(rpcMethod, exchange.getRequestHeaders().getFirst("MCP-Protocol-Version"),
+                exchange.getRequestHeaders().getFirst("Mcp-Session-Id"),
+                "initialize".equals(rpcMethod) ? text(root.get("params"), "protocolVersion") : null));
 
         if ("notifications/initialized".equals(rpcMethod)) {
             initializedCount.incrementAndGet();
@@ -417,8 +424,8 @@ public final class LoopbackMcpServer implements AutoCloseable {
 
     private String initializeResultJson() {
         String instructions = scenario.oversizedBodyBytes > 0 ? "x".repeat(scenario.oversizedBodyBytes) : "";
-        return "{\"protocolVersion\":\"" + scenario.protocolVersion + "\","
-                + "\"capabilities\":{\"tools\":{\"listChanged\":true}},"
+        return "{" + (scenario.protocolVersion == null ? "" : "\"protocolVersion\":" + JSON.writeValueAsString(scenario.protocolVersion) + ",")
+                + "\"capabilities\":" + (scenario.toolsCapability ? "{\"tools\":{\"listChanged\":true}}" : "{}") + ","
                 + "\"serverInfo\":{\"name\":\"loopback\",\"version\":\"1.0.0\"},"
                 + "\"instructions\":\"" + instructions + "\"}";
     }
@@ -452,6 +459,9 @@ public final class LoopbackMcpServer implements AutoCloseable {
         private boolean requireBearer;
         private String bearer = BEARER;
         private String protocolVersion = PROTOCOL;
+        private boolean toolsCapability = true;
+
+        public Scenario withoutTools() { toolsCapability = false; return this; }
         private boolean notFound;
         private boolean dropAfterCallHeaders;
         private boolean dropSseAfterCallHeaders;

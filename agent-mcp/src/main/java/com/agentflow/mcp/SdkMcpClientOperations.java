@@ -6,6 +6,8 @@ import io.modelcontextprotocol.client.McpAsyncClient;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.spec.McpSchema;
 import reactor.core.publisher.Mono;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
@@ -13,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /** One bounded operation per server; waits and network requests share the caller deadline. */
 public final class SdkMcpClientOperations implements McpClientOperations {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SdkMcpClientOperations.class);
     private final McpAsyncClient client;
     private final ProfiledMcpTransport transport;
     private final Duration timeout;
@@ -30,12 +33,31 @@ public final class SdkMcpClientOperations implements McpClientOperations {
                 .capabilities(McpSchema.ClientCapabilities.builder().build()).enableCallToolSchemaCaching(false).build();
     }
     @Override public void initialize(ToolExecutionControl control) {
-        McpSchema.InitializeResult initialized=perform(client.initialize(),control,false);
-        if (initialized==null || !"2025-11-25".equals(initialized.protocolVersion())
-                || initialized.capabilities()==null || initialized.capabilities().tools()==null) {
-            close();throw new McpOperationException("MCP_PROTOCOL_ERROR");
+        try {
+            McpSchema.InitializeResult initialized = perform(client.initialize(), control, false);
+            if (initialized == null || initialized.protocolVersion() == null
+                    || !ProfiledMcpTransport.SUPPORTED_PROTOCOL_VERSIONS.contains(initialized.protocolVersion())
+                    || initialized.capabilities() == null || initialized.capabilities().tools() == null) {
+                close();
+                throw new McpOperationException("MCP_PROTOCOL_ERROR");
+            }
+        } catch (McpOperationException failure) {
+            if ("MCP_PROTOCOL_ERROR".equals(failure.code())) {
+                LOGGER.warn("MCP initialization rejected: supported={}, server={}",
+                        ProfiledMcpTransport.SUPPORTED_PROTOCOL_VERSIONS, safeServerVersion());
+            }
+            throw failure;
         }
     }
+
+    private String safeServerVersion() {
+        var received = response.get();
+        Object version = received != null && received.result() instanceof Map<?, ?> result
+                ? result.get("protocolVersion") : null;
+        if (version == null) return "missing";
+        return version instanceof String text && text.length() == 10 && text.matches("[0-9]{4}-[0-9]{2}-[0-9]{2}") ? text : "invalid";
+    }
+
     @Override public Page listTools(String cursor,ToolExecutionControl control) {
         Map<String,Object> result=performRaw(client.listTools(cursor),control);
         if (!(result.get("tools") instanceof List<?> tools)) throw new McpOperationException("MCP_PROTOCOL_ERROR");
