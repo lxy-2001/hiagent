@@ -33,6 +33,12 @@ public final class ToolArgumentDigest {
                 "additionalProperties", definition.schema().allowAdditionalProperties()), 128 * 1024);
     }
 
+    /** Includes a trusted adapter's immutable source identity, excluding credentials. */
+    public static String definitionVersion(ToolDefinition definition, Map<String,?> sourceIdentity) {
+        return fingerprint("hiagent-tool-definition-v1",Map.of("definition",definitionVersion(definition),
+                "source",sourceIdentity),128*1024);
+    }
+
     static String fingerprint(String prefix, Object value, int limit) {
         StringBuilder encoded = new StringBuilder();
         append(value, encoded, limit);

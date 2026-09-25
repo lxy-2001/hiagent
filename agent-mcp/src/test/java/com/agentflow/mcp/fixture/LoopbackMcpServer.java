@@ -174,6 +174,11 @@ public final class LoopbackMcpServer implements AutoCloseable {
             if ("POST".equals(method)) {
                 postCount.incrementAndGet();
             }
+            if (scenario.redirect != null) {
+                exchange.getResponseHeaders().set("Location", scenario.redirect);
+                sendEmpty(exchange, 302);
+                return;
+            }
             if (scenario.notFound) {
                 sendEmpty(exchange, 404);
                 return;
@@ -258,7 +263,7 @@ public final class LoopbackMcpServer implements AutoCloseable {
         }
         if ("tools/list".equals(rpcMethod)) {
             listCount.incrementAndGet();
-            writeMessage(exchange, rpcEnvelope(id, true, listResultJson()));
+            writeMessage(exchange, rpcEnvelope(id, true, scenario.listResult == null ? listResultJson() : scenario.listResult));
             return;
         }
         if ("tools/call".equals(rpcMethod)) {
@@ -293,7 +298,7 @@ public final class LoopbackMcpServer implements AutoCloseable {
                 body.flush();
                 return;
             }
-            writeMessage(exchange, rpcEnvelope(id, true, callResultJson()));
+            writeMessage(exchange, rpcEnvelope(scenario.wrongCallId ? JSON.readTree("999999") : id, true, scenario.callResult == null ? callResultJson() : scenario.callResult));
             return;
         }
         writeMessage(exchange, rpcEnvelope(id, false, "{\"code\":-32601,\"message\":\"Method not found\"}"));
@@ -433,6 +438,14 @@ public final class LoopbackMcpServer implements AutoCloseable {
     }
 
     public static final class Scenario {
+        private String redirect;
+        public Scenario redirectTo(URI target) {redirect=target.toString();return this;}
+        private boolean wrongCallId;
+        public Scenario wrongCallId() { wrongCallId=true; return this; }
+        private String listResult;
+        private String callResult;
+        public Scenario listResult(String json) { this.listResult=json; return this; }
+        public Scenario callResult(String json) { this.callResult=json; return this; }
         private boolean sse;
         private boolean session;
         private boolean allowGetSse;

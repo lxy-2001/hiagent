@@ -21,18 +21,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 
 class ProviderToolNamesTest {
-    @Test
-    void mapsDefinitionsHistoryAndResponseWithoutCollisionsOrChangingCoreNames() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"knowledge.search","mcp.demo.project_info","mcp.demo.note_append"})
+    void mapsDefinitionsHistoryAndResponseWithoutCollisionsOrChangingCoreNames(String primaryName) {
         var mapper = new ObjectMapper();
         var properties = new AgentFlowProperties();
         properties.model().setApiKey("test-key");
         var builder = RestClient.builder();
         var server = MockRestServiceServer.bindTo(builder).build();
         var client = new OpenAiAgentModelClient(new OpenAiCompatibleModelClient(properties, builder));
-        var names = List.of("knowledge.search", "knowledge_search", "x".repeat(100), "af_tool_reserved");
+        var names = List.of(primaryName, "knowledge_search", "x".repeat(100), "af_tool_reserved");
         var definitions = names.stream().map(name -> new ToolDefinition(name, "Search", RiskLevel.LOW,
                 new ToolSchema(Map.of(), Set.of(), false))).toList();
-        var call = new ToolCall("call-1", "knowledge.search", new ToolArguments(Map.of()));
+        var call = new ToolCall("call-1", primaryName, new ToolArguments(Map.of()));
         var request = new AgentModelRequest("task", "session", "user", "search",
                 List.of(ModelMessage.user("search"), ModelMessage.assistantToolCall(call),
                         new ModelMessage("tool", "source text", call.name(), call.callId(), null)), definitions, 2);
@@ -57,9 +58,9 @@ class ProviderToolNamesTest {
             return result;
         });
         var decision = (ToolCallDecision) client.decide(request);
-        assertThat(decision.toolCall().name()).isEqualTo("knowledge.search");
+        assertThat(decision.toolCall().name()).isEqualTo(primaryName);
         assertThat(decision.toolCall().callId()).isEqualTo("next");
-        assertThat(request.tools().get(0).name()).isEqualTo("knowledge.search");
+        assertThat(request.tools().get(0).name()).isEqualTo(primaryName);
         server.verify();
     }
 }

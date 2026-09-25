@@ -13,7 +13,11 @@ public class AgentToolAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ToolRegistry.class)
-    ToolRegistry toolRegistry(List<AgentTool> tools) {
-        return new InMemoryToolRegistry(tools);
+    ToolRegistry toolRegistry(List<AgentTool> tools, List<com.agentflow.core.tool.ToolProvider> providers) {
+        if (tools.stream().anyMatch(tool -> tool.definition().name().startsWith("mcp.")))
+            throw new IllegalArgumentException("mcp prefix is reserved for remote providers");
+        InMemoryToolRegistry registry = new InMemoryToolRegistry(tools);
+        providers.forEach(provider -> provider.tools().forEach(registry::register));
+        return registry;
     }
 }

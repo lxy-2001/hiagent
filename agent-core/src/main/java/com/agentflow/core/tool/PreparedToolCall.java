@@ -16,7 +16,7 @@ public record PreparedToolCall(String runId, String sessionId, String ownerId, S
         if (!callId.equals(call.callId()) || !registration.definition().name().equals(call.name())
                 || !registration.enabled() || !registration.definition().schema().validate(call.arguments()).valid())
             throw new IllegalArgumentException("invalid prepared binding");
-        if (!ToolArgumentDigest.definitionVersion(registration.definition()).equals(toolDefinitionVersion)
+        if (!registration.definitionVersion().equals(toolDefinitionVersion)
                 || !ToolArgumentDigest.digest(call.arguments()).equals(argumentsDigest))
             throw new IllegalArgumentException("invalid prepared fingerprint");
         createdAt = createdAt.truncatedTo(ChronoUnit.MILLIS);
@@ -24,7 +24,7 @@ public record PreparedToolCall(String runId, String sessionId, String ownerId, S
     public static PreparedToolCall prepare(String runId,String sessionId,String ownerId,
             ToolRegistration registration,ToolCall call,Instant createdAt) {
         return new PreparedToolCall(runId,sessionId,ownerId,call.callId(),registration,call,
-                ToolArgumentDigest.definitionVersion(registration.definition()),ToolArgumentDigest.digest(call.arguments()),createdAt);
+                registration.definitionVersion(),ToolArgumentDigest.digest(call.arguments()),createdAt);
     }
     @Override public String toString() { return "PreparedToolCall[callId=" + callId + "]"; }
 }

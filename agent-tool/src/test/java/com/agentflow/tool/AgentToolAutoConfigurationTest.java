@@ -32,7 +32,35 @@ class AgentToolAutoConfigurationTest {
 
     @Test
     void mcpProviderIsNotRegisteredAutomatically() {
-        runner().run(context -> assertThat(context).doesNotHaveBean(McpToolProvider.class));
+        runner().run(context -> assertThat(context).doesNotHaveBean(com.agentflow.core.tool.ToolProvider.class));
+    }
+
+    @Test
+    void providersContributeToTheSameRegistryAndDuplicatesFail() {
+        com.agentflow.core.tool.ToolProvider provider=()->java.util.List.of(new UppercaseTextTool());
+        runner().withBean(com.agentflow.core.tool.ToolProvider.class,()->provider).run(context->
+                assertThat(context.getBean(ToolRegistry.class).enabledToolNames()).containsExactly("uppercase-text"));
+        runner().withBean(com.agentflow.core.tool.ToolProvider.class,()->provider)
+                .withBean(com.agentflow.core.tool.AgentTool.class,UppercaseTextTool::new)
+                .run(context->assertThat(context).hasFailed());
+    }
+
+
+    @Test
+    void combinedToolCatalogCannotExceed128Entries() {
+        var tools=java.util.stream.IntStream.range(0,129).mapToObj(index -> new com.agentflow.core.tool.AgentTool() {
+            public com.agentflow.core.tool.ToolDefinition definition() {
+                return new com.agentflow.core.tool.ToolDefinition("fixture-"+index,"fixture",com.agentflow.core.tool.RiskLevel.LOW,
+                        new com.agentflow.core.tool.ToolSchema(java.util.Map.of()));
+            }
+            public com.agentflow.core.tool.ToolResult execute(com.agentflow.core.tool.ToolArguments arguments,com.agentflow.core.tool.ToolContext context) {
+                throw new AssertionError("discovery must not execute tools");
+            }
+        }).map(tool -> (com.agentflow.core.tool.AgentTool)tool).toList();
+        runner().withBean(com.agentflow.core.tool.ToolProvider.class,()->()->tools)
+                .run(context->assertThat(context).hasFailed());
+        runner().withBean(com.agentflow.core.tool.ToolProvider.class,()->()->tools.subList(0,128))
+                .run(context->assertThat(context.getBean(ToolRegistry.class).enabledToolNames()).hasSize(128));
     }
 
     private ApplicationContextRunner runner() {

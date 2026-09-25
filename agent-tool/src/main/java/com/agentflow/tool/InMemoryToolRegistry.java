@@ -40,6 +40,9 @@ public final class InMemoryToolRegistry implements ToolRegistry {
         if (registrations.containsKey(name)) {
             throw new IllegalArgumentException("DUPLICATE_TOOL: " + name);
         }
+        if (registrations.size() >= 128) {
+            throw new IllegalArgumentException("TOOL_CATALOG_LIMIT");
+        }
         registrations.put(name, registration);
     }
 

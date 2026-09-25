@@ -71,14 +71,29 @@ public final class ProfiledMcpTransport implements McpClientTransport {
     private final AtomicLong notificationWindowStart = new AtomicLong(System.nanoTime());
     private final AtomicBoolean operationActive = new AtomicBoolean();
     private final AtomicReference<Object> activeRequestId = new AtomicReference<>();
+    private final AtomicBoolean malformedJson;
+    private volatile boolean protocolViolation;
+    boolean protocolViolation() { return protocolViolation || malformedJson.get(); }
+
+    private volatile Consumer<McpSchema.JSONRPCResponse> responseObserver = response -> { };
+
+    void observeResponses(Consumer<McpSchema.JSONRPCResponse> observer) { responseObserver=Objects.requireNonNull(observer); }
 
     ProfiledMcpTransport(McpClientTransport delegate, McpJsonMapper jsonMapper) {
+        this(delegate,jsonMapper,new AtomicBoolean());
+    }
+
+    private ProfiledMcpTransport(McpClientTransport delegate,McpJsonMapper jsonMapper,AtomicBoolean malformedJson) {
+        this.malformedJson=malformedJson;
         this.delegate = delegate;
         this.jsonMapper = jsonMapper;
     }
 
-    public static McpClientTransport create(URI endpoint) {
-        McpJsonMapper mapper = new JacksonMcpJsonMapper(JsonMapper.builder().build());
+    public static McpClientTransport create(URI endpoint) { return create(endpoint, null); }
+
+    static ProfiledMcpTransport create(URI endpoint, String apiKey) {
+        AtomicBoolean malformed=new AtomicBoolean();
+        McpJsonMapper mapper = new ProtocolJsonMapper(new JacksonMcpJsonMapper(JsonMapper.builder().build()),malformed);
         URI origin = URI.create(endpoint.getScheme() + "://" + authority(endpoint));
         HttpClientStreamableHttpTransport transport = HttpClientStreamableHttpTransport.builder(origin.toString())
                 .endpoint(path(endpoint))
@@ -89,11 +104,14 @@ public final class ProfiledMcpTransport implements McpClientTransport {
                 .maxResponseSize(MAX_INBOUND_MESSAGE_BYTES)
                 .supportedProtocolVersions(List.of(ProtocolVersions.MCP_2025_11_25))
                 .authorizationErrorHandler(NO_AUTH_RETRY)
+                .customizeRequest(request -> {
+                    if (apiKey != null && !apiKey.isBlank()) request.header("Authorization", "Bearer " + apiKey);
+                })
                 .customizeClient(client -> client
                         .followRedirects(HttpClient.Redirect.NEVER)
                         .connectTimeout(CONNECT_TIMEOUT))
                 .build();
-        return new ProfiledMcpTransport(transport, mapper);
+        return new ProfiledMcpTransport(transport, mapper, malformed);
     }
 
     @Override
@@ -108,6 +126,7 @@ public final class ProfiledMcpTransport implements McpClientTransport {
                 noteInbound(message);
             }
             catch (RuntimeException ex) {
+                protocolViolation=true;
                 closeQuietly();
                 return Mono.error(ex);
             }
@@ -182,7 +201,8 @@ public final class ProfiledMcpTransport implements McpClientTransport {
                 throw new IllegalStateException("MCP non-final message count exceeded");
             }
         }
-        if (message instanceof McpSchema.JSONRPCResponse) {
+        if (message instanceof McpSchema.JSONRPCResponse response) {
+            responseObserver.accept(response);
             endOperation();
         }
     }

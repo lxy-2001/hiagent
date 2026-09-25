@@ -30,7 +30,8 @@ final class InvocationTrace {
                 : uncertain(result.errorCode()) ? ToolInvocationRecord.Outcome.UNKNOWN : ToolInvocationRecord.Outcome.FAILED;
     }
     private boolean uncertain(String code) {
-        return policy.effect()==ToolPolicyDecision.Effect.WRITE && !"MCP_TOOL_ERROR".equals(code);
+        return java.util.Set.of("MCP_UNAVAILABLE", "MCP_TIMEOUT", "MCP_PROTOCOL_ERROR", "CANCELLED", "TIMED_OUT").contains(code)
+                || policy.effect()==ToolPolicyDecision.Effect.WRITE && !"MCP_TOOL_ERROR".equals(code);
     }
     ToolInvocationRecord snapshot() {
         String name=prepared.call().name();

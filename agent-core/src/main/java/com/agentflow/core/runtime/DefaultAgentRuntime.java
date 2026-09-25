@@ -378,7 +378,7 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                             afterTool.status(), afterTool.diagnostic());
                 }
                 if (failedToolResult) {
-                    return finishFailure(request, trace, budget, invocation.outcome==ToolInvocationRecord.Outcome.UNKNOWN ? TerminationReason.AMBIGUOUS_TOOL_OUTCOME : terminationReasonFor(normalized.errorCode()),
+                    return finishFailure(request, trace, budget, policy.effect()==ToolPolicyDecision.Effect.WRITE && invocation.outcome==ToolInvocationRecord.Outcome.UNKNOWN ? TerminationReason.AMBIGUOUS_TOOL_OUTCOME : terminationReasonFor(normalized.errorCode()),
                             RunStatus.FAILED, "knowledge.search".equals(call.name()) ? "retrieval failed" : "tool failed");
                 }
             }
@@ -439,7 +439,7 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
         ToolLookup current = toolRegistry.lookup(prepared.call().name());
         if (current == null || current.availability() != ToolAvailability.ENABLED
                 || current.registration() != prepared.registration()
-                || !ToolArgumentDigest.definitionVersion(current.registration().definition())
+                || !current.registration().definitionVersion()
                         .equals(prepared.toolDefinitionVersion())
                 || !executionPolicy.decide(prepared.call().name()).policyVersion().equals(policy.policyVersion())) {
             return denied(TerminationReason.APPROVAL_STALE);
