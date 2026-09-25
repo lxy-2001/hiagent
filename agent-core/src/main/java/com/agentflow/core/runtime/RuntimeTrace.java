@@ -18,6 +18,21 @@ public final class RuntimeTrace {
     private final StepRecorder recorder;
     private final AgentEventSink eventSink;
     private final List<AgentStepRecord> steps = new ArrayList<>();
+    private final List<com.agentflow.core.tool.ToolInvocationRecord> invocations = new ArrayList<>();
+    private InvocationTrace activeInvocation;
+    InvocationTrace beginInvocation(com.agentflow.core.tool.PreparedToolCall prepared, com.agentflow.core.tool.ToolPolicyDecision policy) {
+        completeInvocation(null);
+        activeInvocation = new InvocationTrace(prepared,policy);
+        return activeInvocation;
+    }
+    void completeInvocation(String errorCode) {
+        if (activeInvocation != null) {
+            if (activeInvocation.errorCode == null) activeInvocation.errorCode=errorCode;
+            invocations.add(activeInvocation.snapshot());
+            activeInvocation=null;
+        }
+    }
+    public List<com.agentflow.core.tool.ToolInvocationRecord> toolInvocations() { return List.copyOf(invocations); }
     private int nextStepNo = 1;
     private boolean terminated;
 
@@ -53,6 +68,7 @@ public final class RuntimeTrace {
         if (terminated) {
             return false;
         }
+        completeInvocation(reason == TerminationReason.COMPLETED ? null : reason.name());
         terminated = true;
         String content = reason.name() + (diagnostic == null || diagnostic.isBlank()
                 ? "" : ": " + safe(diagnostic));

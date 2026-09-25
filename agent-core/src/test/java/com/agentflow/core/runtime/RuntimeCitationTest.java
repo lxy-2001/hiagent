@@ -25,7 +25,7 @@ class RuntimeCitationTest {
         var toolCalls = new AtomicInteger();
         var tool = RuntimeTestSupport.tool("knowledge.search", (arguments, context) ->
                 ToolResult.retrieval("knowledge.search", toolCalls.getAndIncrement() == 0 ? first : other));
-        var runtime = new DefaultAgentRuntime(request -> {
+        var runtime = RuntimeTestSupport.runtime(request -> {
             int number = calls.incrementAndGet();
             return new ToolCallDecision("d" + number, new ToolCall("c" + number, "knowledge.search", new ToolArguments(Map.of())), TokenUsage.empty());
         }, RuntimeTestSupport.registry(tool), null);
@@ -72,7 +72,7 @@ class RuntimeCitationTest {
 
     private DefaultAgentRuntime runtime(AgentModelClient model, RetrievalPayload payload) {
         var tool = RuntimeTestSupport.tool("knowledge.search", (arguments, context) -> ToolResult.retrieval("knowledge.search", payload));
-        return new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool), null);
+        return RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool), null);
     }
 
     static RetrievalPayload payload() throws Exception {

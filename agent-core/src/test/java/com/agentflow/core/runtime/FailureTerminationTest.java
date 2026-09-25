@@ -25,7 +25,7 @@ class FailureTerminationTest {
     void modelExceptionIsARealFailureWithOneTerminalEvent() {
         List<AgentEvent> events = new ArrayList<>();
         AgentModelClient model = request -> { throw new IllegalStateException("apiKey=secret"); };
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(), step -> { })
                 .run(new AgentRequest("t", "s", "u", "input"), events::add);
         assertEquals(RunStatus.FAILED, result.status());
         assertEquals(TerminationReason.MODEL_ERROR, result.terminationReason());
@@ -39,7 +39,7 @@ class FailureTerminationTest {
         AgentModelClient model = request -> new ToolCallDecision("d1",
                 new ToolCall("c1", "echo", new ToolArguments(Map.of())), TokenUsage.empty());
         List<AgentEvent> events = new ArrayList<>();
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool), step -> { })
                 .run(new AgentRequest("t", "s", "u", "input"), events::add);
         assertEquals(RunStatus.FAILED, result.status());
         assertEquals(TerminationReason.TOOL_ERROR, result.terminationReason());
@@ -53,7 +53,7 @@ class FailureTerminationTest {
                 com.agentflow.core.tool.ToolResultStatus.SUCCESS, null, null, false, null));
         AgentModelClient model = request -> new ToolCallDecision("d1",
                 new ToolCall("c1", "echo", new ToolArguments(Map.of())), TokenUsage.empty());
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool), step -> { })
                 .run(new AgentRequest("t", "s", "u", "input"), event -> { });
         assertEquals(RunStatus.FAILED, result.status());
         assertEquals(TerminationReason.TOOL_RESULT_INVALID, result.terminationReason());

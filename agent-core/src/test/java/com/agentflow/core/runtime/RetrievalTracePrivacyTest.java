@@ -17,7 +17,7 @@ class RetrievalTracePrivacyTest {
         var calls = new AtomicInteger();
         var payload = RuntimeCitationTest.payload();
         var tool = RuntimeTestSupport.tool("knowledge.search", (arguments, context) -> ToolResult.retrieval("knowledge.search", payload));
-        var runtime = new DefaultAgentRuntime(request -> {
+        var runtime = RuntimeTestSupport.runtime(request -> {
             if (calls.getAndIncrement() == 0) {
                 return new ToolCallDecision("d", new ToolCall("c", "knowledge.search", new ToolArguments(Map.of())), TokenUsage.empty());
             }
@@ -39,7 +39,7 @@ class RetrievalTracePrivacyTest {
             @Override public ToolResult execute(ToolArguments arguments, ToolContext context) { throw new IllegalStateException("private excerpt and query"); }
         };
         var events = new java.util.ArrayList<AgentEvent>();
-        var runtime = new DefaultAgentRuntime(request -> {
+        var runtime = RuntimeTestSupport.runtime(request -> {
             calls.incrementAndGet();
             return new ToolCallDecision("d", new ToolCall("c", "knowledge.search", new ToolArguments(Map.of("query", "sensitive query"))), TokenUsage.empty());
         }, RuntimeTestSupport.registry(tool), null);
@@ -48,7 +48,7 @@ class RetrievalTracePrivacyTest {
         assertFalse(result.steps().toString().contains("private excerpt"));
         assertFalse(events.toString().contains("private excerpt"));
         assertEquals(1, calls.get());
-        var finalRuntime = new DefaultAgentRuntime(request -> new FinalAnswerDecision("final", "unvalidated [S99]", TokenUsage.empty()), RuntimeTestSupport.registry(), null);
+        var finalRuntime = RuntimeTestSupport.runtime(request -> new FinalAnswerDecision("final", "unvalidated [S99]", TokenUsage.empty()), RuntimeTestSupport.registry(), null);
         var rejected = finalRuntime.run(new AgentRequest("other", "s", "u", "input"), null, null);
         assertFalse(rejected.steps().toString().contains("unvalidated"));
         assertEquals(TerminationReason.CITATION_INVALID, rejected.terminationReason());

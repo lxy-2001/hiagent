@@ -38,6 +38,8 @@ class CoreDependencyBoundaryTest {
         return classes()
                 .that().resideInAnyPackage("com.agentflow.core..")
                 .should().onlyDependOnClassesThat(resideInAnyPackage(ALLOWED_PACKAGES)
+                        // Feature006 canonical number encoding explicitly uses the JDK BigDecimal type.
+                        .or(equivalentTo(java.math.BigDecimal.class))
                         .or(equivalentTo(java.security.MessageDigest.class))
                         .or(equivalentTo(java.security.NoSuchAlgorithmException.class))
                         .or(equivalentTo(java.nio.charset.StandardCharsets.class))

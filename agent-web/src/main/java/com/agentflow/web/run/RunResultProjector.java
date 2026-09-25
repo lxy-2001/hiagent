@@ -99,7 +99,8 @@ public final class RunResultProjector {
         }
 
         RunLifecycleStatus status = RunLifecycleStatus.valueOf(result.status().name());
-        RunTerminationReason reason = RunTerminationReason.valueOf(result.terminationReason().name());
+        RunTerminationReason reason = result.terminationReason() == TerminationReason.APPROVAL_STORAGE_UNAVAILABLE
+                ? RunTerminationReason.PERSISTENCE_UNAVAILABLE : RunTerminationReason.valueOf(result.terminationReason().name());
         if (status == RunLifecycleStatus.SUCCEEDED && result.finalAnswer().length() > MAX_ANSWER_CHARS) {
             return new FinalProjection(taskId, RunLifecycleStatus.FAILED,
                     RunTerminationReason.OUTPUT_TOO_LARGE, result.terminationReason(), null,

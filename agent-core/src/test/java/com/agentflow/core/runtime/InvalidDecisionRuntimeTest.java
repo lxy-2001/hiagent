@@ -80,7 +80,7 @@ class InvalidDecisionRuntimeTest {
             executions.incrementAndGet();
             return ToolResult.success(call.name(), "ok");
         };
-        return new DefaultAgentRuntime(model, registry, executor, step -> { }, ToolResultNormalizer.IDENTITY);
+        return RuntimeTestSupport.runtime(model, registry, executor, step -> { }, ToolResultNormalizer.IDENTITY);
     }
 
     private static final class EnabledRegistry implements ToolRegistry {

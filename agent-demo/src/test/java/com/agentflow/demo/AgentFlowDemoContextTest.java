@@ -130,7 +130,9 @@ class AgentFlowDemoContextTest {
             };
         };
 
-        AgentResult result = new DefaultAgentRuntime(fixture, registry, step -> { })
+        AgentResult result = new DefaultAgentRuntime(fixture, registry, new com.agentflow.core.tool.DefaultToolExecutor(registry), null, null,
+                com.agentflow.core.runtime.TimeSource.system(), new com.agentflow.core.context.ContextAssembler(com.agentflow.core.context.ContextPolicy.defaults(),new com.agentflow.core.context.Utf8TokenEstimator(),new com.agentflow.core.context.ContextTextPolicy()),
+                context.getBean(com.agentflow.core.tool.ToolExecutionPolicy.class))
                 .run(new AgentRequest("demo-task", "demo-session", "demo-user", "hello"), event -> { });
 
         assertThat(result.status()).isEqualTo(com.agentflow.core.runtime.RunStatus.SUCCEEDED);

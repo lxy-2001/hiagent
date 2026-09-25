@@ -44,7 +44,11 @@ class DefaultAgentRuntimeTest {
                 new com.agentflow.core.tool.ToolCall("call-1", "echo",
                         new ToolArguments(Map.of("input", "hello"))), TokenUsage.empty())
                 : new FinalAnswerDecision("decision-2", "done", TokenUsage.empty());
-        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry, recorded::add);
+        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry, new com.agentflow.core.tool.DefaultToolExecutor(registry), recorded::add, null,
+                com.agentflow.core.runtime.TimeSource.system(), new com.agentflow.core.context.ContextAssembler(com.agentflow.core.context.ContextPolicy.defaults(),new com.agentflow.core.context.Utf8TokenEstimator(),new com.agentflow.core.context.ContextTextPolicy()),
+                com.agentflow.core.tool.ToolExecutionPolicy.rules(Map.of("echo",new com.agentflow.core.tool.ToolPolicyDecision(
+                        com.agentflow.core.tool.ToolPolicyDecision.Action.ALLOW,com.agentflow.core.tool.RiskLevel.LOW,
+                        com.agentflow.core.tool.ToolPolicyDecision.Effect.READ_ONLY,"Echo fixture",Set.of()))));
 
         AgentResult result = runtime.run(new AgentRequest("task-1", "session-1", "user-1", "hello"),
                 AgentEventSink.NOOP);

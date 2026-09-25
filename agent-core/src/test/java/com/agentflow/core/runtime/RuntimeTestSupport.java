@@ -57,4 +57,39 @@ final class RuntimeTestSupport {
             }
         };
     }
+
+    // Existing runtime tests explicitly permit only the tools supplied by their fixture registry.
+    static DefaultAgentRuntime runtime(com.agentflow.core.model.AgentModelClient model,ToolRegistry registry,
+            com.agentflow.core.step.StepRecorder recorder) {
+        return runtime(model,registry,new com.agentflow.core.tool.DefaultToolExecutor(registry),recorder,null,TimeSource.system());
+    }
+    static DefaultAgentRuntime runtime(com.agentflow.core.model.AgentModelClient model,ToolRegistry registry,
+            com.agentflow.core.step.StepRecorder recorder,TimeSource time) {
+        return runtime(model,registry,new com.agentflow.core.tool.DefaultToolExecutor(registry),recorder,null,time);
+    }
+    static DefaultAgentRuntime runtime(com.agentflow.core.model.AgentModelClient model,ToolRegistry registry,
+            com.agentflow.core.tool.ToolExecutor executor,com.agentflow.core.step.StepRecorder recorder) {
+        return runtime(model,registry,executor,recorder,null,TimeSource.system());
+    }
+    static DefaultAgentRuntime runtime(com.agentflow.core.model.AgentModelClient model,ToolRegistry registry,
+            com.agentflow.core.tool.ToolExecutor executor,com.agentflow.core.step.StepRecorder recorder,
+            com.agentflow.core.tool.ToolResultNormalizer normalizer) {
+        return runtime(model,registry,executor,recorder,normalizer,TimeSource.system());
+    }
+    static DefaultAgentRuntime runtime(com.agentflow.core.model.AgentModelClient model,ToolRegistry registry,
+            com.agentflow.core.tool.ToolExecutor executor,com.agentflow.core.step.StepRecorder recorder,
+            com.agentflow.core.tool.ToolResultNormalizer normalizer,TimeSource time) {
+        return runtime(model,registry,executor,recorder,normalizer,time,new com.agentflow.core.context.ContextAssembler(
+                com.agentflow.core.context.ContextPolicy.defaults(),new com.agentflow.core.context.Utf8TokenEstimator(),
+                new com.agentflow.core.context.ContextTextPolicy()));
+    }
+    static DefaultAgentRuntime runtime(com.agentflow.core.model.AgentModelClient model,ToolRegistry registry,
+            com.agentflow.core.tool.ToolExecutor executor,com.agentflow.core.step.StepRecorder recorder,
+            com.agentflow.core.tool.ToolResultNormalizer normalizer,TimeSource time,com.agentflow.core.context.ContextAssembler assembler) {
+        var rules=new java.util.HashMap<String,com.agentflow.core.tool.ToolPolicyDecision>();
+        for(var definition:registry.enabledDefinitions()) rules.put(definition.name(),new com.agentflow.core.tool.ToolPolicyDecision(
+                com.agentflow.core.tool.ToolPolicyDecision.Action.ALLOW,com.agentflow.core.tool.RiskLevel.LOW,
+                com.agentflow.core.tool.ToolPolicyDecision.Effect.READ_ONLY,"Run fixture",java.util.Set.of()));
+        return new DefaultAgentRuntime(model,registry,executor,recorder,normalizer,time,assembler,com.agentflow.core.tool.ToolExecutionPolicy.rules(rules));
+    }
 }

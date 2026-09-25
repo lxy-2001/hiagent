@@ -1,1 +1,2 @@
 com.agentflow.tool.AgentToolAutoConfiguration
+com.agentflow.tool.ToolPolicyAutoConfiguration

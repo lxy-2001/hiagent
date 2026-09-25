@@ -61,7 +61,7 @@ public class AgentWebRuntimeAssemblyTest {
 
     private ApplicationContextRunner runner() {
         return new ApplicationContextRunner()
-                .withConfiguration(AutoConfigurations.of(AgentWebAutoConfiguration.class))
+                .withConfiguration(AutoConfigurations.of(com.agentflow.tool.ToolPolicyAutoConfiguration.class, AgentWebAutoConfiguration.class))
                 .withPropertyValues("agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32")
                 .withUserConfiguration(Dependencies.class);
     }

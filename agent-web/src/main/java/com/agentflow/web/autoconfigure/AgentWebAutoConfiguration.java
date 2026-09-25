@@ -228,8 +228,8 @@ public class AgentWebAutoConfiguration {
             ToolExecutor toolExecutor,
             StepRecorder stepRecorder,
             ToolResultNormalizer resultNormalizer,
-            ContextAssembler contextAssembler) {
+            ContextAssembler contextAssembler, com.agentflow.core.tool.ToolExecutionPolicy executionPolicy) {
         return new DefaultAgentRuntime(modelClient, toolRegistry, toolExecutor, stepRecorder, resultNormalizer,
-                TimeSource.system(), contextAssembler);
+                TimeSource.system(), contextAssembler, executionPolicy);
     }
 }

@@ -30,7 +30,7 @@ class BudgetRuntimeTest {
         });
         var registry = RuntimeTestSupport.registry(tool);
         AgentModelClient finalModel = request -> new FinalAnswerDecision("final", "done", TokenUsage.empty());
-        AgentResult finalResult = new DefaultAgentRuntime(finalModel, registry, step -> { })
+        AgentResult finalResult = RuntimeTestSupport.runtime(finalModel, registry, step -> { })
                 .run(new AgentRequest("t1", "s", "u", "input"), event -> { },
                         new AgentRunOptions(new ExecutionBudget(1, Duration.ofSeconds(5), 100, 100),
                                 com.agentflow.core.cancel.CancellationSignal.NONE));
@@ -43,7 +43,7 @@ class BudgetRuntimeTest {
                     new ToolCall("c" + request.iteration(), "echo", new ToolArguments(Map.of())),
                     TokenUsage.empty());
         };
-        AgentResult toolResult = new DefaultAgentRuntime(toolModel, registry, step -> { })
+        AgentResult toolResult = RuntimeTestSupport.runtime(toolModel, registry, step -> { })
                 .run(new AgentRequest("t2", "s", "u", "input"), event -> { },
                         new AgentRunOptions(new ExecutionBudget(1, Duration.ofSeconds(5), 100, 100),
                                 com.agentflow.core.cancel.CancellationSignal.NONE));
@@ -70,7 +70,7 @@ class BudgetRuntimeTest {
                     new TokenUsage(2, 3, 5));
         };
 
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool), step -> { })
                 .run(new AgentRequest("t-exact", "s", "u", "input"), event -> { },
                         new AgentRunOptions(new ExecutionBudget(4, Duration.ofSeconds(5), 2, 3),
                                 com.agentflow.core.cancel.CancellationSignal.NONE));
@@ -89,7 +89,7 @@ class BudgetRuntimeTest {
             return new FinalAnswerDecision("d", "unexpected", TokenUsage.empty());
         };
 
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(), step -> { })
                 .run(new AgentRequest("t-zero", "s", "u", "input"), event -> { },
                         new AgentRunOptions(new ExecutionBudget(4, Duration.ofSeconds(5), 0, 0),
                                 com.agentflow.core.cancel.CancellationSignal.NONE));
@@ -108,7 +108,7 @@ class BudgetRuntimeTest {
         AgentModelClient model = request -> new ToolCallDecision("d1",
                 new ToolCall("c1", "echo", new ToolArguments(Map.of())),
                 new TokenUsage(6, 0, 6));
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool), step -> { })
                 .run(new AgentRequest("t", "s", "u", "input"), event -> { },
                         new AgentRunOptions(new ExecutionBudget(3, Duration.ofSeconds(5), 5, 10),
                                 com.agentflow.core.cancel.CancellationSignal.NONE));
@@ -130,7 +130,7 @@ class BudgetRuntimeTest {
             }
             return new FinalAnswerDecision("d2", "too late", new TokenUsage(1, 0, 1));
         };
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool), step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool), step -> { })
                 .run(new AgentRequest("t", "s", "u", "input"), event -> { },
                         new AgentRunOptions(new ExecutionBudget(3, Duration.ofSeconds(5), Integer.MAX_VALUE, Integer.MAX_VALUE),
                                 com.agentflow.core.cancel.CancellationSignal.NONE));

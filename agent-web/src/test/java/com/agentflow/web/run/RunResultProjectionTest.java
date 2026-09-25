@@ -109,4 +109,16 @@ class RunResultProjectionTest {
         assertThat(projection.finalAnswer()).isNull();
         assertThat(projection.errorCode()).isEqualTo("INVALID_RUNTIME_RESULT");
     }
+
+    @Test
+    void authorizationReasonsProjectWithoutLosingRuntimeCause() {
+        for (String name : List.of("TOOL_POLICY_DENIED","APPROVAL_UNAVAILABLE","APPROVAL_REJECTED","APPROVAL_TIMEOUT","APPROVAL_STALE","APPROVAL_STORAGE_UNAVAILABLE","AMBIGUOUS_TOOL_OUTCOME","MCP_TIMEOUT","MCP_UNAVAILABLE","MCP_PROTOCOL_ERROR","MCP_TOOL_ERROR","MCP_RESULT_UNSUPPORTED")) {
+            TerminationReason reason=TerminationReason.valueOf(name);
+            RunStatus status=reason==TerminationReason.APPROVAL_TIMEOUT?RunStatus.TIMED_OUT:RunStatus.FAILED;
+            var result=AgentResult.failure("run-1",status,reason,"safe",List.of(),TokenUsage.empty());
+            var projection=projector.project("run-1",result,FINISHED,false,true);
+            assertThat(projection.runtimeReason()).isEqualTo(reason);
+            assertThat(projection.terminationReason().name()).isEqualTo(name.equals("APPROVAL_STORAGE_UNAVAILABLE")?"PERSISTENCE_UNAVAILABLE":name);
+        }
+    }
 }

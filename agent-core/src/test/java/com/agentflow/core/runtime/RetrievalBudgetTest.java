@@ -25,7 +25,7 @@ class RetrievalBudgetTest {
             return new ToolCallDecision("d", new ToolCall("c", "knowledge.search", new ToolArguments(Map.of())), TokenUsage.empty());
         };
         var assembler = new ContextAssembler(new ContextPolicy("system", "test", 500), new Utf8TokenEstimator(), new ContextTextPolicy());
-        var runtime = new DefaultAgentRuntime(model, registry, new DefaultToolExecutor(registry), null, null, TimeSource.system(), assembler);
+        var runtime = RuntimeTestSupport.runtime(model, registry, new DefaultToolExecutor(registry), null, null, TimeSource.system(), assembler);
         var result = runtime.run(new AgentRequest("t", "s", "u", "input"), null,
                 new AgentRunOptions(new ExecutionBudget(8, Duration.ofSeconds(30), 4096, 20), CancellationSignal.NONE));
         assertEquals(TerminationReason.CONTEXT_BUDGET_EXCEEDED, result.terminationReason());
@@ -42,7 +42,7 @@ class RetrievalBudgetTest {
             assertTrue(context.control().isCancelled());
             return ToolResult.retrieval("knowledge.search", payload);
         });
-        var runtime = new DefaultAgentRuntime(request -> {
+        var runtime = RuntimeTestSupport.runtime(request -> {
             calls.incrementAndGet();
             return new ToolCallDecision("d", new ToolCall("c", "knowledge.search", new ToolArguments(Map.of())), TokenUsage.empty());
         }, RuntimeTestSupport.registry(tool), null);
@@ -68,7 +68,7 @@ class RetrievalBudgetTest {
                 return new ContextAssembly(new AgentModelRequest(request, changed, tools, iteration, remaining), null, actual.diagnostics());
             }
         };
-        var result = new DefaultAgentRuntime(model, registry, new DefaultToolExecutor(registry), null, null, TimeSource.system(), assembler)
+        var result = RuntimeTestSupport.runtime(model, registry, new DefaultToolExecutor(registry), null, null, TimeSource.system(), assembler)
                 .run(new AgentRequest("t", "s", "u", "input"), null, null);
         assertEquals(TerminationReason.CITATION_INVALID, result.terminationReason());
         assertTrue(result.citations().isEmpty());

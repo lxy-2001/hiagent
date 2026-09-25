@@ -58,7 +58,7 @@ class AgentContextAssemblyTest {
             assertEquals("echo", request.messages().get(2).name());
             return new FinalAnswerDecision("d2", "final", TokenUsage.empty());
         };
-        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry,
+        DefaultAgentRuntime runtime = RuntimeTestSupport.runtime(model, registry,
                 (call, context) -> ToolResult.success(call.name(), "observed"), step -> { },
                 ToolResultNormalizer.IDENTITY);
 

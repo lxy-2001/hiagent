@@ -108,10 +108,12 @@ public record RunSnapshot(
             case FAILED -> reason != RunTerminationReason.COMPLETED
                     && reason != RunTerminationReason.CANCELLED
                     && reason != RunTerminationReason.TIMED_OUT
+                    && reason != RunTerminationReason.APPROVAL_TIMEOUT
                     && reason != RunTerminationReason.BUDGET_EXCEEDED
                     && reason != RunTerminationReason.QUEUE_TIMEOUT;
             case CANCELLED -> reason == RunTerminationReason.CANCELLED;
             case TIMED_OUT -> reason == RunTerminationReason.TIMED_OUT
+                    || reason == RunTerminationReason.APPROVAL_TIMEOUT
                     || reason == RunTerminationReason.QUEUE_TIMEOUT;
             case BUDGET_EXCEEDED -> reason == RunTerminationReason.BUDGET_EXCEEDED;
             case QUEUED, RUNNING -> false;

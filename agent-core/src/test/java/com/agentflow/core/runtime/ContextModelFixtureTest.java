@@ -77,7 +77,7 @@ class ContextModelFixtureTest {
         var registry = RuntimeTestSupport.registry(tool);
         var call = new ToolCall("call-1", "echo", new ToolArguments(Map.of()));
         var model = new ContextModelFixture(List.of(new ToolCallDecision("tool", call, TokenUsage.empty()), FINAL));
-        var runtime = new DefaultAgentRuntime(model, registry, new DefaultToolExecutor(registry), null);
+        var runtime = RuntimeTestSupport.runtime(model, registry, new DefaultToolExecutor(registry), null);
 
         var result = runtime.run(new AgentRequest("run-1", "session-1", "user-1", "hello"), AgentEventSink.NOOP);
 

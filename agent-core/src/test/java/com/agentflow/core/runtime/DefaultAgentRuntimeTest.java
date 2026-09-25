@@ -72,7 +72,7 @@ class DefaultAgentRuntimeTest {
         };
         List<com.agentflow.core.AgentStepRecord> recorded = new ArrayList<>();
         List<AgentEvent> events = new ArrayList<>();
-        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry, executor,
+        DefaultAgentRuntime runtime = RuntimeTestSupport.runtime(model, registry, executor,
                 recorded::add, ToolResultNormalizer.IDENTITY);
 
         AgentResult result = runtime.run(new AgentRequest("task-1", "session-1", "user-1", "hello"),
@@ -112,7 +112,7 @@ class DefaultAgentRuntimeTest {
                 case 3 -> new FinalAnswerDecision("d3", "done", TokenUsage.empty());
                 default -> throw new AssertionError();
             };
-            AgentResult result = new DefaultAgentRuntime(model, registry, executor, step -> { },
+            AgentResult result = RuntimeTestSupport.runtime(model, registry, executor, step -> { },
                     ToolResultNormalizer.IDENTITY).run(new com.agentflow.core.AgentRequest(
                     "task-" + runId, "session", "user", "input"), event -> { });
             assertEquals(RunStatus.SUCCEEDED, result.status());
@@ -141,7 +141,7 @@ class DefaultAgentRuntimeTest {
             return new FinalAnswerDecision("d2", "done", TokenUsage.empty());
         };
 
-        AgentResult result = new DefaultAgentRuntime(model, RuntimeTestSupport.registry(tool),
+        AgentResult result = RuntimeTestSupport.runtime(model, RuntimeTestSupport.registry(tool),
                 (call, context) -> ToolResult.success("echo", "apiKey=secret-value"),
                 step -> { }, ToolResultNormalizer.IDENTITY)
                 .run(new AgentRequest("t-sensitive", "s", "u", "input"), event -> { });
@@ -167,7 +167,7 @@ class DefaultAgentRuntimeTest {
                         new ToolArguments(Map.of("text", "too-long"))), TokenUsage.empty())
                 : new FinalAnswerDecision("d2", "unexpected", TokenUsage.empty());
 
-        AgentResult result = new DefaultAgentRuntime(model, registry, step -> { })
+        AgentResult result = RuntimeTestSupport.runtime(model, registry, step -> { })
                 .run(new com.agentflow.core.AgentRequest("t", "s", "u", "input"), event -> { });
 
         assertEquals(RunStatus.FAILED, result.status());

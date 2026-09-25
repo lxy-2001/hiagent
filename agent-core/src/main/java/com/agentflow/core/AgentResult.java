@@ -16,13 +16,20 @@ public record AgentResult(
         TerminationReason terminationReason,
         TokenUsage usage,
         String diagnostic,
-        List<Citation> citations
+        List<Citation> citations,
+        List<com.agentflow.core.tool.ToolInvocationRecord> toolInvocations
 ) {
     public AgentResult {
         citations = List.copyOf(citations);
+        toolInvocations = List.copyOf(toolInvocations);
         Objects.requireNonNull(taskId, "taskId must not be null");
         if (taskId.isBlank()) {
             throw new IllegalArgumentException("taskId must not be blank");
+        }
+        var invocationIds=new java.util.HashSet<String>();
+        for (var invocation:toolInvocations) {
+            if (!taskId.equals(invocation.runId()) || !invocationIds.add(invocation.callId()))
+                throw new IllegalArgumentException("invocation identity mismatch or duplicate");
         }
         Objects.requireNonNull(steps, "steps must not be null");
         steps = List.copyOf(steps);
@@ -63,6 +70,11 @@ public record AgentResult(
         }
     }
 
+    public AgentResult(String taskId,String finalAnswer,List<AgentStepRecord> steps,RunStatus status,
+            TerminationReason reason,TokenUsage usage,String diagnostic,List<Citation> citations) {
+        this(taskId,finalAnswer,steps,status,reason,usage,diagnostic,citations,List.of());
+    }
+
     public AgentResult(String taskId, String finalAnswer, List<AgentStepRecord> steps, RunStatus status,
                        TerminationReason terminationReason, TokenUsage usage, String diagnostic) {
         this(taskId, finalAnswer, steps, status, terminationReason, usage, diagnostic, List.of());
@@ -99,10 +111,11 @@ public record AgentResult(
             case FAILED -> reason != TerminationReason.COMPLETED
                     && reason != TerminationReason.CANCELLED
                     && reason != TerminationReason.TIMED_OUT
+                    && reason != TerminationReason.APPROVAL_TIMEOUT
                     && reason != TerminationReason.BUDGET_EXCEEDED
                     && reason != TerminationReason.CONTEXT_BUDGET_EXCEEDED;
             case CANCELLED -> reason == TerminationReason.CANCELLED;
-            case TIMED_OUT -> reason == TerminationReason.TIMED_OUT;
+            case TIMED_OUT -> reason == TerminationReason.TIMED_OUT || reason == TerminationReason.APPROVAL_TIMEOUT;
             case BUDGET_EXCEEDED -> reason == TerminationReason.BUDGET_EXCEEDED
                     || reason == TerminationReason.CONTEXT_BUDGET_EXCEEDED;
         };

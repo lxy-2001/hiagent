@@ -42,7 +42,7 @@ class RuntimeTraceTest {
         ToolRegistry registry = new Registry();
         ToolExecutor executor = (call, context) -> ToolResult.success(call.name(), "observed");
         List<AgentEvent> events = new ArrayList<>();
-        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, registry, executor,
+        DefaultAgentRuntime runtime = RuntimeTestSupport.runtime(model, registry, executor,
                 step -> { }, ToolResultNormalizer.IDENTITY);
 
         var result = runtime.run(new AgentRequest("t", "s", "u", "input"), events::add);
@@ -79,7 +79,7 @@ class RuntimeTraceTest {
     @Test
     void observerFailuresDoNotDuplicateOrChangeTerminalOutcome() {
         AgentModelClient model = request -> new FinalAnswerDecision("d", "done", TokenUsage.empty());
-        DefaultAgentRuntime runtime = new DefaultAgentRuntime(model, new Registry(),
+        DefaultAgentRuntime runtime = RuntimeTestSupport.runtime(model, new Registry(),
                 (call, context) -> ToolResult.success("echo", "unused"),
                 step -> { throw new RuntimeException("recorder unavailable"); },
                 ToolResultNormalizer.IDENTITY);

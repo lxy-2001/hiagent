@@ -51,6 +51,44 @@ agentflow:
     embedding-dimensions: ${AGENTFLOW_MODEL_EMBEDDING_DIMENSIONS:2048}
     embedding-base-url: ${AGENTFLOW_MODEL_EMBEDDING_BASE_URL:}
     embedding-api-key: ${AGENTFLOW_MODEL_EMBEDDING_API_KEY:}
+  tool-policy:
+    rules:
+      - tool-name: uppercase-text
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Execute safe local uppercase-text
+        visible-arguments: []
+      - tool-name: text-stats
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Execute safe local text-stats
+        visible-arguments: []
+      - tool-name: code-draft
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Execute safe local code-draft
+        visible-arguments: []
+      - tool-name: interface-draft
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Execute safe local interface-draft
+        visible-arguments: []
+      - tool-name: sql-draft
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Execute safe local sql-draft
+        visible-arguments: []
+      - tool-name: knowledge.search
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Execute safe local knowledge.search
+        visible-arguments: []
   tools:
     max-steps: 6
   security:

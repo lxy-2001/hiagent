@@ -21,7 +21,11 @@ public final class DefaultToolExecutor implements ToolExecutor {
     public ToolResult execute(ToolCall call, ToolContext context) {
         Objects.requireNonNull(call, "call must not be null");
         Objects.requireNonNull(context, "context must not be null");
-        ToolLookup lookup = registry.lookup(call.name());
+        ToolRegistration fixed = context.authorizedRegistration();
+        if (fixed != null && !fixed.definition().name().equals(call.name()))
+            return ToolResult.failure(call.name(),call.callId(),"APPROVAL_STALE","authorized tool mismatch");
+        ToolLookup lookup = fixed == null ? registry.lookup(call.name())
+                : new ToolLookup(fixed.enabled() ? ToolAvailability.ENABLED : ToolAvailability.DISABLED,fixed);
         if (lookup == null || lookup.availability() == ToolAvailability.UNKNOWN) {
             return ToolResult.failure(call.name(), call.callId(), "UNKNOWN_TOOL", "tool is not registered");
         }
@@ -38,7 +42,7 @@ public final class DefaultToolExecutor implements ToolExecutor {
             raw = lookup.registration().tool().execute(validation.arguments(), context);
         } catch (RuntimeException ex) {
             return ToolResult.failure(call.name(), call.callId(), "TOOL_ERROR",
-                    DefaultToolResultNormalizer.sanitize(ex.getMessage()));
+                    "tool execution failed");
         }
         ToolResult normalized = normalizer.normalize(call, raw);
         if (raw != null && raw.retrievalPayload() != null && normalized != null

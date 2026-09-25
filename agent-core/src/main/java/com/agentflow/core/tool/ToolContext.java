@@ -14,7 +14,8 @@ public record ToolContext(
         String sessionId,
         String userId,
         List<RagDocument> knowledge,
-        ToolExecutionControl control
+        ToolExecutionControl control,
+        ToolRegistration authorizedRegistration
 ) {
     public ToolContext {
         Objects.requireNonNull(control, "control");
@@ -23,6 +24,10 @@ public record ToolContext(
             throw new IllegalArgumentException("tool context identifiers must be non-blank");
         }
         knowledge = knowledge == null ? List.of() : List.copyOf(knowledge);
+    }
+
+    public ToolContext(String taskId,String sessionId,String userId,List<RagDocument> knowledge,ToolExecutionControl control) {
+        this(taskId,sessionId,userId,knowledge,control,null);
     }
 
     public ToolContext(String taskId, String sessionId, String userId) {
