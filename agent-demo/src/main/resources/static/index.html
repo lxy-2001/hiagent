@@ -182,6 +182,8 @@
         <textarea id="taskInput">帮我设计一个秒杀库存扣减接口，要求考虑 Redis 缓存、MySQL 一致性和并发安全。</textarea>
         <label><input id="requireEvidence" type="checkbox">必须提供当前知识库引用</label>
         <button id="runBtn" disabled>运行 Agent</button>
+        <div id="approvals"></div>
+        <button id="refreshApprovalsBtn" class="secondary">刷新审批</button>
         <button id="cancelBtn" class="secondary" disabled>取消运行</button>
         <div id="taskStatus" class="status"></div>
     </section>
@@ -198,6 +200,8 @@
 
 <script type="module">
     import {observeRun} from "/run-events.js";
+    import {createApprovalClient, renderApprovals} from "/approval.js";
+    const approvals = createApprovalClient(authedFetch);
     import {createConversationClient} from "/conversation.js";
     let accessToken = "";
     let refreshToken = "";
@@ -214,6 +218,7 @@
     let untilSequence = null;
     const conversationStatus = document.querySelector("#conversationStatus");
     function stopObservation() {
+        document.querySelector("#approvals").replaceChildren();
         currentObserver?.stop();
         observationGeneration++;
         currentTaskId = "";
@@ -359,6 +364,7 @@
         conversationStatus.textContent = `当前会话：${task.sessionId}`;
         document.querySelector("#refreshMemoryBtn").disabled = false;
         refreshMemories();
+        document.querySelector("#approvals").replaceChildren();
         currentTaskId = task.taskId;
         document.querySelector("#cancelBtn").disabled = false;
         document.querySelector("#taskStatus").textContent = `运行中：${currentTaskId}`;
@@ -368,6 +374,7 @@
             generation,
             isCurrent: value => value === observationGeneration,
             onEvent: appendEvent,
+            onRecovery: refreshApprovals,
             onSnapshot: task => { if (generation === observationGeneration) renderSnapshot(task); },
             onSteps: renderSteps,
             onState: state => document.querySelector("#taskStatus").textContent = state
@@ -391,7 +398,24 @@
         return fetch(url, options);
     }
 
+    document.querySelector("#refreshApprovalsBtn").addEventListener("click", refreshApprovals);
+    async function refreshApprovals() {
+        const task = currentTaskId;
+        if (!task) return;
+        try {
+            const result = await approvals.list(task);
+            if (task !== currentTaskId) return;
+            renderApprovals(document.querySelector("#approvals"), result.items, async (id, decision) => {
+                await approvals.decide(task, id, decision);
+                if (task === currentTaskId) await refreshApprovals();
+            });
+        } catch (error) {
+            if (task === currentTaskId) document.querySelector("#approvals").textContent = "审批状态暂不可用：" + error.message;
+        }
+    }
+
     function appendEvent(event) {
+        if (event.type === "APPROVAL_REQUESTED" || event.type === "APPROVAL_RESOLVED") refreshApprovals();
         output.textContent += `\n[${event.type}]\n${event.payload?.summary || ""}\n`;
         output.scrollTop = output.scrollHeight;
     }

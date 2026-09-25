@@ -1,0 +1,98 @@
+[
+  {
+    "caseId": "MCP-01",
+    "module": "agent-mcp",
+    "suite": "com.agentflow.mcp.McpRuntimeIntegrationTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "MCP-02",
+    "module": "agent-mcp",
+    "suite": "com.agentflow.mcp.SdkProfileProbeTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "MCP-03",
+    "module": "agent-mcp",
+    "suite": "com.agentflow.mcp.McpTargetPolicyTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "MCP-04",
+    "module": "agent-mcp",
+    "suite": "com.agentflow.mcp.McpSchemaMapperTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-01",
+    "module": "agent-demo",
+    "suite": "com.agentflow.demo.approval.ApprovalDemoIntegrationTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-02",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalRunIntegrationTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-03",
+    "module": "agent-core",
+    "suite": "com.agentflow.core.runtime.RuntimeApprovalTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-04",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalRaceTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-05",
+    "module": "agent-mcp",
+    "suite": "com.agentflow.mcp.McpOutcomeIntegrationTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-06",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalApiContractTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-07",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalPersistenceRecoveryTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "APR-08",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalRestartTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "MCP-05",
+    "module": "agent-mcp",
+    "suite": "com.agentflow.mcp.McpRuntimeIntegrationTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "UI-01",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalSseRecoveryTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "CAP-01",
+    "module": "agent-web",
+    "suite": "com.agentflow.web.approval.ApprovalCapacityTest",
+    "mode": "OFFLINE_FIXTURE"
+  },
+  {
+    "caseId": "SEC-01",
+    "module": "agent-demo",
+    "suite": "com.agentflow.demo.approval.ApprovalDemoIntegrationTest",
+    "mode": "OFFLINE_FIXTURE"
+  }
+]

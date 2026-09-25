@@ -101,3 +101,8 @@ agentflow:
   initial-admin:
     username: ${AGENTFLOW_INITIAL_ADMIN_USERNAME:}
     password: ${AGENTFLOW_INITIAL_ADMIN_PASSWORD:}
+
+# MCP SDK transport logs may contain request/response bodies.
+logging:
+  level:
+    io.modelcontextprotocol: OFF

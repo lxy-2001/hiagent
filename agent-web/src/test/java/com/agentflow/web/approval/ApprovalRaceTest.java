@@ -34,7 +34,9 @@ class ApprovalRaceTest {
     }
 
     @Test void monotonicTtlExpiresDespiteFrozenWallClockAndCancellationHasPriority() {
-        for (boolean cancelled : new boolean[]{false, true}) {
+        for (int scenario = 0; scenario < 3; scenario++) {
+            boolean cancelled = scenario == 2;
+            boolean runExpired = scenario > 0;
             var tick = new AtomicLong(); var request = ApprovalFixtures.request();
             var row = ToolInvocationEntity.pending(request, "owner"); var persistence = mock(ApprovalPersistence.class);
             when(persistence.create(request)).thenAnswer(i -> row.snapshot());
@@ -43,11 +45,13 @@ class ApprovalRaceTest {
                 row.resolve(i.getArgument(3), i.getArgument(4), i.getArgument(5), i.getArgument(6)); return row.snapshot(); });
             var run = ApprovalFixtures.control();
             var service = new ApprovalService(persistence, Clock.fixed(ApprovalFixtures.NOW, ZoneOffset.UTC), tick::get);
-            service.begin(request, run, new ToolExecutionControl(run, tick::get, Duration.ofSeconds(1)), event -> {});
+            service.begin(request, run, new ToolExecutionControl(run, tick::get, Duration.ofSeconds(1)), event -> {}, () -> runExpired);
             tick.set(Duration.ofSeconds(1).toNanos()); if (cancelled) run.requestCancel();
             var resolved = service.poll("owner", ApprovalFixtures.RUN, request.approvalId().toString());
             assertThat(resolved.status()).isEqualTo(cancelled ? ApprovalStatus.CANCELLED : ApprovalStatus.EXPIRED);
             assertThat(resolved.waitMillis()).isEqualTo(1000);
+            assertThat(resolved.decisionSource()).isEqualTo(cancelled ? ApprovalResolution.DecisionSource.CANCEL
+                    : runExpired ? ApprovalResolution.DecisionSource.RUN_TIMEOUT : ApprovalResolution.DecisionSource.TTL);
             assertThatThrownBy(() -> service.decide("owner", ApprovalFixtures.RUN, request.approvalId().toString(), ApprovalService.Decision.APPROVE))
                     .isInstanceOf(ApprovalService.ConflictException.class);
         }

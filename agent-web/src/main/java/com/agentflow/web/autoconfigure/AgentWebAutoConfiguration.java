@@ -199,11 +199,13 @@ public class AgentWebAutoConfiguration {
                                   RunEventProjector eventProjector, RunResultProjector resultProjector,
                                   BoundedRunExecutor executor, RunLifecycleProperties properties,
                                   ConversationProperties conversationProperties, ApprovalService approvalService,
-                                  org.springframework.core.env.Environment environment) {
+                                  org.springframework.core.env.Environment environment,
+                                  org.springframework.beans.factory.ObjectProvider<com.agentflow.core.approval.ApprovalGate> applicationGate) {
         RunCoordinator coordinator = new RunCoordinator(contextSource, runtime, persistence, hub, eventProjector, resultProjector, executor,
                 properties, Clock.systemUTC(), System::nanoTime, Ids::newId, conversationProperties);
         coordinator.configureApprovals(approvalService, org.springframework.boot.convert.DurationStyle.detectAndParse(
                 environment.getProperty("agentflow.approval.ttl", "30s")));
+        applicationGate.ifAvailable(coordinator::configureApprovalGate);
         coordinator.recoverInterrupted();
         return coordinator;
     }

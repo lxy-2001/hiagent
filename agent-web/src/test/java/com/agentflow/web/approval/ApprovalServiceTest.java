@@ -62,6 +62,25 @@ class ApprovalServiceTest {
         } finally { pool.shutdownNow(); }
     }
 
+    @Test void stalePendingReadReturnsCommittedDecisionEvenAfterWorkerFinalizes() {
+        var request = ApprovalFixtures.request();
+        var persistence = mock(ApprovalPersistence.class);
+        var row = ToolInvocationEntity.pending(request, "owner");
+        var pending = row.snapshot();
+        when(persistence.create(request)).thenReturn(pending);
+        var run = ApprovalFixtures.control();
+        var service = new ApprovalService(persistence, Clock.fixed(ApprovalFixtures.NOW, ZoneOffset.UTC), System::nanoTime);
+        service.begin(request, run, new ToolExecutionControl(run, TimeSource.system(), Duration.ofSeconds(30)), event -> {});
+        row.resolve(ApprovalStatus.APPROVED, ApprovalResolution.DecisionSource.USER, ApprovalFixtures.NOW, 1);
+        run.freezeFinal(new Object());
+        when(persistence.getOwned("owner", ApprovalFixtures.RUN, request.approvalId().toString()))
+                .thenReturn(pending, row.snapshot());
+        assertThat(service.decide("owner", ApprovalFixtures.RUN, request.approvalId().toString(), ApprovalService.Decision.APPROVE))
+                .isEqualTo(row.snapshot());
+        verify(persistence, never()).resolve(anyString(), anyString(), anyString(), any(), any(), any(), anyLong());
+        verify(persistence, never()).dispatch(any(), any());
+    }
+
     @Test void sharedClaimSerializesCancellationAndBlocksDispatchAfterCancellation() {
         var control = ApprovalFixtures.control();
         long claim = control.claimApprovalIo().orElseThrow();

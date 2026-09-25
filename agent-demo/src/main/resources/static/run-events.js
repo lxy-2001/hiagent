@@ -1,4 +1,4 @@
-const EVENT_TYPES = new Set(["RUN_CREATED", "RUN_STARTED", "AGENT_STEP", "RUN_TERMINATED"]);
+const EVENT_TYPES = new Set(["RUN_CREATED", "RUN_STARTED", "AGENT_STEP", "APPROVAL_REQUESTED", "APPROVAL_RESOLVED", "RUN_TERMINATED"]);
 const TERMINAL = new Set(["SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT", "BUDGET_EXCEEDED"]);
 const MAX_EVENT_ID = 9223372036854775807n;
 
@@ -25,7 +25,7 @@ export function createSseParser({taskId, onEvent, maximumFrameBytes = 32768, ini
             if (!parsed) continue;
             const id = parseEventId(parsed.id, false);
             if (id <= lastHandled) continue;
-            await onEvent(parsed.event);
+            if (EVENT_TYPES.has(parsed.event.type)) await onEvent(parsed.event);
             lastHandled = id;
         }
         if (pending.length > maximumFrameBytes) throw new Error("SSE_FRAME_TOO_LARGE");
@@ -59,6 +59,7 @@ export function observeRun(options) {
                 const snapshot = await response.json();
                 if (options.isCurrent?.(generation) === false) return;
                 options.onSnapshot?.(snapshot);
+                await options.onRecovery?.(snapshot);
                 if (TERMINAL.has(snapshot.status)) {
                     const steps = await authed(`/api/agent/tasks/${encodeURIComponent(options.taskId)}/steps`);
                     if (steps.ok && options.isCurrent?.(generation) !== false) options.onSteps?.(await steps.json());
@@ -97,6 +98,7 @@ export function observeRun(options) {
                         const {done, value} = await reader.read();
                         if (done) break;
                         await parser.push(value);
+                        state.lastEventId = parser.lastEventId();
                     }
                     parser.finish();
                 } finally { reader.releaseLock(); }
@@ -130,7 +132,7 @@ function parseFrame(text, expectedTaskId) {
     if (id === null && data.length === 0) return null;
     parseEventId(id, false);
     const event = JSON.parse(data.join("\n"));
-    if (!EVENT_TYPES.has(type) || event.type !== type || event.eventId !== id
+    if (typeof type !== "string" || !/^[A-Z][A-Z0-9_]{0,63}$/.test(type) || event.type !== type || event.eventId !== id
             || event.taskId !== expectedTaskId || event.runId !== expectedTaskId
             || typeof event.occurredAt !== "string" || !("payload" in event)) {
         throw new Error("INVALID_EVENT_ENVELOPE");

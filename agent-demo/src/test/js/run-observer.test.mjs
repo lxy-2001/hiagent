@@ -50,3 +50,20 @@ function streamResponse() {
     return new Response(new ReadableStream({start(controller) { controller.close(); }}),
         {status: 200, headers: {"Content-Type": "text/event-stream"}});
 }
+
+for (const status of [204, 410]) {
+    test('unknown event survives reconnect and ' + status + ' refreshes approvals', async () => {
+        const event = {eventId:'9',taskId:'task',runId:'task',type:'FUTURE_EVENT',occurredAt:'2026-09-25T00:00:00Z',payload:{}};
+        const responses = [new Response('id: 9\nevent: FUTURE_EVENT\ndata: '+JSON.stringify(event)+'\n\n', {status:200}),
+            new Response(null,{status}),new Response(JSON.stringify(terminal)),new Response('[]')];
+        const calls=[]; let recovered=0; let displayed=0;
+        const observer=observeRun({taskId:'task',token:'fixture',generation:1,isCurrent:()=>true,
+            fetchImpl:async (url,init)=>{calls.push({url,init});return responses.shift();},sleep:async()=>{},
+            onEvent:()=>displayed++,onRecovery:()=>recovered++});
+        await observer.start();
+        assert.equal(calls[1].init.headers['Last-Event-ID'],'9');
+        assert.equal(observer.lastEventId(),'9');
+        assert.equal(displayed,0);
+        assert.equal(recovered,1);
+    });
+}

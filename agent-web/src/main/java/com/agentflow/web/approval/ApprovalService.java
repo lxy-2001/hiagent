@@ -68,8 +68,16 @@ public class ApprovalService {
         ApprovalStatus requested = decision == Decision.APPROVE ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED;
         if (current.status() != ApprovalStatus.PENDING) return repeat(current, requested);
         var waiter = active.get(id);
-        if (waiter == null) throw new ConflictException("APPROVAL_NOT_PENDING");
-        long claim = claim(waiter.run());
+        if (waiter == null) return repeat(get(owner, task, id), requested);
+        long claim;
+        try { claim = claim(waiter.run()); }
+        catch (RunCoordinator.RunUnavailableException unavailable) {
+            // Another request may have committed the decision and the worker already exited.
+            // A read of that decision is safe; never retry the write or dispatch here.
+            current = get(owner, task, id);
+            if (current.status() != ApprovalStatus.PENDING) return repeat(current, requested);
+            throw unavailable;
+        }
         try {
             current = get(owner, task, id);
             if (current.status() != ApprovalStatus.PENDING) return repeat(current, requested);

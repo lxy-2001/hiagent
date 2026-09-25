@@ -1,0 +1,417 @@
+{
+  "approvalPending": {
+    "approvalId": "00000000-0000-4000-8000-000000000016",
+    "taskId": "00000000-0000-4000-8000-000000000006",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "callId": "call-note-1",
+    "toolName": "mcp.demo.note_append",
+    "serverId": "demo",
+    "remoteToolName": "note_append",
+    "risk": "HIGH",
+    "actionSummary": "Append one demo note to the local test server memory",
+    "argumentPreview": [
+      {
+        "name": "title",
+        "value": "Java17 demo",
+        "masked": false,
+        "truncated": false
+      },
+      {
+        "name": "body",
+        "value": "[masked]",
+        "masked": true,
+        "truncated": false
+      }
+    ],
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "status": "PENDING",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "expiresAt": "2026-09-24T10:00:30Z",
+    "decidedAt": null,
+    "decisionSource": null,
+    "dispatchCount": 0,
+    "outcome": "NOT_DISPATCHED",
+    "waitMillis": null
+  },
+  "approvalApprovedBeforeDispatch": {
+    "approvalId": "00000000-0000-4000-8000-000000000016",
+    "taskId": "00000000-0000-4000-8000-000000000006",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "callId": "call-note-1",
+    "toolName": "mcp.demo.note_append",
+    "serverId": "demo",
+    "remoteToolName": "note_append",
+    "risk": "HIGH",
+    "actionSummary": "Append one demo note to the local test server memory",
+    "argumentPreview": [
+      {
+        "name": "title",
+        "value": "Java17 demo",
+        "masked": false,
+        "truncated": false
+      },
+      {
+        "name": "body",
+        "value": "[masked]",
+        "masked": true,
+        "truncated": false
+      }
+    ],
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "status": "APPROVED",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "expiresAt": "2026-09-24T10:00:30Z",
+    "decidedAt": "2026-09-24T10:00:05Z",
+    "decisionSource": "USER",
+    "dispatchCount": 0,
+    "outcome": "NOT_DISPATCHED",
+    "waitMillis": 5000
+  },
+  "runWaiting": {
+    "taskId": "00000000-0000-4000-8000-000000000006",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "sessionId": "00000000-0000-4000-8000-000000000026",
+    "status": "WAITING_APPROVAL",
+    "input": "Append the demo note",
+    "finalAnswer": null,
+    "createdAt": "2026-09-24T10:00:00Z",
+    "updatedAt": "2026-09-24T10:00:00Z",
+    "startedAt": "2026-09-24T10:00:00Z",
+    "finishedAt": null,
+    "cancelRequested": false,
+    "terminationReason": null,
+    "runtimeReason": null,
+    "errorCode": null,
+    "recordingComplete": false,
+    "usage": null,
+    "requireEvidence": false,
+    "citations": []
+  },
+  "events": [
+    {
+      "eventId": "3",
+      "taskId": "00000000-0000-4000-8000-000000000006",
+      "runId": "00000000-0000-4000-8000-000000000006",
+      "type": "APPROVAL_REQUESTED",
+      "occurredAt": "2026-09-24T10:00:00Z",
+      "payload": {
+        "approvalId": "00000000-0000-4000-8000-000000000016",
+        "callId": "call-note-1",
+        "toolName": "mcp.demo.note_append",
+        "risk": "HIGH",
+        "createdAt": "2026-09-24T10:00:00Z",
+        "expiresAt": "2026-09-24T10:00:30Z"
+      }
+    },
+    {
+      "eventId": "4",
+      "taskId": "00000000-0000-4000-8000-000000000006",
+      "runId": "00000000-0000-4000-8000-000000000006",
+      "type": "APPROVAL_RESOLVED",
+      "occurredAt": "2026-09-24T10:00:05Z",
+      "payload": {
+        "approvalId": "00000000-0000-4000-8000-000000000016",
+        "callId": "call-note-1",
+        "status": "APPROVED",
+        "decisionSource": "USER",
+        "resolvedAt": "2026-09-24T10:00:05Z",
+        "waitMillis": 5000
+      }
+    }
+  ],
+  "invocationUnknown": {
+    "schemaVersion": "006-v1",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "callId": "call-note-1",
+    "toolName": "mcp.demo.note_append",
+    "serverId": "demo",
+    "remoteToolName": "note_append",
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "risk": "HIGH",
+    "policyAction": "REQUIRE_APPROVAL",
+    "approvalId": "00000000-0000-4000-8000-000000000016",
+    "approvalStatus": "APPROVED",
+    "approvalWaitMillis": 5000,
+    "dispatchCount": 1,
+    "executionMillis": null,
+    "outcome": "UNKNOWN",
+    "errorCode": "MCP_UNAVAILABLE",
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "effect": "WRITE",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "dispatchAt": "2026-09-24T10:00:05Z"
+  },
+  "invocationReadOnly": {
+    "schemaVersion": "006-v1",
+    "runId": "demo-task",
+    "callId": "call-local-1",
+    "toolName": "uppercase-text",
+    "serverId": null,
+    "remoteToolName": null,
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "risk": "LOW",
+    "policyAction": "ALLOW",
+    "approvalId": null,
+    "approvalStatus": null,
+    "approvalWaitMillis": null,
+    "dispatchCount": 1,
+    "executionMillis": 12,
+    "outcome": "SUCCEEDED",
+    "errorCode": null,
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "effect": "READ_ONLY",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "dispatchAt": "2026-09-24T10:00:00.010Z"
+  },
+  "invocationApprovedNotDispatched": {
+    "schemaVersion": "006-v1",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "callId": "call-note-1",
+    "toolName": "mcp.demo.note_append",
+    "serverId": "demo",
+    "remoteToolName": "note_append",
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "risk": "HIGH",
+    "policyAction": "REQUIRE_APPROVAL",
+    "approvalId": "00000000-0000-4000-8000-000000000016",
+    "approvalStatus": "APPROVED",
+    "approvalWaitMillis": 5000,
+    "dispatchCount": 0,
+    "executionMillis": null,
+    "outcome": "NOT_DISPATCHED",
+    "errorCode": "CANCELLED",
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "effect": "WRITE",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "dispatchAt": null
+  },
+  "invocationApprovalUnavailable": {
+    "schemaVersion": "006-v1",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "callId": "call-note-1",
+    "toolName": "mcp.demo.note_append",
+    "serverId": "demo",
+    "remoteToolName": "note_append",
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "risk": "HIGH",
+    "policyAction": "REQUIRE_APPROVAL",
+    "approvalId": null,
+    "approvalStatus": null,
+    "approvalWaitMillis": null,
+    "dispatchCount": 0,
+    "executionMillis": null,
+    "outcome": "NOT_DISPATCHED",
+    "errorCode": "APPROVAL_UNAVAILABLE",
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "effect": "WRITE",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "dispatchAt": null
+  },
+  "invocationDenied": {
+    "schemaVersion": "006-v1",
+    "runId": "00000000-0000-4000-8000-000000000006",
+    "callId": "call-note-1",
+    "toolName": "mcp.demo.note_append",
+    "serverId": "demo",
+    "remoteToolName": "note_append",
+    "definitionVersion": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "policyVersion": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "risk": "HIGH",
+    "policyAction": "DENY",
+    "approvalId": null,
+    "approvalStatus": null,
+    "approvalWaitMillis": null,
+    "dispatchCount": 0,
+    "executionMillis": null,
+    "outcome": "NOT_DISPATCHED",
+    "errorCode": "TOOL_POLICY_DENIED",
+    "argumentsDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "effect": "WRITE",
+    "createdAt": "2026-09-24T10:00:00Z",
+    "dispatchAt": null
+  },
+  "invocationInvalidCases": [
+    {
+      "name": "approval-required-dispatched-without-approval",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalId": null,
+        "approvalStatus": null,
+        "approvalWaitMillis": null,
+        "outcome": "SUCCEEDED",
+        "errorCode": null
+      }
+    },
+    {
+      "name": "high-risk-direct-allow",
+      "base": "invocationReadOnly",
+      "changes": {
+        "risk": "HIGH"
+      }
+    },
+    {
+      "name": "write-direct-allow-even-low-risk",
+      "base": "invocationReadOnly",
+      "changes": {
+        "effect": "WRITE"
+      }
+    },
+    {
+      "name": "approved-without-id",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalId": null
+      }
+    },
+    {
+      "name": "id-without-status",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": null
+      }
+    },
+    {
+      "name": "unavailable-with-invented-wait",
+      "base": "invocationApprovalUnavailable",
+      "changes": {
+        "approvalWaitMillis": 0
+      }
+    },
+    {
+      "name": "allow-with-approval",
+      "base": "invocationUnknown",
+      "changes": {
+        "policyAction": "ALLOW",
+        "risk": "LOW",
+        "effect": "READ_ONLY"
+      }
+    },
+    {
+      "name": "dispatched-with-pending",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": "PENDING"
+      }
+    },
+    {
+      "name": "dispatched-with-rejected",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": "REJECTED"
+      }
+    },
+    {
+      "name": "dispatched-with-expired",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": "EXPIRED"
+      }
+    },
+    {
+      "name": "dispatched-with-cancelled",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": "CANCELLED"
+      }
+    },
+    {
+      "name": "dispatched-with-invalidated",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": "INVALIDATED"
+      }
+    },
+    {
+      "name": "dispatched-with-interrupted",
+      "base": "invocationUnknown",
+      "changes": {
+        "approvalStatus": "INTERRUPTED"
+      }
+    },
+    {
+      "name": "missing-argumentsDigest",
+      "base": "invocationReadOnly",
+      "remove": [
+        "argumentsDigest"
+      ]
+    },
+    {
+      "name": "missing-effect",
+      "base": "invocationReadOnly",
+      "remove": [
+        "effect"
+      ]
+    },
+    {
+      "name": "missing-createdAt",
+      "base": "invocationReadOnly",
+      "remove": [
+        "createdAt"
+      ]
+    },
+    {
+      "name": "missing-dispatchAt",
+      "base": "invocationReadOnly",
+      "remove": [
+        "dispatchAt"
+      ]
+    },
+    {
+      "name": "invalid-digest",
+      "base": "invocationReadOnly",
+      "changes": {
+        "argumentsDigest": "not-a-sha256"
+      }
+    },
+    {
+      "name": "invalid-effect",
+      "base": "invocationReadOnly",
+      "changes": {
+        "effect": "UNKNOWN"
+      }
+    },
+    {
+      "name": "empty-core-run-id",
+      "base": "invocationReadOnly",
+      "changes": {
+        "runId": ""
+      }
+    },
+    {
+      "name": "null-core-run-id",
+      "base": "invocationReadOnly",
+      "changes": {
+        "runId": null
+      }
+    },
+    {
+      "name": "dispatched-without-time",
+      "base": "invocationReadOnly",
+      "changes": {
+        "dispatchAt": null
+      }
+    },
+    {
+      "name": "not-dispatched-with-time",
+      "base": "invocationApprovedNotDispatched",
+      "changes": {
+        "dispatchAt": "2026-09-24T10:00:05Z"
+      }
+    },
+    {
+      "name": "invalid-created-time",
+      "base": "invocationReadOnly",
+      "changes": {
+        "createdAt": "yesterday"
+      }
+    }
+  ]
+}

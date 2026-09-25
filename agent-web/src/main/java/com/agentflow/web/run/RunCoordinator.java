@@ -52,6 +52,11 @@ public final class RunCoordinator implements AutoCloseable {
     private final Map<String, OwnedRun> runs = new ConcurrentHashMap<>();
     private final Map<String, BoundedRunExecutor.TaskHandle> handles = new ConcurrentHashMap<>();
     private com.agentflow.web.approval.ApprovalService approvals;
+    private com.agentflow.core.approval.ApprovalGate applicationApprovalGate;
+    public void configureApprovalGate(com.agentflow.core.approval.ApprovalGate gate) {
+        this.applicationApprovalGate = Objects.requireNonNull(gate);
+    }
+
     private java.time.Duration approvalTtl = java.time.Duration.ofSeconds(30);
 
     public void configureApprovals(com.agentflow.web.approval.ApprovalService service, java.time.Duration ttl) {
@@ -256,7 +261,7 @@ public final class RunCoordinator implements AutoCloseable {
             return;
         }
         AgentResult result;
-        var gate = approvals == null ? null : new com.agentflow.web.approval.WebApprovalGate(approvals, control, draft -> {
+        var gate = applicationApprovalGate != null || approvals == null ? null : new com.agentflow.web.approval.WebApprovalGate(approvals, control, draft -> {
             try {
                 if (events.publish(control.taskId(), draft).status() != RunEventHub.PublishStatus.PUBLISHED)
                     owned.observationsComplete().set(false);
@@ -268,7 +273,7 @@ public final class RunCoordinator implements AutoCloseable {
             ExecutionBudget remaining = new ExecutionBudget(totalBudget.maxIterations(),
                     totalBudget.maxDuration().minusNanos(preparationNanos), totalBudget.maxPromptTokens(), totalBudget.maxCompletionTokens());
             result = runtime.run(request, event -> observe(owned, event),
-                    new AgentRunOptions(remaining, control, gate, approvalTtl));
+                    new AgentRunOptions(remaining, control, applicationApprovalGate == null ? gate : applicationApprovalGate, approvalTtl));
         } catch (RuntimeException failure) {
             result = null;
         }

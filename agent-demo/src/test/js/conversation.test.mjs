@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createConversationClient} from '../../main/resources/static/conversation.js';
+import {createApprovalClient, renderApprovals} from '../../main/resources/static/approval.js';
 import {readFile} from 'node:fs/promises';
 
 test('new conversation clears selection; continuation sends its session id', () => {
@@ -54,9 +55,9 @@ async function pageHarness(fetcher) {
     const script = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1].replace(/^\s*import .*;$/gm, '');
     const observers = [];
     const observeRun = options => { observers.push(options); return {stop() {}, async start() {}}; };
-    const page = new Function('document', 'window', 'fetch', 'Option', 'observeRun', 'createConversationClient',
+    const page = new Function('document', 'window', 'fetch', 'Option', 'observeRun', 'createConversationClient', 'createApprovalClient', 'renderApprovals',
         script + '\nreturn {selectSession, renderSteps};')(document, {addEventListener() {}}, fetcher,
-        function Option(text, value) { this.textContent = text; this.value = value; }, observeRun, createConversationClient);
+        function Option(text, value) { this.textContent = text; this.value = value; }, observeRun, createConversationClient, createApprovalClient, renderApprovals);
     return {elements, document, observers, ...page};
 }
 

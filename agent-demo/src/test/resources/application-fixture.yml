@@ -1,0 +1,60 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  jpa:
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+  data:
+    redis:
+      repositories:
+        enabled: false
+agentflow:
+  knowledge:
+    bootstrap:
+      enabled: false
+  rag:
+    enabled: false
+  model:
+    provider: openai
+    base-url: http://127.0.0.1:1
+    api-key: fixture-not-a-real-key
+    chat-model: fixture-only
+    embedding-model: fixture-only
+    embedding-dimensions: 4
+  security:
+    jwt:
+      secret: fixture-only-secret-not-for-production-006
+  initial-admin:
+    username: fixture-admin
+    password: fixture-only-password
+  run:
+    max-duration: 90s
+  approval:
+    ttl: 30s
+  mcp:
+    enabled: true
+    servers:
+      - id: demo
+        allowed-tools: [project_info, note_append]
+        api-key: ''
+  tool-policy:
+    rules:
+      - tool-name: mcp.demo.project_info
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Read offline project information
+        visible-arguments: []
+      - tool-name: mcp.demo.note_append
+        action: REQUIRE_APPROVAL
+        risk: HIGH
+        effect: WRITE
+        action-summary: Append one note to fixture memory
+        visible-arguments: [title]
+logging:
+  level:
+    io.modelcontextprotocol: OFF

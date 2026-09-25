@@ -43,6 +43,17 @@ class ApprovalRestartTest {
         assertThat(approval.dispatchCount()).isEqualTo(1);
         assertThat(tasks.findById(ApprovalFixtures.RUN).orElseThrow().isRecordingComplete()).isFalse();
     }
+    @Test void approvedButNotDispatchedIsNeverReplayedAfterRestart() {
+        var request = start();
+        approvals.resolve("owner", ApprovalFixtures.RUN, request.approvalId().toString(), ApprovalStatus.APPROVED,
+                ApprovalResolution.DecisionSource.USER, ApprovalFixtures.NOW, 1);
+        runs.convergeInterrupted("", 100, ApprovalFixtures.NOW.plusSeconds(3));
+        var approval = approvals.getOwned("owner", ApprovalFixtures.RUN, request.approvalId().toString());
+        assertThat(approval.status()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(approval.dispatchCount()).isZero();
+        assertThat(approval.outcome().name()).isEqualTo("NOT_DISPATCHED");
+        assertThat(runs.convergeInterrupted("", 100, ApprovalFixtures.NOW.plusSeconds(4))).isEmpty();
+    }
     private ApprovalRequest start() {
         runs.createQueued(new RunPersistence.CreateCommand(ApprovalFixtures.RUN, "s", "owner", "hello", "hello", ApprovalFixtures.NOW));
         runs.markRunning(ApprovalFixtures.RUN, ApprovalFixtures.NOW);

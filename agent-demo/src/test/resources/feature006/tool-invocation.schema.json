@@ -1,0 +1,412 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HiAgent006ToolInvocation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runId",
+    "callId",
+    "toolName",
+    "serverId",
+    "remoteToolName",
+    "definitionVersion",
+    "policyVersion",
+    "risk",
+    "policyAction",
+    "approvalId",
+    "approvalStatus",
+    "approvalWaitMillis",
+    "dispatchCount",
+    "executionMillis",
+    "outcome",
+    "errorCode",
+    "argumentsDigest",
+    "effect",
+    "createdAt",
+    "dispatchAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "006-v1"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "原样保留核心 taskId，不要求 UUID；Java 构造器沿用 AgentRequest 的非空白校验。"
+    },
+    "callId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "toolName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "serverId": {
+      "maxLength": 32,
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "remoteToolName": {
+      "maxLength": 64,
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "definitionVersion": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "policyVersion": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "risk": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ]
+    },
+    "policyAction": {
+      "enum": [
+        "ALLOW",
+        "REQUIRE_APPROVAL",
+        "DENY"
+      ]
+    },
+    "approvalId": {
+      "format": "uuid",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvalStatus": {
+      "enum": [
+        null,
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "EXPIRED",
+        "CANCELLED",
+        "INVALIDATED",
+        "INTERRUPTED"
+      ]
+    },
+    "approvalWaitMillis": {
+      "minimum": 0,
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dispatchCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "executionMillis": {
+      "minimum": 0,
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "NOT_DISPATCHED",
+        "SUCCEEDED",
+        "FAILED",
+        "UNKNOWN"
+      ]
+    },
+    "errorCode": {
+      "maxLength": 64,
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "argumentsDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "effect": {
+      "enum": [
+        "READ_ONLY",
+        "WRITE"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "准备调用时捕获的 UTC 时间，毫秒精度；不用于预算判定。"
+    },
+    "dispatchAt": {
+      "format": "date-time",
+      "description": "未发起为 null；实际尝试发起时记录，重启恢复可沿用持久化的保守标记，不能当作远端执行证据。",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "policyAction": {
+            "const": "DENY"
+          }
+        },
+        "required": [
+          "policyAction"
+        ]
+      },
+      "then": {
+        "properties": {
+          "dispatchCount": {
+            "const": 0
+          },
+          "outcome": {
+            "const": "NOT_DISPATCHED"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "dispatchCount": {
+            "const": 0
+          }
+        },
+        "required": [
+          "dispatchCount"
+        ]
+      },
+      "then": {
+        "properties": {
+          "outcome": {
+            "const": "NOT_DISPATCHED"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "enum": [
+              "SUCCEEDED",
+              "FAILED",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "then": {
+        "properties": {
+          "dispatchCount": {
+            "const": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "approvalStatus": {
+            "enum": [
+              "PENDING",
+              "REJECTED",
+              "EXPIRED",
+              "CANCELLED",
+              "INVALIDATED",
+              "INTERRUPTED"
+            ]
+          }
+        },
+        "required": [
+          "approvalStatus"
+        ]
+      },
+      "then": {
+        "properties": {
+          "dispatchCount": {
+            "const": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "policyAction": {
+            "const": "REQUIRE_APPROVAL"
+          },
+          "dispatchCount": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "approvalId": {
+            "type": "string"
+          },
+          "approvalStatus": {
+            "const": "APPROVED"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "risk": {
+                "const": "HIGH"
+              }
+            }
+          },
+          {
+            "properties": {
+              "effect": {
+                "const": "WRITE"
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "policyAction": {
+            "enum": [
+              "REQUIRE_APPROVAL",
+              "DENY"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "approvalId": {
+              "type": "null"
+            },
+            "approvalStatus": {
+              "type": "null"
+            },
+            "approvalWaitMillis": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "approvalId": {
+              "type": "string"
+            },
+            "approvalStatus": {
+              "type": "string"
+            },
+            "policyAction": {
+              "const": "REQUIRE_APPROVAL"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "if": {
+        "properties": {
+          "policyAction": {
+            "enum": [
+              "ALLOW",
+              "DENY"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "approvalId": {
+            "type": "null"
+          },
+          "approvalStatus": {
+            "type": "null"
+          },
+          "approvalWaitMillis": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "dispatchCount": {
+            "const": 0
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "dispatchAt": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "dispatchAt": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ],
+  "description": "纯 Java Runtime 的调用事实；runId 沿用 AgentRequest.taskId。Web UUID 校验属于 Web 边界。"
+}

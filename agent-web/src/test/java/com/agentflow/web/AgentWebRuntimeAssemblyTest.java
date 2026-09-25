@@ -59,6 +59,20 @@ public class AgentWebRuntimeAssemblyTest {
                 });
     }
 
+    @Test
+    void applicationApprovalGateIsRetainedByWebCoordinator() {
+        var gate = mock(com.agentflow.core.approval.ApprovalGate.class);
+        runner().withBean(AgentModelClient.class, () -> request -> new FinalAnswerDecision("d", "answer", TokenUsage.empty()))
+                .withBean(ToolRegistry.class, () -> new InMemoryToolRegistry(List.of()))
+                .withBean(com.agentflow.core.approval.ApprovalGate.class, () -> gate)
+                .run(context -> {
+                    assertThat(context).hasNotFailed().hasSingleBean(AgentRuntime.class);
+                    var field = com.agentflow.web.run.RunCoordinator.class.getDeclaredField("applicationApprovalGate");
+                    field.setAccessible(true);
+                    assertThat(field.get(context.getBean(com.agentflow.web.run.RunCoordinator.class))).isSameAs(gate);
+                });
+    }
+
     private ApplicationContextRunner runner() {
         return new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(com.agentflow.tool.ToolPolicyAutoConfiguration.class, AgentWebAutoConfiguration.class))

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createConversationClient} from '../../main/resources/static/conversation.js';
+import {createApprovalClient, renderApprovals} from '../../main/resources/static/approval.js';
 import {readFile} from 'node:fs/promises';
 
 test('evidence requirement is explicit and preserved on continuation', () => {
@@ -21,9 +22,9 @@ test('page renders persisted citations as text and guards stale snapshot callbac
     const html = await readFile(new URL('../../main/resources/static/index.html', import.meta.url), 'utf8');
     const script = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1].replace(/^\s*import .*;$/gm, '');
     let observer;
-    const page = new Function('document', 'window', 'fetch', 'Option', 'observeRun', 'createConversationClient', script + '\nreturn {renderSnapshot,selectSession};')(
+    const page = new Function('document', 'window', 'fetch', 'Option', 'observeRun', 'createConversationClient', 'createApprovalClient', 'renderApprovals', script + '\nreturn {renderSnapshot,selectSession};')(
         document, {addEventListener() {}}, async () => ({ok: true, json: async () => ({taskId: 'r',sessionId: 's',items:[]})}),
-        function() {}, options => { observer = options; return {stop(){},async start(){}}; }, createConversationClient);
+        function() {}, options => { observer = options; return {stop(){},async start(){}}; }, createConversationClient, createApprovalClient, renderApprovals);
     page.renderSnapshot({taskId: 'r',status:'SUCCEEDED', citations:[{id:'S1',sourcePath:'https://untrusted',title:'<img>',start:0,end:6,excerpt:'<evil>'}]});
     const card = document.querySelector('#citations').children[0];
     assert.ok(card);
