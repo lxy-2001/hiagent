@@ -18,6 +18,7 @@ class ApprovalEventsTest {
         assertThatThrownBy(() -> service.begin(request, run,
                 new ToolExecutionControl(run, TimeSource.system(), Duration.ofSeconds(30)), events::add)).isInstanceOf(RuntimeException.class);
         assertThat(events).isEmpty();
-        assertThat(run.claimApprovalIo()).isPresent();
+        assertThat(run.claimApprovalIo()).isEmpty();
+        assertThat(run.isApprovalUncertain()).isTrue();
     }
 }

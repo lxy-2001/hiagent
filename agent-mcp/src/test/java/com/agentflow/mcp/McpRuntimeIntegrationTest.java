@@ -33,7 +33,7 @@ class McpRuntimeIntegrationTest {
             assertEquals(TerminationReason.APPROVAL_UNAVAILABLE,result.terminationReason());assertEquals(0,server.callCount());
         }
     }
-    private AgentResult run(LoopbackMcpServer server,McpClientOperations client,ToolExecutionPolicy policy,String answer,AgentRunOptions options) {
+    AgentResult run(LoopbackMcpServer server,McpClientOperations client,ToolExecutionPolicy policy,String answer,AgentRunOptions options) {
         var properties=new McpProperties(true,List.of(new McpProperties.Server("demo",server.endpoint(),"",Set.of("project_info"))),Duration.ofSeconds(2));
         var provider=new McpToolProvider(properties,Map.of("demo",client),policy);
         var registry=new InMemoryToolRegistry(provider.tools());

@@ -119,7 +119,7 @@ public final class RunResultProjector {
         if (status == RunLifecycleStatus.SUCCEEDED && result.finalAnswer().length() > MAX_ANSWER_CHARS) {
             return new FinalProjection(taskId, RunLifecycleStatus.FAILED,
                     RunTerminationReason.OUTPUT_TOO_LARGE, result.terminationReason(), null,
-                    result.usage(), terminalTime, cancelRequested, false, "OUTPUT_TOO_LARGE", List.of());
+                    result.usage(), terminalTime, cancelRequested, false, "OUTPUT_TOO_LARGE", List.of(), List.of(), result.toolInvocations());
         }
         try { new CitationSnapshotCodec().encode(result.citations()); }
         catch (IllegalArgumentException invalid) {
@@ -129,7 +129,13 @@ public final class RunResultProjector {
         FinalProjection projection = new FinalProjection(taskId, status, reason, result.terminationReason(),
                 result.finalAnswer(), result.usage(), terminalTime, cancelRequested, false,
                 status == RunLifecycleStatus.SUCCEEDED ? null : reason.name(), stepProjection.steps(), result.citations(), result.toolInvocations());
-        boolean complete = observationComplete && stepProjection.complete();
+        Set<String> tracedCalls = new HashSet<>();
+        result.toolInvocations().forEach(record -> tracedCalls.add(record.callId()));
+        boolean invocationsComplete = result.steps().stream()
+                .filter(step -> step.stepType() == AgentStepType.TOOL_RESULT && step.status() == AgentStepStatus.SUCCESS)
+                .allMatch(step -> step.callId() != null && tracedCalls.contains(step.callId()));
+        boolean complete = observationComplete && stepProjection.complete() && invocationsComplete
+                && result.terminationReason() != TerminationReason.APPROVAL_STORAGE_UNAVAILABLE;
         return fitProjection(projection, complete);
     }
 

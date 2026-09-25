@@ -92,6 +92,15 @@ public class ToolInvocationEntity {
         approvalStatus = status.name(); decisionSource = source.name(); decidedAt = at; approvalWaitMs = waitMillis;
     }
 
+    public void terminatePending(ApprovalStatus status, com.agentflow.core.approval.ApprovalResolution.DecisionSource source,
+                                 Instant at) {
+        if (!ApprovalStatus.PENDING.name().equals(approvalStatus)) return;
+        if (status == ApprovalStatus.PENDING || status == ApprovalStatus.APPROVED || status == ApprovalStatus.REJECTED)
+            throw new IllegalArgumentException("invalid system termination");
+        approvalStatus = status.name(); decisionSource = source.name(); decidedAt = at;
+        // No monotonic measurement survives a process loss; null is deliberately not fabricated as zero.
+    }
+
     public void markDispatch(Instant at) {
         if (!ApprovalStatus.APPROVED.name().equals(approvalStatus) || dispatchCount != 0)
             throw new IllegalStateException("approval cannot dispatch");

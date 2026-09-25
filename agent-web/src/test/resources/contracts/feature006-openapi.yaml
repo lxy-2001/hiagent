@@ -1511,7 +1511,8 @@ components:
             decisionSource:
               enum: *id005
             waitMillis:
-              type: integer
+              description: Null if interruption prevents a monotonic duration measurement.
+              type: [integer, "null"]
               minimum: 0
       - if:
           properties:

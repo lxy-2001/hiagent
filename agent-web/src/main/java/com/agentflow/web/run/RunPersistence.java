@@ -98,6 +98,7 @@ public class RunPersistence {
         }
 
         mergeInvocations(task, projection);
+        var resolved = terminateApprovals(task.getId(), projection.terminationReason(), projection.finishedAt());
         List<RunResultProjector.ProjectedStep> finalSteps = mergeSteps(projection);
         steps.deleteByTaskId(projection.taskId());
         entityManager.flush();
@@ -106,10 +107,15 @@ public class RunPersistence {
         }
         task.applyFinal(projection);
         entityManager.flush();
-        return new CommittedTerminal(snapshot(task), true, false);
+        return new CommittedTerminal(snapshot(task), true, false, resolved);
     }
 
-    public record CommittedTerminal(RunSnapshot snapshot, boolean written, boolean conflict) {
+    public record CommittedTerminal(RunSnapshot snapshot, boolean written, boolean conflict,
+                                    List<com.agentflow.web.approval.ApprovalSnapshot> resolvedApprovals) {
+        public CommittedTerminal(RunSnapshot snapshot, boolean written, boolean conflict) {
+            this(snapshot, written, conflict, List.of());
+        }
+        public CommittedTerminal { resolvedApprovals = List.copyOf(resolvedApprovals); }
     }
 
     @Transactional(timeout = 3)
@@ -166,15 +172,46 @@ public class RunPersistence {
         if (limit < 1 || limit > 100) throw new IllegalArgumentException("limit must be between 1 and 100");
         Objects.requireNonNull(finishedAt, "finishedAt must not be null");
         List<AgentTaskEntity> found = tasks.findInterruptedAfter(List.of(
-                RunLifecycleStatus.QUEUED.name(), RunLifecycleStatus.RUNNING.name()),
+                RunLifecycleStatus.QUEUED.name(), RunLifecycleStatus.RUNNING.name(), RunLifecycleStatus.WAITING_APPROVAL.name()),
                 afterId == null ? "" : afterId, PageRequest.of(0, limit));
         RunResultProjector projector = new RunResultProjector();
         for (AgentTaskEntity task : found) {
+            terminateApprovals(task.getId(), RunTerminationReason.PROCESS_INTERRUPTED, finishedAt);
             task.applyFinal(projector.projectFailure(task.getId(),
                     RunResultProjector.FailureKind.PROCESS_INTERRUPTED, finishedAt, task.isCancelRequested()));
         }
         entityManager.flush();
         return found.stream().map(RunPersistence::snapshot).toList();
+    }
+
+    private List<com.agentflow.web.approval.ApprovalSnapshot> terminateApprovals(String taskId, RunTerminationReason reason, Instant at) {
+        // Older isolated persistence consumers may have no approval entity in their selected model.
+        boolean mapped = entityManager.getMetamodel().getEntities().stream()
+                .anyMatch(type -> type.getJavaType() == com.agentflow.web.approval.ToolInvocationEntity.class);
+        if (!mapped) return List.of();
+        var rows = entityManager.createQuery("select i from ToolInvocationEntity i where i.taskId = :task",
+                com.agentflow.web.approval.ToolInvocationEntity.class).setParameter("task", taskId).getResultList();
+        var status = switch (reason) {
+            case CANCELLED -> com.agentflow.core.approval.ApprovalStatus.CANCELLED;
+            case TIMED_OUT, APPROVAL_TIMEOUT -> com.agentflow.core.approval.ApprovalStatus.EXPIRED;
+            case APPROVAL_STALE -> com.agentflow.core.approval.ApprovalStatus.INVALIDATED;
+            default -> com.agentflow.core.approval.ApprovalStatus.INTERRUPTED;
+        };
+        var source = switch (reason) {
+            case CANCELLED -> com.agentflow.core.approval.ApprovalResolution.DecisionSource.CANCEL;
+            case TIMED_OUT -> com.agentflow.core.approval.ApprovalResolution.DecisionSource.RUN_TIMEOUT;
+            case APPROVAL_TIMEOUT -> com.agentflow.core.approval.ApprovalResolution.DecisionSource.TTL;
+            case APPROVAL_STALE -> com.agentflow.core.approval.ApprovalResolution.DecisionSource.POLICY;
+            default -> com.agentflow.core.approval.ApprovalResolution.DecisionSource.PROCESS;
+        };
+        var resolved = new java.util.ArrayList<com.agentflow.web.approval.ApprovalSnapshot>();
+        for (var row : rows) {
+            if ("PENDING".equals(row.getApprovalStatus())) {
+                row.terminatePending(status, source, at);
+                resolved.add(row.snapshot());
+            }
+        }
+        return List.copyOf(resolved);
     }
 
     private void mergeInvocations(AgentTaskEntity task, RunResultProjector.FinalProjection projection) {
@@ -183,6 +220,9 @@ public class RunPersistence {
                     com.agentflow.web.approval.ToolInvocationEntity.class)
                     .setParameter("task", task.getId()).setParameter("call", record.callId()).getResultList();
             if (rows.isEmpty()) {
+                if (record.approvalId() != null && record.dispatchCount() == 0
+                        && projection.runtimeReason() == com.agentflow.core.runtime.TerminationReason.APPROVAL_STORAGE_UNAVAILABLE
+                        && !projection.recordingComplete()) continue;
                 entityManager.persist(com.agentflow.web.approval.ToolInvocationEntity.completed(task.getId(), task.getUserId(), record));
             } else {
                 rows.get(0).merge(record);

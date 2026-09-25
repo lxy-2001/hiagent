@@ -261,7 +261,7 @@ public final class RunCoordinator implements AutoCloseable {
                 if (events.publish(control.taskId(), draft).status() != RunEventHub.PublishStatus.PUBLISHED)
                     owned.observationsComplete().set(false);
             } catch (RuntimeException failure) { owned.observationsComplete().set(false); }
-        });
+        }, () -> monotonicNanos.getAsLong() - preparationStarted >= totalBudget.maxDuration().toNanos());
         try {
             AgentRequest request = new AgentRequest(control.taskId(), owned.command().sessionId(),
                     control.userId(), owned.command().input(), seed, owned.command().requireEvidence());
@@ -321,6 +321,7 @@ public final class RunCoordinator implements AutoCloseable {
         try {
             RunPersistence.CommittedTerminal committed = persistence.complete(projection);
             control.finishPending(pending, RunControl.PendingOutcome.TERMINAL_CONFIRMED);
+            publishResolved(committed);
             RunSnapshot fact = committed.snapshot();
             publish(fact.taskId(), RunEvent.Type.RUN_TERMINATED, fact.finishedAt(), terminalPayload(fact));
             events.markTerminal(fact.taskId());
@@ -349,6 +350,16 @@ public final class RunCoordinator implements AutoCloseable {
             runs.remove(owned.control().taskId(), owned);
             handles.remove(owned.control().taskId());
             releaseReservation(owned.command().sessionId(), owned.control().taskId());
+        }
+    }
+
+    private void publishResolved(RunPersistence.CommittedTerminal committed) {
+        for (var approval : committed.resolvedApprovals()) {
+            try {
+                publish(approval.taskId(), RunEvent.Type.APPROVAL_RESOLVED, approval.decidedAt(),
+                        new com.agentflow.web.approval.ApprovalService.Resolved(approval.approvalId(), approval.callId(),
+                                approval.status().name(), approval.decisionSource().name(), approval.decidedAt(), approval.waitMillis()));
+            } catch (RuntimeException ignored) { /* The committed query snapshot remains authoritative. */ }
         }
     }
 
@@ -449,7 +460,7 @@ public final class RunCoordinator implements AutoCloseable {
     public void markReady() {
         synchronized (admissionLock) {
             if (!startupRecoveryBlocked && availability != Availability.STOPPING
-                    && runs.values().stream().noneMatch(run -> run.control().pending().isPresent())) {
+                    && runs.values().stream().noneMatch(run -> (run.control().pending().isPresent() || run.control().isApprovalUncertain()))) {
                 availability = Availability.READY;
             }
         }
@@ -468,6 +479,7 @@ public final class RunCoordinator implements AutoCloseable {
                         && claim.payload() instanceof RunResultProjector.FinalProjection projection) {
                     RunPersistence.CommittedTerminal committed = persistence.complete(projection);
                     owned.control().finishPending(claim, RunControl.PendingOutcome.TERMINAL_CONFIRMED);
+                    publishResolved(committed);
                     RunSnapshot fact = committed.snapshot();
                     publish(fact.taskId(), RunEvent.Type.RUN_TERMINATED, fact.finishedAt(), terminalPayload(fact));
                     events.markTerminal(fact.taskId());
@@ -513,12 +525,13 @@ public final class RunCoordinator implements AutoCloseable {
                 failed = true;
             }
         }
+        if (runs.values().stream().anyMatch(r -> r.control().isApprovalUncertain())) failed = true;
         synchronized (admissionLock) {
             if (availability == Availability.STOPPING) {
                 return;
             }
             if (!startupRecoveryBlocked && !failed
-                    && runs.values().stream().noneMatch(r -> r.control().pending().isPresent())) {
+                    && runs.values().stream().noneMatch(r -> (r.control().pending().isPresent() || r.control().isApprovalUncertain()))) {
                 availability = Availability.READY;
             } else if (failed) availability = Availability.DEGRADED;
         }
@@ -575,6 +588,7 @@ public final class RunCoordinator implements AutoCloseable {
             if (availability == Availability.STOPPING) {
                 throw new RunUnavailableException("SERVICE_STOPPING", null);
             }
+            if (runs.values().stream().anyMatch(r -> r.control().isApprovalUncertain())) availability = Availability.DEGRADED;
             if (availability != Availability.READY) {
                 throw new RunUnavailableException("PERSISTENCE_UNAVAILABLE", null);
             }

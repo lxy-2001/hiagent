@@ -14,6 +14,7 @@ public record ApprovalRequest(UUID approvalId, PreparedToolCall preparedCall,
         if (!preparedCall.createdAt().equals(createdAt) || expiresAt.isBefore(createdAt)
                 || policyDecision.action() != ToolPolicyDecision.Action.REQUIRE_APPROVAL)
             throw new IllegalArgumentException("invalid approval binding");
+        expiresAt = expiresAt.truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
     }
     @Override public String toString() { return "ApprovalRequest[approvalId=" + approvalId + "]"; }
 }

@@ -30,7 +30,9 @@ class ApprovalRunIntegrationTest {
     @org.junit.jupiter.api.BeforeEach void clean() { invocations.deleteAll(); tasks.deleteAll(); sessions.deleteAll(); }
 
     @Test void twentyConcurrentApprovalsAreIdempotentAndOnlyOneDispatchIsPossible() throws Exception {
-        var request = ApprovalFixtures.request();
+        var original = ApprovalFixtures.request();
+        var request = new ApprovalRequest(original.approvalId(), original.preparedCall(), original.policyDecision(),
+                original.createdAt(), original.expiresAt().plusNanos(123456789));
         runs.createQueued(new RunPersistence.CreateCommand(ApprovalFixtures.RUN, "s", "owner", "hello", "hello", ApprovalFixtures.NOW));
         runs.markRunning(ApprovalFixtures.RUN, ApprovalFixtures.NOW);
         var service = new ApprovalService(persistence, Clock.fixed(ApprovalFixtures.NOW, ZoneOffset.UTC), System::nanoTime);

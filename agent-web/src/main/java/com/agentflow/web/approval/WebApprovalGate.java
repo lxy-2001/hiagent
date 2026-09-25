@@ -11,17 +11,24 @@ public final class WebApprovalGate implements ApprovalGate, AutoCloseable {
     private final ApprovalService service;
     private final RunControl run;
     private final Consumer<RunEvent.Draft> events;
+    private final java.util.function.BooleanSupplier runExpired;
     private final Set<UUID> approvals = new HashSet<>();
     private final Set<UUID> dispatched = new HashSet<>();
 
     public WebApprovalGate(ApprovalService service, RunControl run, Consumer<RunEvent.Draft> events) {
+        this(service, run, events, () -> false);
+    }
+
+    public WebApprovalGate(ApprovalService service, RunControl run, Consumer<RunEvent.Draft> events,
+                           java.util.function.BooleanSupplier runExpired) {
+        this.runExpired = Objects.requireNonNull(runExpired);
         this.service = Objects.requireNonNull(service); this.run = Objects.requireNonNull(run);
         this.events = Objects.requireNonNull(events);
     }
 
     @Override public ApprovalResolution await(ApprovalRequest request, ToolExecutionControl control) {
         if (!approvals.add(request.approvalId())) throw new IllegalStateException("approval already awaited");
-        service.begin(request, run, control, events);
+        service.begin(request, run, control, events, runExpired);
         while (true) {
             var current = service.poll(run.userId(), run.taskId(), request.approvalId().toString());
             if (current.status() != ApprovalStatus.PENDING)

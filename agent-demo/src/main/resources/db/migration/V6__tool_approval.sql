@@ -45,7 +45,8 @@ create table agent_tool_invocation (
             and ((approval_status = 'PENDING' and decided_at is null and decision_source is null
                     and approval_wait_ms is null and dispatch_count = 0)
                 or (regexp_like(approval_status, '^(APPROVED|REJECTED|EXPIRED|CANCELLED|INVALIDATED|INTERRUPTED)$')
-                    and decided_at is not null and decision_source is not null and approval_wait_ms is not null
+                    and decided_at is not null and decision_source is not null
+                    and (decision_source <> 'USER' or approval_wait_ms is not null)
                     and regexp_like(decision_source, '^(USER|TTL|RUN_TIMEOUT|CANCEL|POLICY|PROCESS)$'))))),
     constraint ck_invocation_durations check ((approval_wait_ms is null or approval_wait_ms >= 0)
         and (execution_ms is null or execution_ms >= 0)),

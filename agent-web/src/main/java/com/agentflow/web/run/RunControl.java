@@ -75,6 +75,7 @@ public final class RunControl implements CancellationSignal {
     private PendingView pending;
     private PendingClaim ioClaim;
     private Long approvalIoClaim;
+    private boolean approvalUncertain;
     private boolean finalFrozen;
     private boolean workerEntered;
     private boolean workerExited;
@@ -209,8 +210,11 @@ public final class RunControl implements CancellationSignal {
     }
 
     /** Shares the same exclusion boundary as cancellation and final persistence. No IO under this monitor. */
+    public synchronized void markApprovalUncertain() { approvalUncertain = true; }
+    public synchronized boolean isApprovalUncertain() { return approvalUncertain; }
+
     public synchronized Optional<Long> claimApprovalIo() {
-        if (phase != Phase.EXECUTING || finalFrozen || pending != null || ioClaim != null || approvalIoClaim != null)
+        if (approvalUncertain || phase != Phase.EXECUTING || finalFrozen || pending != null || ioClaim != null || approvalIoClaim != null)
             return Optional.empty();
         approvalIoClaim = ++claimSequence;
         return Optional.of(approvalIoClaim);
