@@ -6,6 +6,7 @@ import com.agentflow.core.model.FinalAnswerDecision;
 import com.agentflow.core.model.ModelDecision;
 import com.agentflow.core.model.ModelMessage;
 import com.agentflow.core.model.ToolCallDecision;
+import com.agentflow.core.model.UsageSource;
 import com.agentflow.core.tool.ParameterSpec;
 import com.agentflow.core.tool.ToolArguments;
 import com.agentflow.core.tool.ToolCall;
@@ -65,7 +66,10 @@ public final class ProviderDecisionMapper {
         if (refusal.isTextual() && !refusal.asText().isBlank()) {
             throw invalid("model refused the request");
         }
-        TokenUsage usage = usage(response.path("usage"));
+        JsonNode usageNode = response.path("usage");
+        TokenUsage usage = usage(usageNode);
+        UsageSource usageSource = usageNode.hasNonNull("prompt_tokens")
+                && usageNode.hasNonNull("completion_tokens") ? UsageSource.REPORTED : UsageSource.UNKNOWN;
         String finishReason = textOrNull(choice.path("finish_reason"));
         JsonNode toolCalls = message.path("tool_calls");
         if (!toolCalls.isMissingNode() && !toolCalls.isNull() && !toolCalls.isArray()) {
@@ -112,7 +116,7 @@ public final class ProviderDecisionMapper {
             String decisionId = responseId == null ? "decision-" + callId : responseId;
             try {
                 return new ToolCallDecision(decisionId, new ToolCall(callId, name,
-                        new ToolArguments(arguments)), usage);
+                        new ToolArguments(arguments)), usage, usageSource);
             } catch (IllegalArgumentException ex) {
                 throw invalid("tool arguments exceed the Core safety limits", ex);
             }
@@ -128,7 +132,7 @@ public final class ProviderDecisionMapper {
         }
         String responseId = textOrNull(response.path("id"));
         String decisionId = responseId == null ? "decision-final" : responseId;
-        return new FinalAnswerDecision(decisionId, content, usage);
+        return new FinalAnswerDecision(decisionId, content, usage, usageSource);
     }
 
     private static Map<String, Object> messageMap(ModelMessage message, ObjectMapper mapper) {

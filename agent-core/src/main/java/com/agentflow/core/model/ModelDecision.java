@@ -5,4 +5,5 @@ import com.agentflow.core.chat.TokenUsage;
 public sealed interface ModelDecision permits FinalAnswerDecision, ToolCallDecision {
     String decisionId();
     TokenUsage usage();
+    UsageSource usageSource();
 }

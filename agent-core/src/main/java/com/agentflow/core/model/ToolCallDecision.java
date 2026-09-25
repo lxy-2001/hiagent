@@ -8,8 +8,13 @@ import java.util.Objects;
 public record ToolCallDecision(
         String decisionId,
         ToolCall toolCall,
-        TokenUsage usage
+        TokenUsage usage,
+        UsageSource usageSource
 ) implements ModelDecision {
+    public ToolCallDecision(String decisionId, ToolCall toolCall, TokenUsage usage) {
+        this(decisionId, toolCall, usage, UsageSource.UNKNOWN);
+    }
+
     public ToolCallDecision {
         Objects.requireNonNull(decisionId, "decisionId must not be null");
         if (decisionId.isBlank()) {
@@ -17,5 +22,6 @@ public record ToolCallDecision(
         }
         Objects.requireNonNull(toolCall, "toolCall must not be null");
         Objects.requireNonNull(usage, "usage must not be null");
+        Objects.requireNonNull(usageSource, "usageSource must not be null");
     }
 }
