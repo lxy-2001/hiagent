@@ -63,7 +63,8 @@ public final class RunResultProjector {
             boolean recordingComplete,
             String errorCode,
             List<ProjectedStep> steps,
-            List<com.agentflow.core.rag.Citation> citations
+            List<com.agentflow.core.rag.Citation> citations,
+            List<com.agentflow.core.tool.ToolInvocationRecord> toolInvocations
     ) {
         public FinalProjection(String taskId, RunLifecycleStatus status, RunTerminationReason terminationReason,
                 TerminationReason runtimeReason, String finalAnswer, TokenUsage usage, Instant finishedAt,
@@ -71,7 +72,21 @@ public final class RunResultProjector {
             this(taskId, status, terminationReason, runtimeReason, finalAnswer, usage, finishedAt,
                     cancelRequested, recordingComplete, errorCode, steps, List.of());
         }
+        public FinalProjection(String taskId, RunLifecycleStatus status, RunTerminationReason terminationReason,
+                TerminationReason runtimeReason, String finalAnswer, TokenUsage usage, Instant finishedAt,
+                boolean cancelRequested, boolean recordingComplete, String errorCode, List<ProjectedStep> steps,
+                List<com.agentflow.core.rag.Citation> citations) {
+            this(taskId, status, terminationReason, runtimeReason, finalAnswer, usage, finishedAt,
+                    cancelRequested, recordingComplete, errorCode, steps, citations, List.of());
+        }
         public FinalProjection {
+            toolInvocations = List.copyOf(toolInvocations);
+            Set<String> calls = new HashSet<>();
+            if (toolInvocations.size() > 8 || toolInvocations.stream().anyMatch(record ->
+                    !taskId.equals(record.runId()) || !calls.add(record.callId()))) {
+                throw new IllegalArgumentException("invalid invocation ownership or count");
+            }
+            if (!toolInvocations.isEmpty()) java.util.UUID.fromString(taskId);
             citations = List.copyOf(citations);
             if (status != RunLifecycleStatus.SUCCEEDED && !citations.isEmpty()) {
                 throw new IllegalArgumentException("only successful runs have citations");
@@ -113,7 +128,7 @@ public final class RunResultProjector {
         StepProjection stepProjection = projectSteps(taskId, result);
         FinalProjection projection = new FinalProjection(taskId, status, reason, result.terminationReason(),
                 result.finalAnswer(), result.usage(), terminalTime, cancelRequested, false,
-                status == RunLifecycleStatus.SUCCEEDED ? null : reason.name(), stepProjection.steps(), result.citations());
+                status == RunLifecycleStatus.SUCCEEDED ? null : reason.name(), stepProjection.steps(), result.citations(), result.toolInvocations());
         boolean complete = observationComplete && stepProjection.complete();
         return fitProjection(projection, complete);
     }
@@ -218,14 +233,14 @@ public final class RunResultProjector {
         return new FinalProjection(source.taskId(), RunLifecycleStatus.FAILED,
                 RunTerminationReason.OUTPUT_TOO_LARGE, source.runtimeReason(), null,
                 source.usage(), source.finishedAt(), source.cancelRequested(), false,
-                RunTerminationReason.OUTPUT_TOO_LARGE.name(), List.of());
+                RunTerminationReason.OUTPUT_TOO_LARGE.name(), List.of(), List.of(), source.toolInvocations());
     }
 
     private static FinalProjection withSteps(FinalProjection source, List<ProjectedStep> steps,
                                              boolean recordingComplete) {
         return new FinalProjection(source.taskId(), source.status(), source.terminationReason(),
                 source.runtimeReason(), source.finalAnswer(), source.usage(), source.finishedAt(),
-                source.cancelRequested(), recordingComplete, source.errorCode(), steps, source.citations());
+                source.cancelRequested(), recordingComplete, source.errorCode(), steps, source.citations(), source.toolInvocations());
     }
 
     private int serializedSize(FinalProjection projection) {

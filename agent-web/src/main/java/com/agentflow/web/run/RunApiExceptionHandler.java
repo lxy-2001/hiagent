@@ -6,6 +6,10 @@ import org.springframework.web.bind.annotation.*;
 
 @RestControllerAdvice
 public class RunApiExceptionHandler {
+    @ExceptionHandler(com.agentflow.web.approval.ApprovalService.ConflictException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> approvalConflict(com.agentflow.web.approval.ApprovalService.ConflictException e) {
+        return response(HttpStatus.CONFLICT, e.code(), null);
+    }
     @ExceptionHandler(CitationSnapshotCodec.UnavailableException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> citationUnavailable() {
         return response(HttpStatus.SERVICE_UNAVAILABLE, "CITATION_DATA_UNAVAILABLE", null);

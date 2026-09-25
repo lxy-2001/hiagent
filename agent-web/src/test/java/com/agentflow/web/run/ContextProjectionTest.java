@@ -30,7 +30,7 @@ class ContextProjectionTest {
         var step = projection.steps().get(0);
         assertThat(step.stepType()).isEqualTo("CONTEXT_ASSEMBLY");
         assertThat(step.errorMessage()).hasSizeLessThanOrEqualTo(1024).doesNotContain("中");
-        assertThat(RunEvent.Type.values()).hasSize(4);
+        assertThat(RunEvent.Type.values()).containsExactly(RunEvent.Type.RUN_CREATED, RunEvent.Type.RUN_STARTED, RunEvent.Type.AGENT_STEP, RunEvent.Type.APPROVAL_REQUESTED, RunEvent.Type.APPROVAL_RESOLVED, RunEvent.Type.RUN_TERMINATED);
         var event = events.stream().filter(e -> e.type() == AgentStepType.CONTEXT_ASSEMBLY).findFirst().orElseThrow();
         assertThat(new RunEventProjector().project("r", event, Instant.now()).event().orElseThrow().type()).isEqualTo(RunEvent.Type.AGENT_STEP);
     }

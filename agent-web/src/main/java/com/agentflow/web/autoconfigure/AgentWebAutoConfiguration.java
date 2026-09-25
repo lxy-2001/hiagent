@@ -1,6 +1,7 @@
 package com.agentflow.web.autoconfigure;
 
 import com.agentflow.core.context.ContextSource;
+import com.agentflow.web.approval.*;
 import com.agentflow.web.memory.ConfirmedMemoryEntity;
 import com.agentflow.web.memory.ConfirmedMemoryRepository;
 import com.agentflow.web.memory.ConfirmedMemoryService;
@@ -60,10 +61,11 @@ import java.time.Clock;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @AutoConfiguration
-@AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class, ConfirmedMemoryEntity.class})
+@AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class, ConfirmedMemoryEntity.class, ToolInvocationEntity.class})
 @EnableConfigurationProperties(AgentFlowProperties.class)
 @Import({
         AgentController.class,
+        ApprovalController.class,
         ConfirmedMemoryController.class,
         ConversationController.class,
         AgentTaskService.class,
@@ -100,8 +102,9 @@ public class AgentWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    RunLifecycleProperties runLifecycleProperties() {
-        return RunLifecycleProperties.defaults();
+    RunLifecycleProperties runLifecycleProperties(org.springframework.core.env.Environment environment) {
+        return RunLifecycleProperties.defaults().withMaxDuration(org.springframework.boot.convert.DurationStyle.detectAndParse(
+                environment.getProperty("agentflow.run.max-duration", "30s")));
     }
 
     @Bean
@@ -178,14 +181,29 @@ public class AgentWebAutoConfiguration {
         return new PersistentContextSource(entityManager, textPolicy);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    ApprovalPersistence approvalPersistence(AgentTaskRepository tasks, ToolInvocationRepository invocations, EntityManager em) {
+        return new ApprovalPersistence(tasks, invocations, em);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ApprovalService approvalService(ApprovalPersistence persistence) {
+        return new ApprovalService(persistence, Clock.systemUTC(), System::nanoTime);
+    }
+
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean
     RunCoordinator runCoordinator(ContextSource contextSource, AgentRuntime runtime, RunPersistence persistence, RunEventHub hub,
                                   RunEventProjector eventProjector, RunResultProjector resultProjector,
                                   BoundedRunExecutor executor, RunLifecycleProperties properties,
-                                  ConversationProperties conversationProperties) {
+                                  ConversationProperties conversationProperties, ApprovalService approvalService,
+                                  org.springframework.core.env.Environment environment) {
         RunCoordinator coordinator = new RunCoordinator(contextSource, runtime, persistence, hub, eventProjector, resultProjector, executor,
                 properties, Clock.systemUTC(), System::nanoTime, Ids::newId, conversationProperties);
+        coordinator.configureApprovals(approvalService, org.springframework.boot.convert.DurationStyle.detectAndParse(
+                environment.getProperty("agentflow.approval.ttl", "30s")));
         coordinator.recoverInterrupted();
         return coordinator;
     }

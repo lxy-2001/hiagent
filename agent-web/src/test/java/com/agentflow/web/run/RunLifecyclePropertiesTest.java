@@ -12,6 +12,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RunLifecyclePropertiesTest {
 
     @Test
+    void approvalBudgetUsesBoundedApplicationDuration() {
+        assertThat(RunLifecycleProperties.defaults().maxDuration()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(RunLifecycleProperties.defaults().withMaxDuration(Duration.ofSeconds(120)).maxDuration()).isEqualTo(Duration.ofSeconds(120));
+        for (Duration invalid : java.util.List.of(Duration.ZERO, Duration.ofSeconds(-1), Duration.ofSeconds(121)))
+            assertThatThrownBy(() -> RunLifecycleProperties.defaults().withMaxDuration(invalid)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void exposesTheFixedProductionLimitsAsDefaults() {
         RunLifecycleProperties properties = RunLifecycleProperties.defaults();
 

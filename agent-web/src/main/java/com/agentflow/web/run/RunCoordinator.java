@@ -51,6 +51,15 @@ public final class RunCoordinator implements AutoCloseable {
     private final Supplier<String> ids;
     private final Map<String, OwnedRun> runs = new ConcurrentHashMap<>();
     private final Map<String, BoundedRunExecutor.TaskHandle> handles = new ConcurrentHashMap<>();
+    private com.agentflow.web.approval.ApprovalService approvals;
+    private java.time.Duration approvalTtl = java.time.Duration.ofSeconds(30);
+
+    public void configureApprovals(com.agentflow.web.approval.ApprovalService service, java.time.Duration ttl) {
+        if (ttl == null || ttl.isZero() || ttl.isNegative() || ttl.compareTo(java.time.Duration.ofSeconds(120)) > 0)
+            throw new IllegalArgumentException("invalid approval TTL");
+        this.approvals = Objects.requireNonNull(service); this.approvalTtl = ttl;
+    }
+
     private final Object admissionLock = new Object();
     private volatile Availability availability = Availability.READY;
     private volatile boolean startupRecoveryBlocked;
@@ -214,7 +223,9 @@ public final class RunCoordinator implements AutoCloseable {
             return;
         }
         long preparationStarted = monotonicNanos.getAsLong();
-        ExecutionBudget totalBudget = ExecutionBudget.defaults();
+        ExecutionBudget defaults = ExecutionBudget.defaults();
+        ExecutionBudget totalBudget = new ExecutionBudget(defaults.maxIterations(), properties.maxDuration(),
+                defaults.maxPromptTokens(), defaults.maxCompletionTokens());
         ContextSeed seed = null;
         boolean sourceFailed = false;
         if (control.isCancelled()) {
@@ -245,16 +256,23 @@ public final class RunCoordinator implements AutoCloseable {
             return;
         }
         AgentResult result;
+        var gate = approvals == null ? null : new com.agentflow.web.approval.WebApprovalGate(approvals, control, draft -> {
+            try {
+                if (events.publish(control.taskId(), draft).status() != RunEventHub.PublishStatus.PUBLISHED)
+                    owned.observationsComplete().set(false);
+            } catch (RuntimeException failure) { owned.observationsComplete().set(false); }
+        });
         try {
             AgentRequest request = new AgentRequest(control.taskId(), owned.command().sessionId(),
                     control.userId(), owned.command().input(), seed, owned.command().requireEvidence());
             ExecutionBudget remaining = new ExecutionBudget(totalBudget.maxIterations(),
                     totalBudget.maxDuration().minusNanos(preparationNanos), totalBudget.maxPromptTokens(), totalBudget.maxCompletionTokens());
             result = runtime.run(request, event -> observe(owned, event),
-                    new AgentRunOptions(remaining, control));
+                    new AgentRunOptions(remaining, control, gate, approvalTtl));
         } catch (RuntimeException failure) {
             result = null;
         }
+        if (gate != null) gate.close();
         RunResultProjector.FinalProjection projection = result == null
                 ? resultProjector.projectFailure(control.taskId(),
                     RunResultProjector.FailureKind.INTERNAL_ERROR, clock.instant(), control.isCancelled())

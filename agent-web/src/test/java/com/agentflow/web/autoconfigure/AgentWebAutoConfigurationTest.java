@@ -127,6 +127,9 @@ class AgentWebAutoConfigurationTest {
         }
 
         @Bean
+        com.agentflow.web.approval.ToolInvocationRepository invocations() { return mock(com.agentflow.web.approval.ToolInvocationRepository.class); }
+
+        @Bean
         AgentTaskRepository agentTaskRepository() {
             return mock(AgentTaskRepository.class);
         }

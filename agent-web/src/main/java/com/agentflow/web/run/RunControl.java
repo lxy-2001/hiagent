@@ -74,6 +74,7 @@ public final class RunControl implements CancellationSignal {
     private long claimSequence;
     private PendingView pending;
     private PendingClaim ioClaim;
+    private Long approvalIoClaim;
     private boolean finalFrozen;
     private boolean workerEntered;
     private boolean workerExited;
@@ -153,7 +154,7 @@ public final class RunControl implements CancellationSignal {
 
     public synchronized long markCreateUncertain(Object command) {
         Objects.requireNonNull(command, "command must not be null");
-        if (pending != null || ioClaim != null || finalFrozen || phase != Phase.QUEUED) {
+        if (pending != null || (ioClaim != null || approvalIoClaim != null) || finalFrozen || phase != Phase.QUEUED) {
             throw new IllegalStateException("create uncertainty can only be recorded once before dispatch");
         }
         phase = Phase.PREPARING;
@@ -164,7 +165,7 @@ public final class RunControl implements CancellationSignal {
 
     public synchronized long markStartUncertain(Instant startedAt) {
         Objects.requireNonNull(startedAt, "startedAt must not be null");
-        if (pending != null || ioClaim != null || finalFrozen || phase != Phase.STARTING) {
+        if (pending != null || (ioClaim != null || approvalIoClaim != null) || finalFrozen || phase != Phase.STARTING) {
             throw new IllegalStateException("start uncertainty can only be recorded before the runtime call");
         }
         pendingRevision = Math.incrementExact(pendingRevision);
@@ -207,8 +208,22 @@ public final class RunControl implements CancellationSignal {
         }
     }
 
+    /** Shares the same exclusion boundary as cancellation and final persistence. No IO under this monitor. */
+    public synchronized Optional<Long> claimApprovalIo() {
+        if (phase != Phase.EXECUTING || finalFrozen || pending != null || ioClaim != null || approvalIoClaim != null)
+            return Optional.empty();
+        approvalIoClaim = ++claimSequence;
+        return Optional.of(approvalIoClaim);
+    }
+
+    public synchronized boolean finishApprovalIo(long claim, boolean dispatch) {
+        if (approvalIoClaim == null || approvalIoClaim != claim) return false;
+        approvalIoClaim = null;
+        return !dispatch || phase == Phase.EXECUTING && !finalFrozen && !cancellationSignal.get();
+    }
+
     public synchronized Optional<PendingClaim> claimCancellationWrite() {
-        if (phase == Phase.STARTING || finalFrozen || ioClaim != null
+        if (phase == Phase.STARTING || finalFrozen || (ioClaim != null || approvalIoClaim != null)
                 || pending != null && pending.kind() != PendingKind.CANCEL_FLAG_PENDING) {
             return Optional.empty();
         }
@@ -217,7 +232,7 @@ public final class RunControl implements CancellationSignal {
     }
 
     public synchronized void markCreateConfirmed() {
-        if (phase != Phase.PREPARING || pending != null || ioClaim != null) {
+        if (phase != Phase.PREPARING || pending != null || (ioClaim != null || approvalIoClaim != null)) {
             throw new IllegalStateException("create cannot be confirmed while its intent is pending");
         }
         phase = Phase.QUEUED;
@@ -236,7 +251,7 @@ public final class RunControl implements CancellationSignal {
     }
 
     public synchronized Optional<PendingClaim> claimPending() {
-        if (pending == null || ioClaim != null) {
+        if (pending == null || (ioClaim != null || approvalIoClaim != null)) {
             return Optional.empty();
         }
         claimSequence = Math.incrementExact(claimSequence);

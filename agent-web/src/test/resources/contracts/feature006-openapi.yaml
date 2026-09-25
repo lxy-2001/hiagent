@@ -1,0 +1,1566 @@
+openapi: 3.1.0
+info:
+  title: HiAgent Feature006 Run and Approval API
+  version: 0.6.0-design
+  description: Design only. Extends verified 005 run/citation contracts; 004 session/memory
+    APIs remain unchanged. See execution.md for ordering and consistency invariants.
+servers:
+- url: /
+security:
+- BearerAuth: []
+paths:
+  /api/agent/tasks:
+    post:
+      operationId: createAgentRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '202':
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunAccepted'
+          description: Response 202; application invariants are defined in the Feature005
+            contracts.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Response 409; application invariants are defined in the Feature005
+            contracts.
+        '429':
+          $ref: '#/components/responses/Capacity'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Create an owned run; requireEvidence defaults to false
+  /api/agent/tasks/{taskId}:
+    parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getAgentRun
+      responses:
+        '200':
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSnapshot'
+          description: Response 200; application invariants are defined in the Feature005
+            contracts.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Capacity'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Read committed run and citation snapshots
+  /api/agent/tasks/{taskId}/steps:
+    parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: getAgentRunSteps
+      responses:
+        '200':
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 256
+                items:
+                  $ref: '#/components/schemas/StepResponse'
+          description: Response 200; application invariants are defined in the Feature005
+            contracts.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Capacity'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Read bounded content-free retrieval diagnostics
+  /api/agent/tasks/{taskId}/cancel:
+    parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      operationId: cancelAgentRun
+      responses:
+        '200':
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSnapshot'
+          description: Response 200; application invariants are defined in the Feature005
+            contracts.
+        '202':
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunSnapshot'
+          description: Response 202; application invariants are defined in the Feature005
+            contracts.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/Capacity'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Request cooperative cancellation; return current snapshot
+  /api/agent/tasks/{taskId}/events:
+    parameters:
+    - name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      operationId: subscribeAgentRunEvents
+      parameters:
+      - name: Last-Event-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+          maxLength: 19
+      responses:
+        '200':
+          headers:
+            Cache-Control:
+              schema:
+                const: no-store
+          content:
+            text/event-stream:
+              schema:
+                type: string
+          description: Response 200; application invariants are defined in the Feature005
+            contracts.
+        '204':
+          headers:
+            Cache-Control:
+              schema:
+                const: no-store
+          description: Response 204; application invariants are defined in the Feature005
+            contracts.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/Capacity'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      summary: Observe lifecycle and approval event envelopes
+  /api/agent/tasks/{taskId}/approvals:
+    parameters:
+    - &id001
+      name: taskId
+      in: path
+      required: true
+      schema: &id002
+        type: string
+        format: uuid
+    get:
+      operationId: listRunApprovals
+      responses:
+        '200':
+          description: Owned confirmed snapshot; approval does not execute tools.
+          headers:
+            Cache-Control:
+              schema:
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/tasks/{taskId}/approvals/{approvalId}:
+    parameters:
+    - *id001
+    - name: approvalId
+      in: path
+      required: true
+      schema: *id002
+    get:
+      operationId: getRunApproval
+      responses:
+        '200':
+          description: Owned confirmed snapshot; approval does not execute tools.
+          headers:
+            Cache-Control:
+              schema:
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalSnapshot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/agent/tasks/{taskId}/approvals/{approvalId}/decision:
+    parameters:
+    - *id001
+    - name: approvalId
+      in: path
+      required: true
+      schema: *id002
+    post:
+      operationId: decideRunApproval
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Owned confirmed snapshot; approval does not execute tools.
+          headers:
+            Cache-Control:
+              schema:
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalSnapshot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+        '409':
+          description: APPROVAL_ALREADY_DECIDED or APPROVAL_NOT_PENDING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Response BadRequest; application invariants are defined in the
+        Feature005 contracts.
+    Unauthorized:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Response Unauthorized; application invariants are defined in the
+        Feature005 contracts.
+    NotFound:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Response NotFound; application invariants are defined in the Feature005
+        contracts.
+    Gone:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Response Gone; application invariants are defined in the Feature005
+        contracts.
+    Capacity:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Response Capacity; application invariants are defined in the Feature005
+        contracts.
+    Unavailable:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+        Location:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: '503: existing service failures or CITATION_DATA_UNAVAILABLE for
+        a malformed persisted citation snapshot. No false empty-citation success.'
+    InternalError:
+      headers:
+        Cache-Control:
+          schema:
+            type: string
+            const: no-store
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+      description: Response InternalError; application invariants are defined in the
+        Feature005 contracts.
+  schemas:
+    CreateTaskRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - input
+      properties:
+        input:
+          type: string
+          minLength: 1
+          maxLength: 8000
+        sessionId:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+          maxLength: 36
+        requireEvidence:
+          type: boolean
+          default: false
+    RunAccepted:
+      type: object
+      additionalProperties: false
+      required:
+      - taskId
+      - runId
+      - sessionId
+      - status
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        runId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          const: QUEUED
+    RunStatus:
+      type: string
+      enum:
+      - QUEUED
+      - RUNNING
+      - WAITING_APPROVAL
+      - SUCCEEDED
+      - FAILED
+      - CANCELLED
+      - TIMED_OUT
+      - BUDGET_EXCEEDED
+    TerminationReason:
+      type: string
+      enum:
+      - COMPLETED
+      - INVALID_INPUT
+      - INVALID_DECISION
+      - MODEL_ERROR
+      - UNKNOWN_TOOL
+      - DISABLED_TOOL
+      - INVALID_TOOL_ARGUMENTS
+      - TOOL_ERROR
+      - TOOL_RESULT_INVALID
+      - TOOL_RESULT_TOO_LARGE
+      - CANCELLED
+      - TIMED_OUT
+      - BUDGET_EXCEEDED
+      - QUEUE_TIMEOUT
+      - DISPATCH_REJECTED
+      - PERSISTENCE_UNAVAILABLE
+      - INTERNAL_ERROR
+      - INVALID_RUNTIME_RESULT
+      - OUTPUT_TOO_LARGE
+      - PROCESS_INTERRUPTED
+      - CONTEXT_BUDGET_EXCEEDED
+      - CONTEXT_SOURCE_UNAVAILABLE
+      - LEGACY_FAILURE
+      - CITATION_INVALID
+      - INSUFFICIENT_EVIDENCE
+      - TOOL_POLICY_DENIED
+      - APPROVAL_UNAVAILABLE
+      - APPROVAL_REJECTED
+      - APPROVAL_TIMEOUT
+      - APPROVAL_STALE
+      - AMBIGUOUS_TOOL_OUTCOME
+      - MCP_TIMEOUT
+      - MCP_UNAVAILABLE
+      - MCP_PROTOCOL_ERROR
+      - MCP_TOOL_ERROR
+      - MCP_RESULT_UNSUPPORTED
+    Usage:
+      type: object
+      additionalProperties: false
+      required:
+      - promptTokens
+      - completionTokens
+      - totalTokens
+      properties:
+        promptTokens:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        completionTokens:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+        totalTokens:
+          type: integer
+          minimum: 0
+          maximum: 2147483647
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+          enum:
+          - INVALID_REQUEST
+          - UNAUTHORIZED
+          - NOT_FOUND
+          - RATE_LIMITED
+          - DEPENDENCY_UNAVAILABLE
+          - RUN_CAPACITY_EXCEEDED
+          - SUBSCRIPTION_CAPACITY_EXCEEDED
+          - INVALID_EVENT_CURSOR
+          - EVENT_HISTORY_UNAVAILABLE
+          - PERSISTENCE_UNAVAILABLE
+          - SERVICE_STOPPING
+          - INTERNAL_ERROR
+          - APPROVAL_ALREADY_DECIDED
+          - APPROVAL_NOT_PENDING
+        message:
+          type: string
+          maxLength: 200
+        taskId:
+          type: string
+          format: uuid
+    EventId:
+      type: string
+      pattern: ^[1-9][0-9]{0,18}$
+      maxLength: 19
+    RunSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - taskId
+      - runId
+      - sessionId
+      - status
+      - input
+      - finalAnswer
+      - createdAt
+      - updatedAt
+      - startedAt
+      - finishedAt
+      - cancelRequested
+      - terminationReason
+      - runtimeReason
+      - errorCode
+      - recordingComplete
+      - usage
+      - requireEvidence
+      - citations
+      properties:
+        taskId:
+          type: string
+          format: uuid
+        runId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        input:
+          type: string
+          maxLength: 8000
+        finalAnswer:
+          anyOf:
+          - type: string
+            maxLength: 65536
+          - type: 'null'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        startedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        finishedAt:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+        cancelRequested:
+          type: boolean
+        terminationReason:
+          anyOf:
+          - $ref: '#/components/schemas/TerminationReason'
+          - type: 'null'
+        runtimeReason:
+          anyOf:
+          - type: string
+            enum:
+            - COMPLETED
+            - INVALID_INPUT
+            - INVALID_DECISION
+            - MODEL_ERROR
+            - UNKNOWN_TOOL
+            - DISABLED_TOOL
+            - INVALID_TOOL_ARGUMENTS
+            - TOOL_ERROR
+            - TOOL_RESULT_INVALID
+            - TOOL_RESULT_TOO_LARGE
+            - CANCELLED
+            - TIMED_OUT
+            - BUDGET_EXCEEDED
+            - CONTEXT_BUDGET_EXCEEDED
+            - CITATION_INVALID
+            - INSUFFICIENT_EVIDENCE
+            - TOOL_POLICY_DENIED
+            - APPROVAL_UNAVAILABLE
+            - APPROVAL_REJECTED
+            - APPROVAL_TIMEOUT
+            - APPROVAL_STALE
+            - AMBIGUOUS_TOOL_OUTCOME
+            - MCP_TIMEOUT
+            - MCP_UNAVAILABLE
+            - MCP_PROTOCOL_ERROR
+            - MCP_TOOL_ERROR
+            - MCP_RESULT_UNSUPPORTED
+            - APPROVAL_STORAGE_UNAVAILABLE
+          - type: 'null'
+        errorCode:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+        recordingComplete:
+          type: boolean
+        usage:
+          anyOf:
+          - $ref: '#/components/schemas/Usage'
+          - type: 'null'
+        requireEvidence:
+          type: boolean
+        citations:
+          type: array
+          maxItems: 32
+          items:
+            $ref: '#/components/schemas/Citation'
+      allOf:
+      - if:
+          properties:
+            status:
+              enum:
+              - QUEUED
+              - RUNNING
+              - WAITING_APPROVAL
+          required:
+          - status
+        then:
+          properties:
+            finishedAt:
+              type: 'null'
+            terminationReason:
+              type: 'null'
+            runtimeReason:
+              type: 'null'
+            errorCode:
+              type: 'null'
+            finalAnswer:
+              type: 'null'
+            usage:
+              type: 'null'
+            recordingComplete:
+              const: false
+      - if:
+          properties:
+            status:
+              enum:
+              - QUEUED
+          required:
+          - status
+        then:
+          properties:
+            startedAt:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              enum:
+              - RUNNING
+              - WAITING_APPROVAL
+          required:
+          - status
+        then:
+          properties:
+            startedAt:
+              type: string
+              format: date-time
+      - if:
+          properties:
+            status:
+              enum:
+              - SUCCEEDED
+              - FAILED
+              - CANCELLED
+              - TIMED_OUT
+              - BUDGET_EXCEEDED
+          required:
+          - status
+        then:
+          properties:
+            finishedAt:
+              type: string
+              format: date-time
+            terminationReason:
+              type: string
+      - if:
+          properties:
+            status:
+              enum:
+              - SUCCEEDED
+          required:
+          - status
+        then:
+          properties:
+            finalAnswer:
+              type: string
+              minLength: 1
+            terminationReason:
+              const: COMPLETED
+            errorCode:
+              type: 'null'
+      - if:
+          properties:
+            status:
+              enum:
+              - FAILED
+              - CANCELLED
+              - TIMED_OUT
+              - BUDGET_EXCEEDED
+          required:
+          - status
+        then:
+          properties:
+            finalAnswer:
+              type: 'null'
+            errorCode:
+              type: string
+              minLength: 1
+      - if:
+          properties:
+            status:
+              enum:
+              - CANCELLED
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              const: CANCELLED
+      - if:
+          properties:
+            status:
+              enum:
+              - TIMED_OUT
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              enum:
+              - TIMED_OUT
+              - QUEUE_TIMEOUT
+              - APPROVAL_TIMEOUT
+      - if:
+          properties:
+            status:
+              enum:
+              - BUDGET_EXCEEDED
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              enum:
+              - BUDGET_EXCEEDED
+              - CONTEXT_BUDGET_EXCEEDED
+      - if:
+          properties:
+            status:
+              enum:
+              - FAILED
+          required:
+          - status
+        then:
+          properties:
+            terminationReason:
+              enum:
+              - INVALID_INPUT
+              - INVALID_DECISION
+              - MODEL_ERROR
+              - UNKNOWN_TOOL
+              - DISABLED_TOOL
+              - INVALID_TOOL_ARGUMENTS
+              - TOOL_ERROR
+              - TOOL_RESULT_INVALID
+              - TOOL_RESULT_TOO_LARGE
+              - CONTEXT_SOURCE_UNAVAILABLE
+              - DISPATCH_REJECTED
+              - PERSISTENCE_UNAVAILABLE
+              - INTERNAL_ERROR
+              - INVALID_RUNTIME_RESULT
+              - OUTPUT_TOO_LARGE
+              - PROCESS_INTERRUPTED
+              - LEGACY_FAILURE
+              - CITATION_INVALID
+              - INSUFFICIENT_EVIDENCE
+              - TOOL_POLICY_DENIED
+              - APPROVAL_UNAVAILABLE
+              - APPROVAL_REJECTED
+              - APPROVAL_STALE
+              - AMBIGUOUS_TOOL_OUTCOME
+              - MCP_TIMEOUT
+              - MCP_UNAVAILABLE
+              - MCP_PROTOCOL_ERROR
+              - MCP_TOOL_ERROR
+              - MCP_RESULT_UNSUPPORTED
+      - if:
+          properties:
+            status:
+              const: SUCCEEDED
+        else:
+          properties:
+            citations:
+              maxItems: 0
+      - if:
+          properties:
+            status:
+              const: SUCCEEDED
+            requireEvidence:
+              const: true
+          required:
+          - status
+          - requireEvidence
+        then:
+          properties:
+            citations:
+              minItems: 1
+    StepResponse:
+      type: object
+      additionalProperties: false
+      required:
+      - stepNo
+      - stepType
+      - toolName
+      - status
+      - output
+      - errorMessage
+      - decisionId
+      - callId
+      - errorCode
+      - terminal
+      - latencyMs
+      - promptTokens
+      - completionTokens
+      properties:
+        stepNo:
+          type: integer
+          minimum: 1
+          maximum: 256
+        stepType:
+          type: string
+          enum:
+          - PLANNER
+          - MEMORY
+          - RAG
+          - LLM
+          - CONTEXT_ASSEMBLY
+          - MODEL_DECISION
+          - TOOL
+          - TOOL_CALL
+          - TOOL_RESULT
+          - HUMAN_APPROVAL
+          - FINAL
+          - FAILURE
+          - TERMINATION
+          - CITATION_VALIDATION
+        toolName:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+        status:
+          type: string
+          enum:
+          - RUNNING
+          - SUCCESS
+          - FAILED
+          - SKIPPED
+        output:
+          anyOf:
+          - type: string
+            maxLength: 1024
+          - type: 'null'
+        errorMessage:
+          anyOf:
+          - type: string
+            maxLength: 1024
+          - type: 'null'
+        decisionId:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+        callId:
+          anyOf:
+          - type: string
+            maxLength: 128
+          - type: 'null'
+        errorCode:
+          anyOf:
+          - type: string
+            maxLength: 64
+          - type: 'null'
+        terminal:
+          type: boolean
+        latencyMs:
+          type: integer
+          minimum: 0
+          format: int64
+        promptTokens:
+          anyOf:
+          - type: integer
+            minimum: 0
+            maximum: 2147483647
+          - type: 'null'
+        completionTokens:
+          anyOf:
+          - type: integer
+            minimum: 0
+            maximum: 2147483647
+          - type: 'null'
+    RunEvent:
+      oneOf:
+      - type: object
+        additionalProperties: false
+        required:
+        - eventId
+        - taskId
+        - runId
+        - type
+        - occurredAt
+        - payload
+        properties:
+          eventId:
+            $ref: '#/components/schemas/EventId'
+          taskId:
+            type: string
+            format: uuid
+          runId:
+            type: string
+            format: uuid
+          type:
+            const: RUN_CREATED
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+            additionalProperties: false
+            required:
+            - sessionId
+            - status
+            properties:
+              sessionId:
+                type: string
+                format: uuid
+              status:
+                const: QUEUED
+      - type: object
+        additionalProperties: false
+        required:
+        - eventId
+        - taskId
+        - runId
+        - type
+        - occurredAt
+        - payload
+        properties:
+          eventId:
+            $ref: '#/components/schemas/EventId'
+          taskId:
+            type: string
+            format: uuid
+          runId:
+            type: string
+            format: uuid
+          type:
+            const: RUN_STARTED
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+            additionalProperties: false
+            required:
+            - status
+            - startedAt
+            properties:
+              status:
+                const: RUNNING
+              startedAt:
+                type: string
+                format: date-time
+      - type: object
+        additionalProperties: false
+        required:
+        - eventId
+        - taskId
+        - runId
+        - type
+        - occurredAt
+        - payload
+        properties:
+          eventId:
+            $ref: '#/components/schemas/EventId'
+          taskId:
+            type: string
+            format: uuid
+          runId:
+            type: string
+            format: uuid
+          type:
+            const: AGENT_STEP
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+            additionalProperties: false
+            required:
+            - coreSequence
+            - stepType
+            - name
+            - summary
+            - correlationId
+            - runtimeTerminal
+            - summaryTruncated
+            properties:
+              coreSequence:
+                type: string
+                pattern: ^(0|[1-9][0-9]{0,18})$
+              stepType:
+                type: string
+                enum:
+                - PLANNER
+                - MEMORY
+                - RAG
+                - LLM
+                - CONTEXT_ASSEMBLY
+                - MODEL_DECISION
+                - TOOL
+                - TOOL_CALL
+                - TOOL_RESULT
+                - HUMAN_APPROVAL
+                - FINAL
+                - FAILURE
+                - TERMINATION
+                - CITATION_VALIDATION
+              name:
+                type: string
+                maxLength: 100
+              correlationId:
+                anyOf:
+                - type: string
+                  maxLength: 128
+                - type: 'null'
+              runtimeTerminal:
+                type: boolean
+              summaryTruncated:
+                type: boolean
+              summary:
+                type: string
+                maxLength: 1024
+      - type: object
+        additionalProperties: false
+        required:
+        - eventId
+        - taskId
+        - runId
+        - type
+        - occurredAt
+        - payload
+        properties:
+          eventId:
+            $ref: '#/components/schemas/EventId'
+          taskId:
+            type: string
+            format: uuid
+          runId:
+            type: string
+            format: uuid
+          type:
+            const: RUN_TERMINATED
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+            additionalProperties: false
+            required:
+            - status
+            - terminationReason
+            - runtimeReason
+            - finishedAt
+            - recordingComplete
+            properties:
+              status:
+                type: string
+                enum:
+                - SUCCEEDED
+                - FAILED
+                - CANCELLED
+                - TIMED_OUT
+                - BUDGET_EXCEEDED
+              terminationReason:
+                $ref: '#/components/schemas/TerminationReason'
+              runtimeReason:
+                anyOf:
+                - type: string
+                  enum:
+                  - COMPLETED
+                  - INVALID_INPUT
+                  - INVALID_DECISION
+                  - MODEL_ERROR
+                  - UNKNOWN_TOOL
+                  - DISABLED_TOOL
+                  - INVALID_TOOL_ARGUMENTS
+                  - TOOL_ERROR
+                  - TOOL_RESULT_INVALID
+                  - TOOL_RESULT_TOO_LARGE
+                  - CANCELLED
+                  - TIMED_OUT
+                  - BUDGET_EXCEEDED
+                  - CONTEXT_BUDGET_EXCEEDED
+                  - CITATION_INVALID
+                  - INSUFFICIENT_EVIDENCE
+                  - TOOL_POLICY_DENIED
+                  - APPROVAL_UNAVAILABLE
+                  - APPROVAL_REJECTED
+                  - APPROVAL_TIMEOUT
+                  - APPROVAL_STALE
+                  - AMBIGUOUS_TOOL_OUTCOME
+                  - MCP_TIMEOUT
+                  - MCP_UNAVAILABLE
+                  - MCP_PROTOCOL_ERROR
+                  - MCP_TOOL_ERROR
+                  - MCP_RESULT_UNSUPPORTED
+                  - APPROVAL_STORAGE_UNAVAILABLE
+                - type: 'null'
+              finishedAt:
+                type: string
+                format: date-time
+              recordingComplete:
+                type: boolean
+      - type: object
+        additionalProperties: false
+        required:
+        - eventId
+        - taskId
+        - runId
+        - type
+        - occurredAt
+        - payload
+        properties:
+          eventId:
+            $ref: '#/components/schemas/EventId'
+          taskId:
+            type: string
+            format: uuid
+          runId:
+            type: string
+            format: uuid
+          type:
+            const: APPROVAL_REQUESTED
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+            additionalProperties: false
+            required:
+            - approvalId
+            - callId
+            - toolName
+            - risk
+            - createdAt
+            - expiresAt
+            properties:
+              approvalId: *id002
+              callId:
+                type: string
+                maxLength: 128
+              toolName:
+                type: string
+                maxLength: 100
+              risk:
+                enum:
+                - LOW
+                - MEDIUM
+                - HIGH
+              createdAt: &id003
+                type: string
+                format: date-time
+              expiresAt: *id003
+      - type: object
+        additionalProperties: false
+        required:
+        - eventId
+        - taskId
+        - runId
+        - type
+        - occurredAt
+        - payload
+        properties:
+          eventId:
+            $ref: '#/components/schemas/EventId'
+          taskId:
+            type: string
+            format: uuid
+          runId:
+            type: string
+            format: uuid
+          type:
+            const: APPROVAL_RESOLVED
+          occurredAt:
+            type: string
+            format: date-time
+          payload:
+            type: object
+            additionalProperties: false
+            required:
+            - approvalId
+            - callId
+            - status
+            - decisionSource
+            - resolvedAt
+            - waitMillis
+            properties:
+              approvalId: *id002
+              callId:
+                type: string
+                maxLength: 128
+              status:
+                enum:
+                - APPROVED
+                - REJECTED
+                - EXPIRED
+                - CANCELLED
+                - INVALIDATED
+                - INTERRUPTED
+              decisionSource:
+                enum: &id005
+                - USER
+                - TTL
+                - RUN_TIMEOUT
+                - CANCEL
+                - POLICY
+                - PROCESS
+              resolvedAt: *id003
+              waitMillis:
+                type: integer
+                minimum: 0
+    Citation:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - snapshotId
+      - docId
+      - documentVersion
+      - chunkId
+      - contentHash
+      - sourcePath
+      - title
+      - start
+      - end
+      - excerpt
+      properties:
+        id:
+          type: string
+          pattern: ^S(?:[1-9]|[12][0-9]|3[0-2])$
+        snapshotId: &id004
+          type: string
+          pattern: ^[0-9a-f]{64}$
+        docId: *id004
+        documentVersion: *id004
+        chunkId: *id004
+        contentHash: *id004
+        sourcePath:
+          type: string
+          minLength: 1
+          maxLength: 256
+          pattern: ^(?!/)(?!.*(?:^|/)\.{1,2}(?:/|$))(?!.*[\\:\u0000-\u001f])[^/]+(?:/[^/]+)*$
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        start:
+          type: integer
+          minimum: 0
+          maximum: 1048576
+        end:
+          type: integer
+          minimum: 1
+          maximum: 1048576
+        excerpt:
+          type: string
+          minLength: 1
+          maxLength: 800
+      description: Source snapshot. Runtime checks code-point range, SHA-256, unique
+        id and UTF-16 metadata lengths; schema alone does not prove provenance.
+    ApprovalSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - approvalId
+      - taskId
+      - runId
+      - callId
+      - toolName
+      - serverId
+      - remoteToolName
+      - risk
+      - actionSummary
+      - argumentPreview
+      - argumentsDigest
+      - definitionVersion
+      - policyVersion
+      - status
+      - createdAt
+      - expiresAt
+      - decidedAt
+      - decisionSource
+      - dispatchCount
+      - outcome
+      - waitMillis
+      properties:
+        approvalId: *id002
+        taskId: *id002
+        runId: *id002
+        callId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        toolName:
+          type: string
+          maxLength: 100
+        serverId:
+          type:
+          - string
+          - 'null'
+          maxLength: 32
+        remoteToolName:
+          type:
+          - string
+          - 'null'
+          maxLength: 64
+        risk:
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+        actionSummary:
+          type: string
+          minLength: 1
+          maxLength: 256
+        argumentPreview:
+          type: array
+          maxItems: 32
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - name
+            - value
+            - masked
+            - truncated
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 64
+              value:
+                type: string
+                maxLength: 256
+              masked:
+                type: boolean
+              truncated:
+                type: boolean
+        argumentsDigest:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        definitionVersion:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        policyVersion:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        status:
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - EXPIRED
+          - CANCELLED
+          - INVALIDATED
+          - INTERRUPTED
+        createdAt: *id003
+        expiresAt: *id003
+        decidedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        decisionSource:
+          enum:
+          - null
+          - USER
+          - TTL
+          - RUN_TIMEOUT
+          - CANCEL
+          - POLICY
+          - PROCESS
+        dispatchCount:
+          type: integer
+          minimum: 0
+          maximum: 1
+        outcome:
+          enum:
+          - NOT_DISPATCHED
+          - SUCCEEDED
+          - FAILED
+          - UNKNOWN
+        waitMillis:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+      allOf:
+      - if:
+          properties:
+            status:
+              const: PENDING
+          required:
+          - status
+        then:
+          properties:
+            decidedAt:
+              type: 'null'
+            decisionSource:
+              type: 'null'
+            dispatchCount:
+              const: 0
+            outcome:
+              const: NOT_DISPATCHED
+            waitMillis:
+              type: 'null'
+        else:
+          properties:
+            decidedAt: *id003
+            decisionSource:
+              enum: *id005
+            waitMillis:
+              type: integer
+              minimum: 0
+      - if:
+          properties:
+            status:
+              enum:
+              - REJECTED
+              - EXPIRED
+              - CANCELLED
+              - INVALIDATED
+              - INTERRUPTED
+          required:
+          - status
+        then:
+          properties:
+            dispatchCount:
+              const: 0
+            outcome:
+              const: NOT_DISPATCHED
+    ApprovalDecisionRequest:
+      type: object
+      additionalProperties: false
+      required:
+      - decision
+      properties:
+        decision:
+          enum:
+          - APPROVE
+          - REJECT
+    ApprovalList:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/ApprovalSnapshot'
+x-run-invariants:
+- taskId == runId
+- Non-success errorCode == terminationReason
+- Length budgets use UTF-16 code units; transport frames use UTF-8 bytes
+- Publish state events only after persistence confirmation
+- APPROVED does not imply dispatch or remote success
+x-baseline-commit: 8c722e3
+x-constraints:
+- Citation snapshot JSON <= 65536 UTF-8 bytes
+- Non-success citations are empty
+- Approval preview JSON <= 4096 UTF-8 bytes
+- Owner-only reads and decisions; raw tool arguments never exposed
+- WAITING_APPROVAL is non-terminal; startedAt is retained on resume

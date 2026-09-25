@@ -97,6 +97,7 @@ public class RunPersistence {
             return new CommittedTerminal(actual, false, !matches(actual, projection));
         }
 
+        mergeInvocations(task, projection);
         List<RunResultProjector.ProjectedStep> finalSteps = mergeSteps(projection);
         steps.deleteByTaskId(projection.taskId());
         entityManager.flush();
@@ -174,6 +175,19 @@ public class RunPersistence {
         }
         entityManager.flush();
         return found.stream().map(RunPersistence::snapshot).toList();
+    }
+
+    private void mergeInvocations(AgentTaskEntity task, RunResultProjector.FinalProjection projection) {
+        for (var record : projection.toolInvocations()) {
+            var rows = entityManager.createQuery("select i from ToolInvocationEntity i where i.taskId = :task and i.callId = :call",
+                    com.agentflow.web.approval.ToolInvocationEntity.class)
+                    .setParameter("task", task.getId()).setParameter("call", record.callId()).getResultList();
+            if (rows.isEmpty()) {
+                entityManager.persist(com.agentflow.web.approval.ToolInvocationEntity.completed(task.getId(), task.getUserId(), record));
+            } else {
+                rows.get(0).merge(record);
+            }
+        }
     }
 
     private List<RunResultProjector.ProjectedStep> mergeSteps(

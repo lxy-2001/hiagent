@@ -14,7 +14,7 @@ class RunCitationMigrationTest {
         Flyway.configure().dataSource(ds).target("4").load().migrate();
         var jdbc = new JdbcTemplate(ds);
         jdbc.update("insert into agent_task(id,session_id,user_id,user_input,status,created_at,updated_at,turn_sequence) values('old','s','u','question','QUEUED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,1)");
-        var migrated = Flyway.configure().dataSource(ds).load().migrate();
+        var migrated = Flyway.configure().dataSource(ds).target("5").load().migrate();
         assertThat(migrated.targetSchemaVersion).isEqualTo("5");
         assertThat(jdbc.queryForMap("select require_evidence,citations_json from agent_task where id='old'"))
                 .containsEntry("require_evidence", false).containsEntry("citations_json", null);

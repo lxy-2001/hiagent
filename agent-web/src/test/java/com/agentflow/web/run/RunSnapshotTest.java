@@ -98,6 +98,19 @@ class RunSnapshotTest {
                 .hasMessageContaining("errorCode");
     }
 
+    @Test
+    void waitingApprovalIsNonTerminalAndRequiresOriginalStart() {
+        RunLifecycleStatus waiting = RunLifecycleStatus.valueOf("WAITING_APPROVAL");
+        assertThat(waiting.isTerminal()).isFalse();
+        RunSnapshot snapshot = new RunSnapshot("run-1", "run-1", "session-1", waiting,
+                "hello", null, CREATED, STARTED, STARTED, null,
+                false, null, null, null, false, null);
+        assertThat(snapshot.startedAt()).isEqualTo(STARTED);
+        assertThatThrownBy(() -> new RunSnapshot("run-1", "run-1", "session-1", waiting,
+                "hello", null, CREATED, STARTED, null, null,
+                false, null, null, null, false, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
     private RunSnapshot queued() {
         return new RunSnapshot("run-1", "run-1", "session-1", RunLifecycleStatus.QUEUED,
                 "hello", null, CREATED, CREATED, null, null, false,

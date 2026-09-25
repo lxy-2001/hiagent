@@ -93,7 +93,7 @@ public record RunSnapshot(
         if (status == RunLifecycleStatus.QUEUED && startedAt != null) {
             throw new IllegalArgumentException("queued snapshot startedAt must be null");
         }
-        if (status == RunLifecycleStatus.RUNNING && startedAt == null) {
+        if ((status == RunLifecycleStatus.RUNNING || status == RunLifecycleStatus.WAITING_APPROVAL) && startedAt == null) {
             throw new IllegalArgumentException("running snapshot startedAt must not be null");
         }
         if (finalAnswer != null || finishedAt != null || terminationReason != null || runtimeReason != null
@@ -116,7 +116,7 @@ public record RunSnapshot(
                     || reason == RunTerminationReason.APPROVAL_TIMEOUT
                     || reason == RunTerminationReason.QUEUE_TIMEOUT;
             case BUDGET_EXCEEDED -> reason == RunTerminationReason.BUDGET_EXCEEDED;
-            case QUEUED, RUNNING -> false;
+            case QUEUED, RUNNING, WAITING_APPROVAL -> false;
         };
         if (!valid) {
             throw new IllegalArgumentException("status and terminationReason do not match");

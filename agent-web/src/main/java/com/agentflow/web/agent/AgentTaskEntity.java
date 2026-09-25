@@ -144,6 +144,18 @@ public class AgentTaskEntity {
         return totalTokens;
     }
 
+    public void waitForApproval(Instant at) {
+        if (!RunLifecycleStatus.RUNNING.name().equals(status) || cancelRequested)
+            throw new IllegalStateException("run cannot wait for approval");
+        status = RunLifecycleStatus.WAITING_APPROVAL.name(); updatedAt = at;
+    }
+
+    public void resumeFromApproval(Instant at) {
+        if (!RunLifecycleStatus.WAITING_APPROVAL.name().equals(status) || cancelRequested)
+            throw new IllegalStateException("run cannot resume approval");
+        status = RunLifecycleStatus.RUNNING.name(); updatedAt = at;
+    }
+
     public void markRunning(Instant startedAt) {
         if (startedAt == null || startedAt.isBefore(createdAt)) {
             throw new IllegalArgumentException("startedAt must not be before createdAt");

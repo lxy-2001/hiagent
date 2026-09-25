@@ -24,6 +24,8 @@ public record RunEvent(String eventId, String taskId, String runId, Type type,
         RUN_CREATED,
         RUN_STARTED,
         AGENT_STEP,
+        APPROVAL_REQUESTED,
+        APPROVAL_RESOLVED,
         RUN_TERMINATED
     }
 

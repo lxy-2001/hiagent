@@ -15,7 +15,8 @@ public record RunLifecycleProperties(
         Duration terminalCacheTtl,
         int subscriptionsPerRun,
         int globalSubscriptions,
-        int senderThreads
+        int senderThreads,
+        Duration maxDuration
 ) {
     public static final int MAX_WORKER_THREADS = 4;
     public static final int MAX_QUEUE_CAPACITY = 32;
@@ -30,7 +31,22 @@ public record RunLifecycleProperties(
     public static final int MAX_GLOBAL_SUBSCRIPTIONS = 32;
     public static final int MAX_SENDER_THREADS = 32;
 
+    public RunLifecycleProperties(int workerThreads, int queueCapacity, int inFlightCapacity, Duration queueTimeout,
+            int eventWindowCount, int eventWindowBytes, int eventFrameBytes, int terminalCacheCapacity,
+            Duration terminalCacheTtl, int subscriptionsPerRun, int globalSubscriptions, int senderThreads) {
+        this(workerThreads, queueCapacity, inFlightCapacity, queueTimeout, eventWindowCount, eventWindowBytes,
+                eventFrameBytes, terminalCacheCapacity, terminalCacheTtl, subscriptionsPerRun, globalSubscriptions,
+                senderThreads, Duration.ofSeconds(30));
+    }
+
+    public RunLifecycleProperties withMaxDuration(Duration duration) {
+        return new RunLifecycleProperties(workerThreads, queueCapacity, inFlightCapacity, queueTimeout, eventWindowCount,
+                eventWindowBytes, eventFrameBytes, terminalCacheCapacity, terminalCacheTtl, subscriptionsPerRun,
+                globalSubscriptions, senderThreads, duration);
+    }
+
     public RunLifecycleProperties {
+        requirePositiveAtMost(maxDuration, Duration.ofSeconds(120), "maxDuration");
         requirePositiveAtMost(workerThreads, MAX_WORKER_THREADS, "workerThreads");
         requirePositiveAtMost(queueCapacity, MAX_QUEUE_CAPACITY, "queueCapacity");
         requirePositiveAtMost(inFlightCapacity, MAX_IN_FLIGHT_CAPACITY, "inFlightCapacity");
