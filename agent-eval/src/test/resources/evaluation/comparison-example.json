@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "example-base",
+  "candidateId": "example-candidate",
+  "baselineHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "candidateHash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "dimension": "contextWindow",
+  "status": "REGRESSION",
+  "reasons": [],
+  "pairs": [
+    {
+      "caseId": "C26",
+      "repeat": 1,
+      "baselineStatus": "PASS",
+      "candidateStatus": "FAIL",
+      "change": "REGRESSION",
+      "metricDeltas": []
+    }
+  ]
+}

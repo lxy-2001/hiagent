@@ -1,0 +1,10 @@
+{
+  "id": "synthetic-price-not-market",
+  "provider": "example",
+  "model": "example",
+  "date": "2026-09-25",
+  "currency": "USD",
+  "source": "SYNTHETIC_CONTRACT_EXAMPLE",
+  "inputPerMillion": "1.00",
+  "outputPerMillion": "2.00"
+}

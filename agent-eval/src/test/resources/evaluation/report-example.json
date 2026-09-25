@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "evaluationId": "schema-example-only",
+  "mode": "OFFLINE_FIXTURE",
+  "variant": "baseline",
+  "repeat": 1,
+  "provenance": {
+    "codeSha": null,
+    "codeStatus": "UNKNOWN",
+    "workingTreeDirty": false,
+    "trackedDiffHash": null,
+    "untrackedCount": 0,
+    "datasetVersion": "schema-example",
+    "datasetHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "fixtureVersion": "schema-example",
+    "fixtureHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "assertionHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "promptVersion": "schema-example",
+    "promptHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "policyVersion": "schema-example",
+    "policyHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "provider": "schema-example",
+    "model": "schema-example",
+    "adapterVersion": "schema-example",
+    "configHash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "contextWindow": 16384,
+    "fixedConfigHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "cases": [
+    {
+      "caseId": "C01",
+      "repeat": 1,
+      "driver": "CORE",
+      "runId": "schema-example-run",
+      "supportingRunIds": [],
+      "caseStatus": "PASS",
+      "resultStatus": "SUCCEEDED",
+      "terminationReason": "COMPLETED",
+      "recordingComplete": true,
+      "assertions": [
+        {
+          "id": "TERMINAL",
+          "hard": true,
+          "status": "PASS",
+          "reasonCode": "EXPECTED",
+          "stepNo": 1,
+          "callId": null
+        }
+      ],
+      "steps": [
+        {
+          "stepNo": 1,
+          "type": "FINAL_ANSWER",
+          "status": "SUCCESS",
+          "toolName": null,
+          "callId": null,
+          "terminal": true,
+          "errorCode": null
+        }
+      ],
+      "invocations": [],
+      "citations": [],
+      "context": [],
+      "modelAttempts": 1,
+      "returnedCalls": 1,
+      "usage": {
+        "status": "FIXTURE",
+        "promptTokens": 0,
+        "completionTokens": 0,
+        "unknownCalls": 0
+      },
+      "metrics": {
+        "queueWait": {
+          "status": "NOT_APPLICABLE",
+          "value": null,
+          "unit": "ms",
+          "scope": "QUEUE"
+        },
+        "runtimeTotal": {
+          "status": "KNOWN",
+          "value": 1,
+          "unit": "ms",
+          "scope": "CORE"
+        },
+        "approvalWait": {
+          "status": "NOT_APPLICABLE",
+          "value": null,
+          "unit": "ms",
+          "scope": "APPROVAL"
+        },
+        "toolExecution": {
+          "status": "NOT_APPLICABLE",
+          "value": null,
+          "unit": "ms",
+          "scope": "TOOL"
+        },
+        "modelCall": {
+          "status": "KNOWN",
+          "value": 0,
+          "unit": "ms",
+          "scope": "MODEL"
+        }
+      },
+      "modelCostEstimate": {
+        "status": "UNKNOWN",
+        "amount": null,
+        "currency": null,
+        "priceId": null,
+        "reason": "FIXTURE_NOT_BILLABLE"
+      }
+    }
+  ],
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "error": 0,
+    "incomplete": 0,
+    "skipped": 0,
+    "notRun": 0,
+    "hardPassed": 1,
+    "hardApplicable": 1,
+    "hardIncomplete": 0,
+    "taskSuccessRate": 1,
+    "latencies": []
+  },
+  "gateStatus": "PASS",
+  "externalExperiments": {
+    "embedding": "NOT_RUN",
+    "thirdPartyMcp": "NOT_RUN"
+  }
+}

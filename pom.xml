@@ -26,6 +26,7 @@
         <module>agent-mcp</module>
         <module>agent-web</module>
         <module>agent-demo</module>
+        <module>agent-eval</module>
     </modules>
 
     <properties>

@@ -1,0 +1,1407 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "evaluationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "OFFLINE_FIXTURE",
+        "MODEL_LIVE"
+      ]
+    },
+    "variant": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "repeat": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "codeSha": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "codeStatus": {
+          "type": "string",
+          "enum": [
+            "KNOWN",
+            "UNKNOWN",
+            "COPIED_SOURCE"
+          ]
+        },
+        "workingTreeDirty": {
+          "type": "boolean"
+        },
+        "trackedDiffHash": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "untrackedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "datasetVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "datasetHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "fixtureVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "fixtureHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "assertionHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "promptVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "promptHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "policyVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "policyHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "adapterVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "configHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "contextWindow": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 131072
+        },
+        "fixedConfigHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "codeSha",
+        "codeStatus",
+        "workingTreeDirty",
+        "trackedDiffHash",
+        "untrackedCount",
+        "datasetVersion",
+        "datasetHash",
+        "fixtureVersion",
+        "fixtureHash",
+        "assertionHash",
+        "promptVersion",
+        "promptHash",
+        "policyVersion",
+        "policyHash",
+        "provider",
+        "model",
+        "adapterVersion",
+        "configHash",
+        "contextWindow",
+        "fixedConfigHash"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "repeat": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "driver": {
+            "type": "string",
+            "enum": [
+              "CORE",
+              "HTTP"
+            ]
+          },
+          "runId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "supportingRunIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "maxItems": 10
+          },
+          "caseStatus": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "ERROR",
+              "INCOMPLETE",
+              "SKIPPED",
+              "NOT_RUN"
+            ]
+          },
+          "resultStatus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "FAILED",
+                  "CANCELLED",
+                  "TIMED_OUT",
+                  "BUDGET_EXCEEDED"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "terminationReason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "recordingComplete": {
+            "type": "boolean"
+          },
+          "assertions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "enum": [
+                    "TERMINAL",
+                    "TOOL_SEQUENCE",
+                    "ARGUMENTS_MATCH",
+                    "DISPATCH_COUNT",
+                    "WRITE_COUNT",
+                    "CITATIONS_BOUND",
+                    "CONTEXT_SELECTION",
+                    "MEMORY_CURRENT",
+                    "BUDGET_LIMIT",
+                    "OWNER_ISOLATION",
+                    "NO_SECRET",
+                    "TRACE_COMPLETE",
+                    "USAGE_UNKNOWN",
+                    "HTTP_CAPACITY",
+                    "ANSWER_MARKER"
+                  ]
+                },
+                "hard": {
+                  "type": "boolean"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "INCOMPLETE",
+                    "NOT_APPLICABLE"
+                  ]
+                },
+                "reasonCode": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "stepNo": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "callId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "hard",
+                "status",
+                "reasonCode",
+                "stepNo",
+                "callId"
+              ]
+            },
+            "maxItems": 30
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "stepNo": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "type": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "status": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "toolName": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "callId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "terminal": {
+                  "type": "boolean"
+                },
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "stepNo",
+                "type",
+                "status",
+                "toolName",
+                "callId",
+                "terminal",
+                "errorCode"
+              ]
+            },
+            "maxItems": 256
+          },
+          "invocations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "callId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "toolName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "dispatchCount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "NOT_DISPATCHED",
+                    "SUCCEEDED",
+                    "FAILED",
+                    "UNKNOWN"
+                  ]
+                },
+                "approvalStatus": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "definitionVersion": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "policyVersion": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "callId",
+                "toolName",
+                "dispatchCount",
+                "outcome",
+                "approvalStatus",
+                "definitionVersion",
+                "policyVersion",
+                "errorCode"
+              ]
+            },
+            "maxItems": 32
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "chunkId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "snapshotId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "valid": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "id",
+                "chunkId",
+                "snapshotId",
+                "valid"
+              ]
+            },
+            "maxItems": 32
+          },
+          "context": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "iteration": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "estimatedInput": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "window": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "keptTurns": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "droppedTurns": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "keptMemory": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "droppedMemory": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "promptVersion": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "policyVersion": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "estimatorVersion": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "iteration",
+                "estimatedInput",
+                "window",
+                "keptTurns",
+                "droppedTurns",
+                "keptMemory",
+                "droppedMemory",
+                "promptVersion",
+                "policyVersion",
+                "estimatorVersion",
+                "reason"
+              ]
+            },
+            "maxItems": 32
+          },
+          "modelAttempts": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "returnedCalls": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "usage": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "REPORTED",
+                  "FIXTURE",
+                  "UNKNOWN",
+                  "NOT_APPLICABLE"
+                ]
+              },
+              "promptTokens": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "completionTokens": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "unknownCalls": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "status",
+              "promptTokens",
+              "completionTokens",
+              "unknownCalls"
+            ],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "UNKNOWN",
+                        "NOT_APPLICABLE"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "promptTokens": {
+                      "type": "null"
+                    },
+                    "completionTokens": {
+                      "type": "null"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "promptTokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "completionTokens": {
+                      "type": "integer",
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "queueWait": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "KNOWN",
+                      "UNKNOWN",
+                      "NOT_APPLICABLE"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "ms"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "CORE",
+                      "WEB_ACTIVE",
+                      "MODEL",
+                      "APPROVAL",
+                      "TOOL",
+                      "QUEUE"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "value",
+                  "unit",
+                  "scope"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "KNOWN"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "runtimeTotal": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "KNOWN",
+                      "UNKNOWN",
+                      "NOT_APPLICABLE"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "ms"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "CORE",
+                      "WEB_ACTIVE",
+                      "MODEL",
+                      "APPROVAL",
+                      "TOOL",
+                      "QUEUE"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "value",
+                  "unit",
+                  "scope"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "KNOWN"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "approvalWait": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "KNOWN",
+                      "UNKNOWN",
+                      "NOT_APPLICABLE"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "ms"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "CORE",
+                      "WEB_ACTIVE",
+                      "MODEL",
+                      "APPROVAL",
+                      "TOOL",
+                      "QUEUE"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "value",
+                  "unit",
+                  "scope"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "KNOWN"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "toolExecution": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "KNOWN",
+                      "UNKNOWN",
+                      "NOT_APPLICABLE"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "ms"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "CORE",
+                      "WEB_ACTIVE",
+                      "MODEL",
+                      "APPROVAL",
+                      "TOOL",
+                      "QUEUE"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "value",
+                  "unit",
+                  "scope"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "KNOWN"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              "modelCall": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "KNOWN",
+                      "UNKNOWN",
+                      "NOT_APPLICABLE"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "ms"
+                    ]
+                  },
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "CORE",
+                      "WEB_ACTIVE",
+                      "MODEL",
+                      "APPROVAL",
+                      "TOOL",
+                      "QUEUE"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "value",
+                  "unit",
+                  "scope"
+                ],
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "KNOWN"
+                        }
+                      }
+                    },
+                    "then": {
+                      "properties": {
+                        "value": {
+                          "type": "number",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "else": {
+                      "properties": {
+                        "value": {
+                          "type": "null"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": [
+              "queueWait",
+              "runtimeTotal",
+              "approvalWait",
+              "toolExecution",
+              "modelCall"
+            ]
+          },
+          "modelCostEstimate": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ESTIMATED",
+                  "UNKNOWN",
+                  "NOT_APPLICABLE"
+                ]
+              },
+              "amount": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9]+\\.[0-9]{8}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "priceId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            },
+            "required": [
+              "status",
+              "amount",
+              "currency",
+              "priceId",
+              "reason"
+            ],
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "status": {
+                      "const": "ESTIMATED"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "amount": {
+                      "type": "string",
+                      "pattern": "^[0-9]+\\.[0-9]{8}$"
+                    },
+                    "currency": {
+                      "type": "string",
+                      "pattern": "^[A-Z]{3}$"
+                    },
+                    "priceId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 128
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "amount": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "caseId",
+          "repeat",
+          "driver",
+          "runId",
+          "supportingRunIds",
+          "caseStatus",
+          "resultStatus",
+          "terminationReason",
+          "recordingComplete",
+          "assertions",
+          "steps",
+          "invocations",
+          "citations",
+          "context",
+          "modelAttempts",
+          "returnedCalls",
+          "usage",
+          "metrics",
+          "modelCostEstimate"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "caseStatus": {
+                  "const": "PASS"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "recordingComplete": {
+                  "const": true
+                },
+                "runId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "resultStatus": {
+                  "type": "string",
+                  "enum": [
+                    "SUCCEEDED",
+                    "FAILED",
+                    "CANCELLED",
+                    "TIMED_OUT",
+                    "BUDGET_EXCEEDED"
+                  ]
+                },
+                "terminationReason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "assertions": {
+                  "items": {
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "PASS",
+                          "NOT_APPLICABLE"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "maxItems": 1000
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "error": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "incomplete": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "notRun": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hardPassed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hardApplicable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hardIncomplete": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "taskSuccessRate": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "n": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unknown": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "notApplicable": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "p50Ms": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "p95Ms": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "smallSample": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "scope",
+              "n",
+              "unknown",
+              "notApplicable",
+              "p50Ms",
+              "p95Ms",
+              "smallSample"
+            ]
+          },
+          "maxItems": 10
+        }
+      },
+      "required": [
+        "total",
+        "passed",
+        "failed",
+        "error",
+        "incomplete",
+        "skipped",
+        "notRun",
+        "hardPassed",
+        "hardApplicable",
+        "hardIncomplete",
+        "taskSuccessRate",
+        "latencies"
+      ]
+    },
+    "gateStatus": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL"
+      ]
+    },
+    "externalExperiments": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "embedding": {
+          "type": "string",
+          "enum": [
+            "NOT_RUN"
+          ]
+        },
+        "thirdPartyMcp": {
+          "type": "string",
+          "enum": [
+            "NOT_RUN"
+          ]
+        }
+      },
+      "required": [
+        "embedding",
+        "thirdPartyMcp"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "evaluationId",
+    "mode",
+    "variant",
+    "repeat",
+    "provenance",
+    "cases",
+    "summary",
+    "gateStatus",
+    "externalExperiments"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

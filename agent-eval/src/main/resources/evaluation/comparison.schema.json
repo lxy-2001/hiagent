@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "baselineId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "candidateId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "baselineHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "candidateHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "dimension": {
+      "type": "string",
+      "enum": [
+        "code",
+        "prompt",
+        "policy",
+        "model",
+        "contextWindow"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "REGRESSION",
+        "INCOMPARABLE",
+        "NO_EFFECTIVE_CHANGE"
+      ]
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "maxItems": 50
+    },
+    "pairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "repeat": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "baselineStatus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidateStatus": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "change": {
+            "type": "string",
+            "enum": [
+              "UNCHANGED",
+              "REGRESSION",
+              "IMPROVEMENT",
+              "INCOMPARABLE"
+            ]
+          },
+          "metricDeltas": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "scope": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "unit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "delta": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "name",
+                "scope",
+                "unit",
+                "delta"
+              ]
+            },
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "caseId",
+          "repeat",
+          "baselineStatus",
+          "candidateStatus",
+          "change",
+          "metricDeltas"
+        ]
+      },
+      "maxItems": 1000
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "baselineId",
+    "candidateId",
+    "baselineHash",
+    "candidateHash",
+    "dimension",
+    "status",
+    "reasons",
+    "pairs"
+  ]
+}

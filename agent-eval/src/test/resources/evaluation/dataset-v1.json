@@ -1,0 +1,679 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "java-agent-v1",
+  "fixtureVersion": "fixture-v1",
+  "cases": [
+    {
+      "id": "C01",
+      "driver": "CORE",
+      "fixtureId": "final-answer",
+      "input": "请只输出 OK",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C02",
+      "driver": "CORE",
+      "fixtureId": "local-tool",
+      "input": "请调用 uppercase-text 将 hiagent 转为大写，然后只输出结果。",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "TOOL_SEQUENCE",
+          "ARGUMENTS_MATCH"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C03",
+      "driver": "CORE",
+      "fixtureId": "two-tools",
+      "input": "公开合成验收输入：two-tools",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 2,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "TOOL_SEQUENCE",
+          "ARGUMENTS_MATCH"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C04",
+      "driver": "CORE",
+      "fixtureId": "unknown-tool",
+      "input": "公开合成验收输入：unknown-tool",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "UNKNOWN_TOOL",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C05",
+      "driver": "CORE",
+      "fixtureId": "invalid-arguments",
+      "input": "公开合成验收输入：invalid-arguments",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "INVALID_TOOL_ARGUMENTS",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C06",
+      "driver": "CORE",
+      "fixtureId": "policy-denied",
+      "input": "公开合成验收输入：policy-denied",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "TOOL_POLICY_DENIED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C07",
+      "driver": "CORE",
+      "fixtureId": "history-trimming",
+      "input": "公开合成验收输入：history-trimming",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "CONTEXT_SELECTION"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C08",
+      "driver": "HTTP",
+      "fixtureId": "memory-update",
+      "input": "公开合成验收输入：memory-update",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "MEMORY_CURRENT",
+          "OWNER_ISOLATION"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C09",
+      "driver": "CORE",
+      "fixtureId": "memory-precedence",
+      "input": "公开合成验收输入：memory-precedence",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "CONTEXT_SELECTION"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C10",
+      "driver": "CORE",
+      "fixtureId": "valid-citation",
+      "input": "公开合成验收输入：valid-citation",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "CITATIONS_BOUND"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C11",
+      "driver": "CORE",
+      "fixtureId": "forged-citation",
+      "input": "公开合成验收输入：forged-citation",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "CITATION_INVALID",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "CITATIONS_BOUND"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C12",
+      "driver": "CORE",
+      "fixtureId": "empty-evidence",
+      "input": "公开合成验收输入：empty-evidence",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "INSUFFICIENT_EVIDENCE",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "CITATIONS_BOUND"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C13",
+      "driver": "CORE",
+      "fixtureId": "retrieval-failure",
+      "input": "公开合成验收输入：retrieval-failure",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "TOOL_ERROR",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C14",
+      "driver": "CORE",
+      "fixtureId": "mcp-read",
+      "input": "公开合成验收输入：mcp-read",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C15",
+      "driver": "HTTP",
+      "fixtureId": "approval-approved",
+      "input": "公开合成验收输入：approval-approved",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "WRITE_COUNT",
+          "ARGUMENTS_MATCH"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C16",
+      "driver": "HTTP",
+      "fixtureId": "approval-rejected",
+      "input": "公开合成验收输入：approval-rejected",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "APPROVAL_REJECTED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "WRITE_COUNT"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C17",
+      "driver": "CORE",
+      "fixtureId": "approval-expired",
+      "input": "公开合成验收输入：approval-expired",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "TIMED_OUT",
+        "terminationReason": "APPROVAL_TIMEOUT",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "BUDGET_LIMIT"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C18",
+      "driver": "HTTP",
+      "fixtureId": "cancel-waiting",
+      "input": "公开合成验收输入：cancel-waiting",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "CANCELLED",
+        "terminationReason": "CANCELLED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "WRITE_COUNT"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C19",
+      "driver": "CORE",
+      "fixtureId": "cancel-dispatched",
+      "input": "公开合成验收输入：cancel-dispatched",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "CANCELLED",
+        "terminationReason": "CANCELLED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "WRITE_COUNT"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C20",
+      "driver": "CORE",
+      "fixtureId": "run-timeout",
+      "input": "公开合成验收输入：run-timeout",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "TIMED_OUT",
+        "terminationReason": "TIMED_OUT",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "BUDGET_LIMIT"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C21",
+      "driver": "CORE",
+      "fixtureId": "iteration-budget",
+      "input": "公开合成验收输入：iteration-budget",
+      "budget": {
+        "maxIterations": 1,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "BUDGET_EXCEEDED",
+        "terminationReason": "BUDGET_EXCEEDED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "BUDGET_LIMIT"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C22",
+      "driver": "HTTP",
+      "fixtureId": "capacity",
+      "input": "公开合成验收输入：capacity",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "HTTP_CAPACITY"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C23",
+      "driver": "HTTP",
+      "fixtureId": "context-source-failure",
+      "input": "公开合成验收输入：context-source-failure",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "FAILED",
+        "terminationReason": "CONTEXT_SOURCE_UNAVAILABLE",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": []
+      }
+    },
+    {
+      "id": "C24",
+      "driver": "CORE",
+      "fixtureId": "untrusted-content",
+      "input": "公开合成验收输入：untrusted-content",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 1,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C25",
+      "driver": "CORE",
+      "fixtureId": "usage-missing",
+      "input": "公开合成验收输入：usage-missing",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "USAGE_UNKNOWN"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    },
+    {
+      "id": "C26",
+      "driver": "CORE",
+      "fixtureId": "window-sensitive",
+      "input": "公开合成验收输入：window-sensitive",
+      "budget": {
+        "maxIterations": 8,
+        "maxDurationMs": 15000,
+        "maxPromptTokens": 8192,
+        "maxCompletionTokens": 2048
+      },
+      "expectations": {
+        "runStatus": "SUCCEEDED",
+        "terminationReason": "COMPLETED",
+        "dispatchCount": 0,
+        "hardRules": [
+          "TERMINAL",
+          "TRACE_COMPLETE",
+          "DISPATCH_COUNT",
+          "NO_SECRET",
+          "CONTEXT_SELECTION"
+        ],
+        "taskRules": [
+          "ANSWER_MARKER"
+        ]
+      }
+    }
+  ]
+}

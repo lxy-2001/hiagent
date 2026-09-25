@@ -1,0 +1,204 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "datasetVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "fixtureVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^C[0-9]{2}$"
+          },
+          "driver": {
+            "type": "string",
+            "enum": [
+              "CORE",
+              "HTTP"
+            ]
+          },
+          "fixtureId": {
+            "type": "string",
+            "enum": [
+              "final-answer",
+              "local-tool",
+              "two-tools",
+              "unknown-tool",
+              "invalid-arguments",
+              "policy-denied",
+              "history-trimming",
+              "memory-update",
+              "memory-precedence",
+              "valid-citation",
+              "forged-citation",
+              "empty-evidence",
+              "retrieval-failure",
+              "mcp-read",
+              "approval-approved",
+              "approval-rejected",
+              "approval-expired",
+              "cancel-waiting",
+              "cancel-dispatched",
+              "run-timeout",
+              "iteration-budget",
+              "capacity",
+              "context-source-failure",
+              "untrusted-content",
+              "usage-missing",
+              "window-sensitive"
+            ]
+          },
+          "input": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8192
+          },
+          "budget": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "maxIterations": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16
+              },
+              "maxDurationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 15000
+              },
+              "maxPromptTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16384
+              },
+              "maxCompletionTokens": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16384
+              }
+            },
+            "required": [
+              "maxIterations",
+              "maxDurationMs",
+              "maxPromptTokens",
+              "maxCompletionTokens"
+            ]
+          },
+          "expectations": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "runStatus": {
+                "type": "string",
+                "enum": [
+                  "SUCCEEDED",
+                  "FAILED",
+                  "CANCELLED",
+                  "TIMED_OUT",
+                  "BUDGET_EXCEEDED"
+                ]
+              },
+              "terminationReason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "dispatchCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "hardRules": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "TERMINAL",
+                    "TOOL_SEQUENCE",
+                    "ARGUMENTS_MATCH",
+                    "DISPATCH_COUNT",
+                    "WRITE_COUNT",
+                    "CITATIONS_BOUND",
+                    "CONTEXT_SELECTION",
+                    "MEMORY_CURRENT",
+                    "BUDGET_LIMIT",
+                    "OWNER_ISOLATION",
+                    "NO_SECRET",
+                    "TRACE_COMPLETE",
+                    "USAGE_UNKNOWN",
+                    "HTTP_CAPACITY",
+                    "ANSWER_MARKER"
+                  ]
+                },
+                "maxItems": 20
+              },
+              "taskRules": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "TERMINAL",
+                    "TOOL_SEQUENCE",
+                    "ARGUMENTS_MATCH",
+                    "DISPATCH_COUNT",
+                    "WRITE_COUNT",
+                    "CITATIONS_BOUND",
+                    "CONTEXT_SELECTION",
+                    "MEMORY_CURRENT",
+                    "BUDGET_LIMIT",
+                    "OWNER_ISOLATION",
+                    "NO_SECRET",
+                    "TRACE_COMPLETE",
+                    "USAGE_UNKNOWN",
+                    "HTTP_CAPACITY",
+                    "ANSWER_MARKER"
+                  ]
+                },
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "runStatus",
+              "terminationReason",
+              "dispatchCount",
+              "hardRules",
+              "taskRules"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "driver",
+          "fixtureId",
+          "input",
+          "budget",
+          "expectations"
+        ]
+      },
+      "maxItems": 100,
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "datasetVersion",
+    "fixtureVersion",
+    "cases"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
