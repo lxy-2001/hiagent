@@ -1,0 +1,1637 @@
+{
+  "schemaVersion" : 1,
+  "baselineId" : "46cb7945-7ccd-4026-9689-04d4a2226ae3",
+  "candidateId" : "0d77f35a-ba6a-43c5-95af-a7c075b3adcb",
+  "baselineHash" : "d169276d5afb68a4f6af77b7186b086923d46515e7f421299f0034629243b077",
+  "candidateHash" : "49d69082eaf0ab7c379a4d741a27a5fb7ebb7a3e64ab9f8726ef3b88b94f0c8d",
+  "dimension" : "contextWindow",
+  "reasons" : [ ],
+  "pairs" : [ {
+    "caseId" : "C01",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 17.701300000000003
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -4.371700000000001
+    } ]
+  }, {
+    "caseId" : "C01",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.0668
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -4.0000000000000105E-4
+    } ]
+  }, {
+    "caseId" : "C01",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.06469999999999998
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0019000000000000006
+    } ]
+  }, {
+    "caseId" : "C02",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -13.5049
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : -2.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 1.7563
+    } ]
+  }, {
+    "caseId" : "C02",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.06659999999999999
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.008199999999999999
+    } ]
+  }, {
+    "caseId" : "C02",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.17420000000000002
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0148
+    } ]
+  }, {
+    "caseId" : "C03",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.012399999999999967
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.016699999999999993
+    } ]
+  }, {
+    "caseId" : "C03",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.10240000000000005
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.006400000000000003
+    } ]
+  }, {
+    "caseId" : "C03",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.5321
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.018600000000000005
+    } ]
+  }, {
+    "caseId" : "C04",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.7699000000000003
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 4.99999999999997E-4
+    } ]
+  }, {
+    "caseId" : "C04",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.12470000000000003
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0025000000000000005
+    } ]
+  }, {
+    "caseId" : "C04",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.042899999999999994
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0023
+    } ]
+  }, {
+    "caseId" : "C05",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 1.3403
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 4.0000000000000105E-4
+    } ]
+  }, {
+    "caseId" : "C05",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.008000000000000007
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 2.0000000000000052E-4
+    } ]
+  }, {
+    "caseId" : "C05",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.019799999999999984
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.004999999999999999
+    } ]
+  }, {
+    "caseId" : "C06",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -2.6639999999999997
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.002
+    } ]
+  }, {
+    "caseId" : "C06",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.06559999999999999
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0031000000000000003
+    } ]
+  }, {
+    "caseId" : "C06",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.10329999999999995
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 8.999999999999998E-4
+    } ]
+  }, {
+    "caseId" : "C07",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -5.340399999999999
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0102
+    } ]
+  }, {
+    "caseId" : "C07",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 4.878900000000001
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.013699999999999997
+    } ]
+  }, {
+    "caseId" : "C07",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.4687000000000001
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0023
+    } ]
+  }, {
+    "caseId" : "C08",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -0.8490000000000002
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 1.2419999999999973
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0029
+    } ]
+  }, {
+    "caseId" : "C08",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -0.238
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -4.061999999999999
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0036000000000000008
+    } ]
+  }, {
+    "caseId" : "C08",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.007000000000000006
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 0.4299999999999997
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0018000000000000013
+    } ]
+  }, {
+    "caseId" : "C09",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.0867
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 3.00000000000078E-4
+    } ]
+  }, {
+    "caseId" : "C09",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.21839999999999998
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.008900000000000002
+    } ]
+  }, {
+    "caseId" : "C09",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.01479999999999998
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 2.999999999999982E-4
+    } ]
+  }, {
+    "caseId" : "C10",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 1.0905000000000022
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 2.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0356
+    } ]
+  }, {
+    "caseId" : "C10",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.16959999999999997
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.008299999999999998
+    } ]
+  }, {
+    "caseId" : "C10",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.09079999999999988
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.003400000000000002
+    } ]
+  }, {
+    "caseId" : "C11",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.030299999999999994
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.004699999999999999
+    } ]
+  }, {
+    "caseId" : "C11",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.08160000000000012
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.004
+    } ]
+  }, {
+    "caseId" : "C11",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.06510000000000005
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0052
+    } ]
+  }, {
+    "caseId" : "C12",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.042300000000000004
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.005899999999999999
+    } ]
+  }, {
+    "caseId" : "C12",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.07779999999999998
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0043
+    } ]
+  }, {
+    "caseId" : "C12",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.1038
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0029000000000000015
+    } ]
+  }, {
+    "caseId" : "C13",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.024800000000000155
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 2.999999999999999E-4
+    } ]
+  }, {
+    "caseId" : "C13",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.04480000000000006
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.002100000000000001
+    } ]
+  }, {
+    "caseId" : "C13",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.01629999999999998
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0014000000000000002
+    } ]
+  }, {
+    "caseId" : "C14",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 15.898800000000001
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 15.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0131
+    } ]
+  }, {
+    "caseId" : "C14",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.02540000000000031
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0030000000000000027
+    } ]
+  }, {
+    "caseId" : "C14",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.2599
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : -1.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0025000000000000057
+    } ]
+  }, {
+    "caseId" : "C15",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -0.9329999999999998
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 23.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 53.34700000000001
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.1501999999999999
+    } ]
+  }, {
+    "caseId" : "C15",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.9969999999999999
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 14.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -11.018999999999991
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : -2.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0040999999999999925
+    } ]
+  }, {
+    "caseId" : "C15",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.04899999999999993
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 1.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -3.4879999999999995
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : -1.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.012899999999999998
+    } ]
+  }, {
+    "caseId" : "C16",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -1.2909999999999995
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : -7.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -17.238
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0034000000000000002
+    } ]
+  }, {
+    "caseId" : "C16",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -0.504
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : -5.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -4.536000000000001
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0034999999999999996
+    } ]
+  }, {
+    "caseId" : "C16",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.30500000000000016
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : -10.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -10.006
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.004
+    } ]
+  }, {
+    "caseId" : "C17",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.3125
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.006700000000000001
+    } ]
+  }, {
+    "caseId" : "C17",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.1281
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0028000000000000004
+    } ]
+  }, {
+    "caseId" : "C17",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.18269999999999997
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0089
+    } ]
+  }, {
+    "caseId" : "C18",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -0.21300000000000008
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : -1.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -1.652000000000001
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.002999999999999999
+    } ]
+  }, {
+    "caseId" : "C18",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.827
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 1.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 5.033000000000001
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.005100000000000002
+    } ]
+  }, {
+    "caseId" : "C18",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : -0.573
+    }, {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -0.043000000000006366
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -7.999999999999986E-4
+    } ]
+  }, {
+    "caseId" : "C19",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.07140000000000057
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.007300000000000001
+    } ]
+  }, {
+    "caseId" : "C19",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 9.265699999999995
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 10.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0028000000000000004
+    } ]
+  }, {
+    "caseId" : "C19",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "approvalWait",
+      "scope" : "APPROVAL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 4.801000000000002
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 5.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0017000000000000001
+    } ]
+  }, {
+    "caseId" : "C20",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.09829999999999994
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0039000000000000007
+    } ]
+  }, {
+    "caseId" : "C20",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.12750000000000006
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.005999999999999998
+    } ]
+  }, {
+    "caseId" : "C20",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.12049999999999997
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0316
+    } ]
+  }, {
+    "caseId" : "C21",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.019300000000000095
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.012400000000000001
+    } ]
+  }, {
+    "caseId" : "C21",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.08239999999999992
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -7.999999999999986E-4
+    } ]
+  }, {
+    "caseId" : "C21",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.3374
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.009600000000000001
+    } ]
+  }, {
+    "caseId" : "C22",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 1.0060000000000002
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 6.957999999999998
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 4.4948999999999995
+    } ]
+  }, {
+    "caseId" : "C22",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.08300000000000018
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -2.401
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -1.1653000000000002
+    } ]
+  }, {
+    "caseId" : "C22",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 2.0570000000000004
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 4.7059999999999995
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 2.4395
+    } ]
+  }, {
+    "caseId" : "C23",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.008999999999999897
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : 0.05900000000000016
+    } ]
+  }, {
+    "caseId" : "C23",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.996
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -1.9989999999999999
+    } ]
+  }, {
+    "caseId" : "C23",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "queueWait",
+      "scope" : "QUEUE",
+      "unit" : "ms",
+      "delta" : 0.0020000000000000018
+    }, {
+      "name" : "runtimeTotal",
+      "scope" : "WEB_ACTIVE",
+      "unit" : "ms",
+      "delta" : -0.09699999999999975
+    } ]
+  }, {
+    "caseId" : "C24",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 1.5024
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 1.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.0131
+    } ]
+  }, {
+    "caseId" : "C24",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.1704000000000001
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 0.002100000000000001
+    } ]
+  }, {
+    "caseId" : "C24",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 0.033299999999999996
+    }, {
+      "name" : "toolExecution",
+      "scope" : "TOOL",
+      "unit" : "ms",
+      "delta" : 0.0
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -2.999999999999982E-4
+    } ]
+  }, {
+    "caseId" : "C25",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 4.886800000000001
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 4.776599999999998
+    } ]
+  }, {
+    "caseId" : "C25",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : 1.7834000000000003
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : 1.7079000000000004
+    } ]
+  }, {
+    "caseId" : "C25",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "PASS",
+    "change" : "UNCHANGED",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.09489999999999998
+    }, {
+      "name" : "modelCall",
+      "scope" : "MODEL",
+      "unit" : "ms",
+      "delta" : -0.0019000000000000128
+    } ]
+  }, {
+    "caseId" : "C26",
+    "repeat" : 1,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.5523
+    } ]
+  }, {
+    "caseId" : "C26",
+    "repeat" : 2,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.5612999999999999
+    } ]
+  }, {
+    "caseId" : "C26",
+    "repeat" : 3,
+    "baselineStatus" : "PASS",
+    "candidateStatus" : "FAIL",
+    "change" : "REGRESSION",
+    "metricDeltas" : [ {
+      "name" : "runtimeTotal",
+      "scope" : "CORE",
+      "unit" : "ms",
+      "delta" : -0.6212
+    } ]
+  } ],
+  "status" : "REGRESSION"
+}

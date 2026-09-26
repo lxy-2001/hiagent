@@ -84,3 +84,8 @@ specs/
 .specify/
 AGENTS.md
 README.md
+
+# Reviewed public evaluation guide; other local notes remain ignored.
+!docs/
+docs/*
+!docs/evaluation.md

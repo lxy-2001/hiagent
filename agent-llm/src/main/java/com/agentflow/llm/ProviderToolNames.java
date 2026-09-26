@@ -47,6 +47,6 @@ final class ProviderToolNames {
             return decision;
         }
         return new ToolCallDecision(tool.decisionId(), new ToolCall(tool.toolCall().callId(),
-                original, tool.toolCall().arguments()), tool.usage());
+                original, tool.toolCall().arguments()), tool.usage(), tool.usageSource());
     }
 }

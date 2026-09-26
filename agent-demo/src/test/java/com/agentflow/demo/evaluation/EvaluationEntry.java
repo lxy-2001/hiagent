@@ -32,7 +32,13 @@ final class EvaluationEntry {
         return EvalDataset.load(resource("/evaluation/dataset-v1.json"));
     }
     static RunReport run(Options options) throws Exception {
-        if (!options.mode().equals("offline")) throw new IllegalArgumentException("LIVE_DRIVER_NOT_AVAILABLE");
+        if (options.mode().equals("live")) {
+            var allowed = new HashMap<String, String>();
+            for (String key : List.of("PROVIDER", "BASE_URL", "API_KEY", "CHAT_MODEL")) {
+                String name = "AGENTFLOW_MODEL_" + key; String value = System.getenv(name); if (value != null) allowed.put(name, value);
+            }
+            return runLive(options, allowed);
+        }
         long suiteStart = System.nanoTime();
         HttpScenarioDriver.prepareInfrastructure();
         var data = dataset();
@@ -43,7 +49,32 @@ final class EvaluationEntry {
         var executions = runner.run(data, options.variant(), options.repeat());
         return RunReport.create(data, options.variant(), options.repeat(), "OFFLINE_FIXTURE", metadata, executions);
     }
-    static Map<String, Object> metadata(EvalVariant variant) throws Exception {
+    static RunReport runLive(Options options, Map<String, String> environment) throws Exception {
+        var data = dataset(); var provenance = metadata(options.variant());
+        // Validate safe report identifiers before authorizing any outgoing request.
+        for (String key : List.of("PROVIDER", "CHAT_MODEL")) {
+            String value = environment.get("AGENTFLOW_MODEL_" + key);
+            if (value == null || !value.matches("[A-Za-z0-9_.:/-]{1,128}")) throw new IllegalArgumentException("CONFIGURATION_MISSING");
+        }
+        provenance.put("provider", environment.get("AGENTFLOW_MODEL_PROVIDER")); provenance.put("model", environment.get("AGENTFLOW_MODEL_CHAT_MODEL"));
+        provenance.put("adapterVersion", "openai-compatible-v1");
+        provenance.put("configHash", hash(provenance.get("configHash") + ":live:" + provenance.get("provider") + ":" + provenance.get("model")));
+        var budget = LiveEvaluationDriver.connect(environment, options.allowPaid());
+        var executions = new ArrayList<RunReport.Execution>();
+        for (int repeat = 1; repeat <= options.repeat(); repeat++) for (var c : data.cases().subList(0, 2)) {
+            if (!budget.available()) {
+                executions.add(new RunReport.Execution(c.id(), repeat, null, new CaseReport(c.id(), CaseReport.Status.NOT_RUN, List.of()), Map.of(), List.of()));
+                continue;
+            }
+            try (var driver = new LiveEvaluationDriver(budget)) {
+                var observed = driver.execute(c, options.variant(), repeat);
+                executions.add(new RunReport.Execution(c.id(), repeat, observed, new EvaluationScorer().score(c, observed), observed.metrics(), List.of()));
+            } catch (RuntimeException failure) {
+                executions.add(new RunReport.Execution(c.id(), repeat, null, new CaseReport(c.id(), CaseReport.Status.ERROR, List.of()), Map.of(), List.of()));
+            }
+        }
+        return RunReport.create(data, options.variant(), options.repeat(), "MODEL_LIVE", provenance, executions);
+    }    static Map<String, Object> metadata(EvalVariant variant) throws Exception {
         Path root = root();
         String manifest = System.getProperty("agentflow.eval.provenance");
         var code = CodeProvenance.read(root, manifest == null ? null : Path.of(manifest), List.of("pom.xml",

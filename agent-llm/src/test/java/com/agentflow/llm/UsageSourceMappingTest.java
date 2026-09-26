@@ -36,6 +36,12 @@ class UsageSourceMappingTest {
         }
     }
 
+    @Test void toolAliasRestorationPreservesReportedUsageSource() {
+        var original = decision(true, ",\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2}");
+        var restored = ProviderToolNames.restore(original, java.util.Map.of("echo", "mcp.demo.echo"));
+        assertEquals(UsageSource.REPORTED, restored.usageSource());
+        assertEquals(original.usage(), restored.usage());
+    }
     private com.agentflow.core.model.ModelDecision decision(boolean tool, String usage) {
         String message = tool
                 ? "{\"tool_calls\":[{\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"echo\",\"arguments\":\"{}\"}}]}"
