@@ -16,3 +16,7 @@ export function renderMarkdown(value: string, sources: string[] = []): string {
   if (new TextEncoder().encode(value).length > 65536) throw new Error('ANSWER_TOO_LARGE');
   return DOMPurify.sanitize(md.render(value, { sources }), { USE_PROFILES: { html: true }, ADD_ATTR: ['target', 'rel', 'data-source-id', 'type', 'aria-label'], FORBID_TAGS: ['img', 'svg', 'iframe', 'style', 'form', 'input'], FORBID_ATTR: ['style'] });
 }
+
+export function unboundCitations(value: string, sources: string[]): boolean {
+  return md.parse(value, {}).some(block => block.children?.some(token => token.type === 'text' && [...token.content.matchAll(/\[(S\d+)\]/g)].some(match => !sources.includes(match[1]!))));
+}

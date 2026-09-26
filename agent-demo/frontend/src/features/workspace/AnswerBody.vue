@@ -2,10 +2,10 @@
 import { computed, ref } from 'vue';
 import { Copy, Check } from '@lucide/vue';
 import type { Citation } from '../../domain/contracts';
-import { renderMarkdown } from '../../security/markdown';
+import { renderMarkdown, unboundCitations } from '../../security/markdown';
 const props = defineProps<{ text: string; citations?: Citation[] }>();
 const emit = defineEmits<{ source: [id: string] }>();
-const unmatched = computed(() => [...props.text.matchAll(/\[(S\d+)\]/g)].some(m => !props.citations?.some(c => c.id === m[1])));
+const unmatched = computed(() => props.text.length <= 65536 && unboundCitations(props.text, props.citations?.map(c => c.id) ?? []));
 function click(event: MouseEvent) { const button = (event.target as Element).closest<HTMLButtonElement>('button[data-source-id]'); const id = button?.dataset.sourceId; if (id && props.citations?.some(c => c.id === id)) emit('source', id); }
 const copyState = ref('');
 const html = computed(() => { try { return renderMarkdown(props.text, props.citations?.map(c => c.id)); } catch { return '<p>回答超过安全展示上限，无法在此展开。</p>'; } });

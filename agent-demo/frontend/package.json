@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
-    "test:visual": "playwright test --grep @visual",
+    "test:visual": "playwright test visual.spec.ts responsive.spec.ts auth.spec.ts approval.spec.ts states.spec.ts performance.spec.ts --project=chromium",
     "build": "node scripts/build.mjs"
   },
   "dependencies": {

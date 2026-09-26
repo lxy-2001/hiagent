@@ -13,3 +13,16 @@ it('recovers a transient first snapshot 503 without submitting a new run', async
     expect(read).toHaveBeenCalledTimes(2); expect(run.snapshot.value?.status).toBe('SUCCEEDED'); expect(submit).not.toHaveBeenCalled(); run.stop();
   } finally { vi.useRealTimers(); }
 });
+it('does not finish a stale run after its snapshot hook yields', async () => {
+  const snapshot: RunSnapshot = { taskId: 'old', runId: 'old', sessionId: 's', status: 'SUCCEEDED', input: 'q', finalAnswer: 'a', createdAt: '', updatedAt: '', startedAt: null, finishedAt: null, cancelRequested: false, terminationReason: 'COMPLETED', runtimeReason: null, errorCode: null, recordingComplete: true, usage: null, requireEvidence: false, citations: [] };
+  vi.spyOn(runsApi, 'snapshot').mockResolvedValue(snapshot);
+  const steps = vi.spyOn(runsApi, 'steps').mockResolvedValue([]);
+  let release!: () => void;
+  const hook = new Promise<void>(resolve => { release = resolve; });
+  const finished = vi.fn(async () => undefined);
+  const run = useActiveRun(finished, () => hook);
+  const pending = run.open('old'); await vi.waitFor(() => expect(run.snapshot.value).not.toBeNull());
+  run.stop(true); release(); await pending;
+  expect(finished).not.toHaveBeenCalled(); expect(steps).not.toHaveBeenCalled();
+  expect(run.taskId.value).toBeNull();
+});

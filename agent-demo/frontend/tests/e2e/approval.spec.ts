@@ -21,6 +21,7 @@ test('lost decision response is checked by reads and never replayed', async ({ p
 });
 
 test('explicit synthetic UNKNOWN projection cannot offer a replay action', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 }); await page.addInitScript(() => localStorage.setItem('hiagent.theme', 'dark'));
   await page.route('**/api/agent/tasks/*/approvals', async route => {
     const response = await route.fetch(); const body = await response.json();
     body.items = body.items.map((item: Record<string, unknown>) => ({ ...item, status: 'APPROVED', outcome: 'UNKNOWN', dispatchCount: 1 }));

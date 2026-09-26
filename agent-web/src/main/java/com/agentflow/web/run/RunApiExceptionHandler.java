@@ -33,6 +33,13 @@ public class RunApiExceptionHandler {
     ResponseEntity<RunApiErrorWriter.ErrorResponse> unavailable(RunCoordinator.RunUnavailableException e) {
         return response(HttpStatus.SERVICE_UNAVAILABLE, e.code(), e.taskId());
     }
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> status(org.springframework.web.server.ResponseStatusException e) {
+        if (e.getStatusCode().value() == 401) {
+            return response(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", null);
+        }
+        return internal();
+    }
     @ExceptionHandler(Exception.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> internal() { return response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", null); }
     private static ResponseEntity<RunApiErrorWriter.ErrorResponse> response(HttpStatus status, String code, String taskId) {

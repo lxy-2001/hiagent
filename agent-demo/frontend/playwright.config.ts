@@ -6,7 +6,7 @@ export default defineConfig({
   use: { baseURL: 'http://127.0.0.1:15179', trace: 'retain-on-failure' },
   webServer: [
     { command: 'node scripts/fixture.mjs', url: 'http://127.0.0.1:15180/index.html', reuseExistingServer: false, timeout: 90000 },
-    { command: 'npm run dev -- --port 15179', url: 'http://127.0.0.1:15179', reuseExistingServer: false, env: { WORKBENCH_BACKEND_URL: 'http://127.0.0.1:15180' } },
+    { command: 'node scripts/preview.mjs', url: 'http://127.0.0.1:15179', reuseExistingServer: false, env: { WORKBENCH_BACKEND_URL: 'http://127.0.0.1:15180' } },
   ],
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }, { name: 'firefox', testMatch: '**/crossbrowser.spec.ts', use: { ...devices['Desktop Firefox'] } }, { name: 'webkit', timeout: 60000, testMatch: '**/crossbrowser.spec.ts', use: { ...devices['Desktop Safari'] } }],
 });

@@ -114,6 +114,25 @@ public final class DeliveryDemoLauncher implements AutoCloseable {
         public BrowserEvidenceController(DeliveryDemoLauncher fixture) { this.fixture = fixture; }
         @org.springframework.web.bind.annotation.GetMapping("/api/demo/fixture-stats")
         public Map<String, Integer> stats() { return Map.of("writes", fixture.writes()); }
+        @org.springframework.web.bind.annotation.PostMapping("/api/demo/fixture-seed")
+        public Map<String, String> seed(@org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.oauth2.jwt.Jwt jwt) {
+            var sessions = fixture.context.getBean(com.agentflow.web.agent.AgentSessionRepository.class);
+            var tasks = fixture.context.getBean(com.agentflow.web.agent.AgentTaskRepository.class);
+            var jdbc = fixture.context.getBean(org.springframework.jdbc.core.JdbcTemplate.class);
+            String owner = jwt.getSubject(), main = UUID.randomUUID().toString();
+            var now = java.time.Instant.now();
+            var rows = new ArrayList<com.agentflow.web.agent.AgentSessionEntity>();
+            for (int i = 0; i < 99; i++) rows.add(new com.agentflow.web.agent.AgentSessionEntity(UUID.randomUUID().toString(), owner, "示例会话 " + i, now.minusSeconds(i + 1)));
+            rows.add(new com.agentflow.web.agent.AgentSessionEntity(main, owner, "Java 模块设计 · 100 轮历史", now));
+            sessions.saveAllAndFlush(rows);
+            var turns = new ArrayList<com.agentflow.web.agent.AgentTaskEntity>();
+            for (int i = 1; i <= 100; i++) turns.add(new com.agentflow.web.agent.AgentTaskEntity(UUID.randomUUID().toString(), main, owner, "第 " + i + " 轮：如何保持模块边界清晰？", "SUCCEEDED", now.minusSeconds(101 - i), i));
+            tasks.saveAllAndFlush(turns);
+            jdbc.update("update agent_session set last_turn_sequence=100 where id=?", main);
+            String answer = "## 保持清晰的边界\n\n把变化留在适配层，让核心表达业务语义。\n\n| 层次 | 负责内容 |\n|---|---|\n| 核心 | 决策与状态 |\n| 适配器 | 外部协议 |\n\n```java\npublic interface TaskPort {\n    String execute(String input);\n}\n```\n\n这是合成测试资料，不是模型实验结果。";
+            jdbc.update("update agent_task set final_answer=?, recording_complete=true, finished_at=?, termination_reason='COMPLETED' where session_id=?", answer, java.sql.Timestamp.from(now), main);
+            return Map.of("sessionId", main);
+        }
     }
     int port() { return URI.create(base).getPort(); }
     HttpResponse<String> events(String id, String cursor) throws Exception { return send("GET", "/api/agent/tasks/" + id + "/events", null, cursor); }

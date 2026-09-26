@@ -1,8 +1,9 @@
 import { expect, type Page, type APIRequestContext } from '@playwright/test';
-export async function login(page: Page) {
+export async function login(page: Page, keyboard = false) {
   await page.goto('/'); await page.getByLabel('账号', { exact: true }).fill('fixture-admin');
   await page.getByLabel('密码', { exact: true }).fill('fixture-only-password');
-  await page.getByRole('button', { name: '进入工作台' }).click();
+  const enter = page.getByRole('button', { name: '进入工作台' });
+  if (keyboard) { await enter.focus(); await enter.press('Enter'); } else await enter.click();
   await expect(page.getByText('离线演示', { exact: true })).toBeAttached();
 }
 export async function submit(page: Page, input: string) { await page.getByLabel('任务内容').fill(input); await page.getByRole('button', { name: '发送任务', exact: true }).click(); }

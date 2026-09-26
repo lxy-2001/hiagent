@@ -8,5 +8,6 @@ export default defineConfig({
   plugins: [vue()], envDir: false, base: '/',
   build: { outDir: resolve(import.meta.dirname, '../target/workbench'), emptyOutDir: true,
     sourcemap: false, manifest: 'asset-manifest.json', assetsDir: 'assets' },
+  preview: {host:'127.0.0.1', strictPort:true, proxy:{'/api':{target:url.origin,changeOrigin:false}}},
   server: {host:'127.0.0.1', strictPort:true, proxy:{'/api':{target:url.origin,changeOrigin:false}}},
 });

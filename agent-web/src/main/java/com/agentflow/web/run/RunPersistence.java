@@ -75,7 +75,7 @@ public class RunPersistence {
         if (status == RunLifecycleStatus.RUNNING) {
             return new StartResult(StartOutcome.ALREADY_RUNNING, snapshot(task));
         }
-        task.markRunning(startedAt);
+        task.markRunning(notBeforeStoredTime(task, startedAt));
         entityManager.flush();
         return new StartResult(StartOutcome.STARTED, snapshot(task));
     }
@@ -92,6 +92,7 @@ public class RunPersistence {
         if (task == null) {
             throw new IllegalStateException("run does not exist");
         }
+        projection = normalizeFinalTime(task, projection);
         if (RunLifecycleStatus.valueOf(task.getStatus()).isTerminal()) {
             RunSnapshot actual = snapshot(task);
             return new CommittedTerminal(actual, false, !matches(actual, projection));
@@ -141,7 +142,7 @@ public class RunPersistence {
         if (RunLifecycleStatus.valueOf(task.getStatus()).isTerminal()) {
             return new CancelResult(CancelOutcome.TERMINAL, snapshot(task));
         }
-        task.requestCancellation(requestedAt);
+        task.requestCancellation(notBeforeStoredTime(task, requestedAt));
         entityManager.flush();
         return new CancelResult(CancelOutcome.RECORDED, snapshot(task));
     }
@@ -247,6 +248,25 @@ public class RunPersistence {
                 .sorted(Comparator.comparingInt(RunResultProjector.ProjectedStep::stepNo))
                 .limit(256)
                 .toList();
+    }
+
+    // DATETIME(6) may round an observation up by less than one microsecond.
+    // Correct only that representational difference; genuinely invalid time order still fails.
+    private static Instant notBeforeStoredTime(AgentTaskEntity task, Instant observed) {
+        Objects.requireNonNull(observed, "observed time must not be null");
+        Instant stored = task.getUpdatedAt();
+        return observed.isBefore(stored) && java.time.Duration.between(observed, stored).compareTo(
+                java.time.Duration.ofNanos(1000)) < 0 ? stored : observed;
+    }
+
+    private static RunResultProjector.FinalProjection normalizeFinalTime(
+            AgentTaskEntity task, RunResultProjector.FinalProjection projection) {
+        Instant finishedAt = notBeforeStoredTime(task, projection.finishedAt());
+        if (finishedAt.equals(projection.finishedAt())) return projection;
+        return new RunResultProjector.FinalProjection(projection.taskId(), projection.status(),
+                projection.terminationReason(), projection.runtimeReason(), projection.finalAnswer(),
+                projection.usage(), finishedAt, projection.cancelRequested(), projection.recordingComplete(),
+                projection.errorCode(), projection.steps(), projection.citations(), projection.toolInvocations());
     }
 
     private static boolean matches(RunSnapshot actual,

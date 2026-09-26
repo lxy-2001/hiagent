@@ -7,7 +7,7 @@ test('bounded stream failure falls back to reads and route change stops reconnec
   await expect(page.getByText('等待你的确认', { exact: true })).toBeVisible();
   await expect.poll(() => events, { timeout: 12000 }).toBe(4);
   await page.getByRole('button', { name: '打开任务详情' }).click();
-  await expect(page.getByText('polling', { exact: true })).toBeVisible();
+  await expect(page.getByText('查询最新状态', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '取消当前任务' }).click();
   await expect(page.locator('.message-list').getByText('已取消', { exact: true })).toBeVisible();
   await page.getByRole('link', { name: /新任务/ }).click(); const stopped = events;

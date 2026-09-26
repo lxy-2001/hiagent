@@ -15,12 +15,16 @@ import { approvalsApi } from '../api/approvals';
 import { runsApi } from '../api/runs';
 import { auth } from '../state/auth';
 import { workspace as ws } from '../state/workspace';
+import { useMedia, useFocusScope } from '../composables/useFocusScope';
 import { useActiveRun } from '../composables/useActiveRun';
 import { getUiContext } from '../api/ui-context';
 import { terminal, type UiContext, type RunSnapshot, type Step, type Approval } from '../domain/contracts';
 const route = useRoute(), router = useRouter();
 const sidebar = ref(false), inspector = ref(false), dialog = ref<'preferences' | 'help' | null>(null), context = ref<UiContext | null>(null), contextError = ref(false);
 const approvals = ref<Approval[]>([]), approvalError = ref(''), inspectorTab = ref<'execution' | 'sources' | 'memory'>('execution'), selectedSource = ref<string>();
+const narrow = useMedia('(max-width: 899px)'), overlayInspector = useMedia('(max-width: 1279px)');
+const sidebarElement = ref<HTMLElement>(), collapsed = ref(false);
+useFocusScope(sidebarElement, computed(() => narrow.value && sidebar.value), () => { sidebar.value = false; });
 const controller = new AbortController(); let selection = 0, inspection = 0;
 const inspectedSnapshot = ref<RunSnapshot | null>(null), inspectedSteps = ref<Step[]>([]);
 const detailsSnapshot = computed(() => inspectedSnapshot.value ?? run.snapshot.value);
@@ -28,7 +32,7 @@ const run = useActiveRun(async () => { await ws.refreshHistory(); await ws.loadS
 const active = computed(() => !!ws.session.value?.activeTaskId || !!run.snapshot.value && !terminal(run.snapshot.value.status));
 const isNew = computed(() => route.path === '/new');
 watch(() => route.params.sessionId, async value => {
-  const expected = ++selection; approvals.value = []; approvalError.value = ''; selectedSource.value = undefined; inspection++; inspectedSnapshot.value = null; inspectedSteps.value = []; run.stop(); run.snapshot.value = null;
+  const expected = ++selection; approvals.value = []; approvalError.value = ''; selectedSource.value = undefined; inspection++; inspectedSnapshot.value = null; inspectedSteps.value = []; run.stop(true); run.snapshot.value = null;
   await ws.select(typeof value === 'string' ? value : null);
   if (expected !== selection) return;
   const id = ws.session.value?.activeTaskId ?? (typeof route.query.run === 'string' ? route.query.run : null);
@@ -60,12 +64,12 @@ async function inspect(id: string) { inspector.value = true; selectedSource.valu
 <template>
   <div class="workbench"><a class="skip-link" href="#main-content" @click.prevent="focusMain">跳到主要内容</a>
     <button v-if="sidebar" class="sidebar-backdrop" aria-label="关闭会话导航" @click="sidebar = false"/>
-    <aside class="sidebar" :class="{ open: sidebar }" aria-label="会话导航"><div class="sidebar-heading"><RouterLink to="/new" class="brand"><BrandMark/><span>HiAgent<span class="brand-dot">.</span></span></RouterLink><button class="icon-button sidebar-close" aria-label="关闭会话导航" @click="sidebar = false"><PanelLeftClose :size="18"/></button></div>
+    <aside ref="sidebarElement" class="sidebar" :class="{ open: sidebar, collapsed: collapsed && !narrow }" :inert="(narrow && !sidebar) || (overlayInspector && inspector)" aria-label="会话导航"><div class="sidebar-heading"><RouterLink to="/new" class="brand"><BrandMark/><span>HiAgent<span class="brand-dot">.</span></span></RouterLink><button class="icon-button sidebar-close" aria-label="关闭会话导航" @click="sidebar = false"><PanelLeftClose :size="18"/></button></div>
       <RouterLink to="/new" class="new-task" @click="sidebar = false"><Plus :size="18"/> 新任务 <span>↗</span></RouterLink>
       <SessionSidebar :items="ws.sessions.value" :selected="ws.key.value" :loading="ws.listing.value" :more="!!ws.nextSessions.value" :error="ws.listError.value" @select="sidebar = false" @more="ws.loadSessions(true)" @retry="ws.loadSessions()"/>
       <div class="sidebar-footer"><div class="mode-label"><span class="status-dot"/>{{ context?.mode === 'OFFLINE_FIXTURE' ? '离线演示' : context ? '模型已配置' : contextError ? '配置摘要暂不可用' : '正在读取配置' }}</div><p class="model-label">{{ context?.modelLabel ?? 'HiAgent 工作空间' }}</p><div class="account-row"><span class="avatar">{{ auth.user.value?.username.slice(0, 1).toUpperCase() }}</span><span class="account-name">{{ auth.user.value?.username }}</span><button class="icon-button" aria-label="外观偏好" @click="dialog = 'preferences'"><Settings2 :size="17"/></button><button class="icon-button" aria-label="使用帮助" @click="dialog = 'help'"><CircleHelp :size="17"/></button><button class="icon-button" aria-label="退出登录" @click="logout"><LogOut :size="17"/></button></div></div>
     </aside>
-    <div class="workspace"><header class="topbar"><button class="icon-button mobile-menu" aria-label="打开会话导航" :aria-expanded="sidebar" @click="sidebar = true"><Menu :size="20"/></button><span class="topbar-title">工作台 <span class="topbar-slash">/</span> <strong>{{ ws.session.value?.title ?? '新任务' }}</strong></span><button v-if="!isNew" class="icon-button" aria-label="打开任务详情" :aria-expanded="inspector" @click="inspector = !inspector"><PanelRight :size="19"/></button></header>
+    <div class="workspace" :inert="(narrow && sidebar) || (overlayInspector && inspector)"><header class="topbar"><button class="icon-button mobile-menu" aria-label="打开会话导航" :aria-expanded="sidebar" @click="sidebar = true"><Menu :size="20"/></button><button class="icon-button desktop-toggle" :aria-label="collapsed ? '展开会话导航' : '折叠会话导航'" @click="collapsed = !collapsed"><PanelLeftClose :size="18"/></button><span class="topbar-title">工作台 <span class="topbar-slash">/</span> <strong>{{ ws.session.value?.title ?? '新任务' }}</strong></span><button v-if="!isNew" class="icon-button" aria-label="打开任务详情" :aria-expanded="inspector" @click="inspector = !inspector"><PanelRight :size="19"/></button></header>
       <main id="main-content" class="conversation-main" tabindex="-1"><p v-if="ws.error.value || run.error.value" class="error-box" role="alert">{{ ws.error.value || run.error.value }}<button v-if="run.taskId.value" class="text-button" @click="run.open(run.taskId.value)">恢复任务观察</button></p>
         <div v-if="isNew" class="welcome"><div class="welcome-content"><WelcomePanel :rag-enabled="context?.ragEnabled ?? false" @example="example"/><Composer v-model:text="ws.draft.value.text" v-model:evidence="ws.draft.value.evidence" :evidence-enabled="context?.ragEnabled ?? false" :busy="ws.draft.value.status === 'submitting'" :active="active" :uncertain="ws.draft.value.status === 'uncertain'" @submit="send" @cancel="run.cancel" @confirm="ws.confirmResubmit"/></div></div>
         <template v-else><p v-if="ws.loading.value" class="loading-state" role="status">正在读取会话…</p><MessageList v-else :turns="ws.turns.value" :snapshot="run.snapshot.value" :older="ws.hasOlder.value" :loading="ws.loadingOlder.value" :load-older="ws.older" @inspect="inspect" @source="source"><template #approvals><p v-if="approvalError" class="error-box" role="alert">{{ approvalError }}</p><ApprovalCard v-for="approval in approvals" :key="approval.approvalId" :approval="approval" :decide="decision => decide(approval, decision)"/></template></MessageList><div class="bottom-composer"><Composer v-model:text="ws.draft.value.text" v-model:evidence="ws.draft.value.evidence" :evidence-enabled="context?.ragEnabled ?? false" :busy="ws.loading.value || ws.draft.value.status === 'submitting'" :active="active" :uncertain="ws.draft.value.status === 'uncertain'" @submit="send" @cancel="run.cancel" @confirm="ws.confirmResubmit"/></div></template>
