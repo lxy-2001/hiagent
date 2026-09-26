@@ -21,7 +21,7 @@ export function createAuth(fetcher: Fetcher = (url, init) => fetch(url, init)) {
   }
   function current(expected: number) { if (generation !== expected) throw new ApiError('STALE_REQUEST'); }
   async function raw(path: string, body: unknown, expected: number, access?: string) {
-    const response = await fetcher(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) }, body: JSON.stringify(body), signal: controller.signal, cache: 'no-store', credentials: 'omit', redirect: 'error' });
+    const response = await fetcher(path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(access ? { Authorization: `Bearer ${access}` } : {}) }, body: JSON.stringify(body), signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]), cache: 'no-store', credentials: 'omit', redirect: 'error' });
     current(expected);
     const value = await decode(response); current(expected); return value;
   }
@@ -29,7 +29,7 @@ export function createAuth(fetcher: Fetcher = (url, init) => fetch(url, init)) {
     reset(); const expected = generation;
     try {
       const issued = parseTokens(await raw('/api/auth/login', { username, password }, expected));
-      const response = await fetcher('/api/me', { headers: { Authorization: `Bearer ${issued.accessToken}` }, signal: controller.signal, cache: 'no-store', credentials: 'omit', redirect: 'error' });
+      const response = await fetcher('/api/me', { headers: { Authorization: `Bearer ${issued.accessToken}` }, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]), cache: 'no-store', credentials: 'omit', redirect: 'error' });
       current(expected); const me = object(await decode(response)); current(expected);
       tokens = issued;
       user.value = { userId: text(me.userId, 128), username: text(me.username, 128), roles: list(me.roles, v => text(v, 64), 32) };

@@ -85,3 +85,12 @@ export function acceptedRun(value: unknown): AcceptedRun {
   if (!taskId || taskId !== runId) throw new Error('INVALID_RESPONSE');
   return { taskId, runId, sessionId: text(v.sessionId, 36), status: enumeration(v.status, RUN_STATUSES) };
 }
+
+export function approval(value: unknown): Approval {
+  const v = object(value);
+  return { approvalId: text(v.approvalId, 128), taskId: text(v.taskId, 36), runId: text(v.runId, 36), callId: text(v.callId, 128), toolName: text(v.toolName, 256), serverId: nullableText(v.serverId, 128), remoteToolName: nullableText(v.remoteToolName, 256), risk: text(v.risk, 32), actionSummary: text(v.actionSummary, 4096), argumentPreview: list(v.argumentPreview, item => { const p = object(item); return { name: text(p.name, 256), value: text(p.value, 8192), masked: bool(p.masked), truncated: bool(p.truncated) }; }, 64), argumentsDigest: text(v.argumentsDigest, 256), definitionVersion: text(v.definitionVersion, 256), policyVersion: text(v.policyVersion, 256), status: enumeration(v.status, APPROVAL_STATUSES), createdAt: text(v.createdAt, 64), expiresAt: text(v.expiresAt, 64), decidedAt: nullableText(v.decidedAt, 64), decisionSource: nullableText(v.decisionSource, 128), dispatchCount: integer(v.dispatchCount), outcome: enumeration(v.outcome, ['NOT_DISPATCHED', 'SUCCEEDED', 'FAILED', 'UNKNOWN']), waitMillis: v.waitMillis === null ? null : integer(v.waitMillis) };
+}
+export function memorySlot(value: unknown): MemorySlot {
+  const v = object(value);
+  return { sessionId: text(v.sessionId, 36), key: enumeration(v.key, ['preferred_language', 'project_stack']), type: text(v.type, 64), state: text(v.state, 64), value: nullableText(v.value, 512), version: decimal(v.version), source: nullableText(v.source, 128), updatedAt: nullableText(v.updatedAt, 64) };
+}

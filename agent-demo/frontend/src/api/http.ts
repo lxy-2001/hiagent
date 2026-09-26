@@ -6,7 +6,7 @@ export function createHttp(auth: Auth, fetcher: Fetcher = (url, init) => fetch(u
     const expected = auth.generation;
     const method = (options.method ?? 'GET').toUpperCase();
     const safe = method === 'GET';
-    const signal = options.signal ? AbortSignal.any([options.signal, auth.signal]) : auth.signal;
+    const signal = AbortSignal.any([auth.signal, ...(options.signal ? [options.signal] : []), AbortSignal.timeout(new Headers(options.headers).get('Accept') === 'text/event-stream' ? 45000 : 15000)]);
     async function send(retried: boolean): Promise<Response> {
       auth.current(expected);
       const token = auth.accessToken;
@@ -16,7 +16,7 @@ export function createHttp(auth: Auth, fetcher: Fetcher = (url, init) => fetch(u
       if (options.body) headers.set('Content-Type', 'application/json');
       let result: Response;
       try { result = await fetcher(path, { ...options, method, headers, signal, credentials: 'omit', cache: 'no-store', redirect: 'error' }); }
-      catch { auth.current(expected); throw new ApiError(signal.aborted ? 'REQUEST_ABORTED' : safe ? 'NETWORK_ERROR' : 'UNKNOWN_SUBMISSION'); }
+      catch { auth.current(expected); throw new ApiError(!safe ? 'UNKNOWN_SUBMISSION' : signal.aborted ? 'REQUEST_ABORTED' : 'NETWORK_ERROR'); }
       auth.current(expected);
       if (result.status === 401) {
         if (safe && !retried) { await auth.refresh(expected, token); return send(true); }

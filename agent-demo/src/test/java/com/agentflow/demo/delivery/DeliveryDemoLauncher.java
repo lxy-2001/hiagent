@@ -105,6 +105,16 @@ public final class DeliveryDemoLauncher implements AutoCloseable {
     }
     List<AgentModelRequest> requests(String id) { return requests.stream().filter(r -> r.taskId().equals(id)).toList(); }
     int writes() { return mcp.writes(); }
+
+    /** Authenticated, test-classpath evidence for browser assertions; absent from production JAR. */
+    @org.springframework.web.bind.annotation.RestController
+    @Profile("delivery-fixture")
+    public static class BrowserEvidenceController {
+        private final DeliveryDemoLauncher fixture;
+        public BrowserEvidenceController(DeliveryDemoLauncher fixture) { this.fixture = fixture; }
+        @org.springframework.web.bind.annotation.GetMapping("/api/demo/fixture-stats")
+        public Map<String, Integer> stats() { return Map.of("writes", fixture.writes()); }
+    }
     int port() { return URI.create(base).getPort(); }
     HttpResponse<String> events(String id, String cursor) throws Exception { return send("GET", "/api/agent/tasks/" + id + "/events", null, cursor); }
     void evidence(String scenario, String id, JsonNode done) throws Exception {
@@ -149,7 +159,7 @@ public final class DeliveryDemoLauncher implements AutoCloseable {
                     return answer(evidence ? "Java interfaces define module contracts [S1]." : "No sources available.", "research");
                 }
                 if (request.iteration() == 1) return call("mcp.demo.note_append", Map.of("title", "Java study", "body", "Synthetic Java module note"));
-                boolean receipt = request.messages().stream().anyMatch(m -> m.role().equals("tool") && m.content().contains("fixture-receipt-1"));
+                boolean receipt = request.messages().stream().anyMatch(m -> m.role().equals("tool") && java.util.regex.Pattern.compile("fixture-receipt-[1-9][0-9]*").matcher(m.content()).find());
                 return answer(receipt ? "RECEIPT_CONFIRMED" : "RECEIPT_MISSING", "note");
             };
         }
