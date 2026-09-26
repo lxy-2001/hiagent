@@ -130,7 +130,7 @@ class PersistentContextSourceTest {
     }
 
     @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = AgentWebAutoConfiguration.class)
+    @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
     @EntityScan(basePackageClasses = {AgentTaskEntity.class, com.agentflow.web.memory.ConfirmedMemoryEntity.class})
     @EnableJpaRepositories(basePackageClasses = AgentTaskRepository.class)
     @Import({RunPersistence.class, PersistentContextSource.class, ContextTextPolicy.class})

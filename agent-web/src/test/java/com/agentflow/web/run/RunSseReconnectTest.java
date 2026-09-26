@@ -139,7 +139,8 @@ class RunSseReconnectTest {
             "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration",
             "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration",
             "org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration",
-            "com.agentflow.web.autoconfigure.AgentWebAutoConfiguration"})
+            "com.agentflow.web.autoconfigure.AgentWebAutoConfiguration",
+            "com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration"})
     @Import({AgentController.class, RunSseMvcConfiguration.class})
     static class TestApplication {
         @Bean SecurityFilterChain testSecurity(HttpSecurity http) throws Exception {

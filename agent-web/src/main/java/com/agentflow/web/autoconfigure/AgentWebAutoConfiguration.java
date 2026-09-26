@@ -12,21 +12,9 @@ import com.agentflow.web.conversation.ConversationController;
 import com.agentflow.web.conversation.ConversationProperties;
 
 import com.agentflow.core.AgentRuntime;
-import com.agentflow.core.context.ContextPolicy;
-import com.agentflow.core.context.ContextAssembler;
 import com.agentflow.core.context.ContextTextPolicy;
-import com.agentflow.core.context.TokenEstimator;
-import com.agentflow.core.context.Utf8TokenEstimator;
-import com.agentflow.core.runtime.TimeSource;
 import com.agentflow.core.memory.ShortTermMemory;
-import com.agentflow.core.model.AgentModelClient;
-import com.agentflow.core.runtime.DefaultAgentRuntime;
 import com.agentflow.core.step.StepRecorder;
-import com.agentflow.core.tool.DefaultToolExecutor;
-import com.agentflow.core.tool.DefaultToolResultNormalizer;
-import com.agentflow.core.tool.ToolExecutor;
-import com.agentflow.core.tool.ToolRegistry;
-import com.agentflow.core.tool.ToolResultNormalizer;
 import com.agentflow.llm.AgentFlowProperties;
 import com.agentflow.web.agent.AgentController;
 import com.agentflow.web.agent.AgentSessionEntity;
@@ -210,46 +198,4 @@ public class AgentWebAutoConfiguration {
         return coordinator;
     }
 
-    @Bean
-    @ConditionalOnMissingBean(ToolResultNormalizer.class)
-    ToolResultNormalizer toolResultNormalizer() {
-        return new DefaultToolResultNormalizer();
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(ToolExecutor.class)
-    ToolExecutor toolExecutor(ToolRegistry toolRegistry, ToolResultNormalizer resultNormalizer) {
-        return new DefaultToolExecutor(toolRegistry, resultNormalizer);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    ContextPolicy contextPolicy() { return ContextPolicy.defaults(); }
-
-    @Bean
-    @ConditionalOnMissingBean
-    ContextTextPolicy contextTextPolicy() { return new ContextTextPolicy(); }
-
-    @Bean
-    @ConditionalOnMissingBean(TokenEstimator.class)
-    TokenEstimator tokenEstimator() { return new Utf8TokenEstimator(); }
-
-    @Bean
-    @ConditionalOnMissingBean
-    ContextAssembler contextAssembler(ContextPolicy policy, TokenEstimator estimator, ContextTextPolicy textPolicy) {
-        return new ContextAssembler(policy, estimator, textPolicy);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(AgentRuntime.class)
-    AgentRuntime agentRuntime(
-            AgentModelClient modelClient,
-            ToolRegistry toolRegistry,
-            ToolExecutor toolExecutor,
-            StepRecorder stepRecorder,
-            ToolResultNormalizer resultNormalizer,
-            ContextAssembler contextAssembler, com.agentflow.core.tool.ToolExecutionPolicy executionPolicy) {
-        return new DefaultAgentRuntime(modelClient, toolRegistry, toolExecutor, stepRecorder, resultNormalizer,
-                TimeSource.system(), contextAssembler, executionPolicy);
-    }
 }

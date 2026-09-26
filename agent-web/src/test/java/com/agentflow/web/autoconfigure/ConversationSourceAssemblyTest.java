@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.*;
 
 class ConversationSourceAssemblyTest {
     private ApplicationContextRunner runner() {
-        return new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(com.agentflow.tool.ToolPolicyAutoConfiguration.class, AgentWebAutoConfiguration.class))
+        return new ApplicationContextRunner().withConfiguration(AutoConfigurations.of(com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class, com.agentflow.tool.ToolPolicyAutoConfiguration.class, AgentWebAutoConfiguration.class))
                 .withPropertyValues("agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32")
                 .withUserConfiguration(AgentWebRuntimeAssemblyTest.Dependencies.class)
                 .withBean(AgentModelClient.class, () -> request -> new FinalAnswerDecision("d", "answer", TokenUsage.empty()))

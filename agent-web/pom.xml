@@ -14,6 +14,7 @@
     <name>AgentFlow Web</name>
 
     <dependencies>
+        <dependency><groupId>com.agentflow</groupId><artifactId>agent-spring-boot-starter</artifactId><version>${project.version}</version></dependency>
         <dependency>
             <groupId>com.agentflow</groupId>
             <artifactId>agent-core</artifactId>

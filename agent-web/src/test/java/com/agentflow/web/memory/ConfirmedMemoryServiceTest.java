@@ -82,7 +82,7 @@ class ConfirmedMemoryServiceTest {
     }
     private void session(String id) { sessions.saveAndFlush(new AgentSessionEntity(id, "owner", "title", Instant.now())); }
     @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = AgentWebAutoConfiguration.class)
+    @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
     @EntityScan(basePackageClasses = {AgentTaskEntity.class, ConfirmedMemoryEntity.class})
     @EnableJpaRepositories(basePackageClasses = {AgentTaskRepository.class, ConfirmedMemoryRepository.class})
     @Import({ConfirmedMemoryService.class, ContextTextPolicy.class})

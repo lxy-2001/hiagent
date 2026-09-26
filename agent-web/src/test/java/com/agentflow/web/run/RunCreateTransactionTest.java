@@ -71,7 +71,7 @@ class RunCreateTransactionTest {
     }
 
     @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = AgentWebAutoConfiguration.class)
+    @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
     @EntityScan(basePackageClasses = AgentTaskEntity.class)
     @EnableJpaRepositories(basePackageClasses = AgentTaskRepository.class)
     @Import(RunPersistence.class)

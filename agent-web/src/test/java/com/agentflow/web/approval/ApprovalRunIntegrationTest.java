@@ -100,7 +100,7 @@ class ApprovalRunIntegrationTest {
     }
 
     @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = AgentWebAutoConfiguration.class)
+    @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
     @EntityScan(basePackageClasses = {AgentTaskEntity.class, ToolInvocationEntity.class})
     @EnableJpaRepositories(basePackageClasses = {AgentTaskRepository.class, ToolInvocationRepository.class})
     @Import({RunPersistence.class, ApprovalPersistence.class})

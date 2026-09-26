@@ -43,7 +43,7 @@ class MemorySnapshotIsolationTest {
     }
 
     @SpringBootConfiguration
-    @EnableAutoConfiguration(exclude = AgentWebAutoConfiguration.class)
+    @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
     @EntityScan(basePackageClasses = {AgentTaskEntity.class, ConfirmedMemoryEntity.class})
     @EnableJpaRepositories(basePackageClasses = {AgentTaskRepository.class, ConfirmedMemoryRepository.class})
     @Import({RunPersistence.class, PersistentContextSource.class, ConfirmedMemoryService.class, ContextTextPolicy.class})
