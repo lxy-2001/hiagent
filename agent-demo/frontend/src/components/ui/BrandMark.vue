@@ -1,0 +1,1 @@
+<template><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><rect width="40" height="40" rx="12" fill="currentColor"/><path d="M12 11v18m16-18v18M12 20h16" stroke="var(--on-accent)" stroke-width="3.5" stroke-linecap="round"/><circle cx="28" cy="11" r="2.6" fill="var(--on-accent)"/></svg></template>

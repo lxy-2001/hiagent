@@ -1,3 +1,7 @@
 import { createApp } from 'vue';
 import App from './App.vue';
-createApp(App).mount('#app');
+import { router } from './router';
+import './state/preferences';
+import './styles/tokens.css';
+import './styles/base.css';
+createApp(App).use(router).mount('#app');
