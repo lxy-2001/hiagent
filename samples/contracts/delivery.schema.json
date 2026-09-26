@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "codeSha": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "version": {
+      "const": "0.1.0-SNAPSHOT"
+    },
+    "java": {
+      "const": 17
+    },
+    "boot": {
+      "const": "4.1.1"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "maxItems": 20
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_RUN"
+            ]
+          },
+          "exitCode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidenceRef": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "command",
+          "status",
+          "exitCode",
+          "evidenceRef"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "NOT_RUN"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "exitCode": {
+                  "type": "null"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "exitCode": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "PASS"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "exitCode": {
+                  "const": 0
+                },
+                "evidenceRef": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              }
+            }
+          }
+        ]
+      },
+      "maxItems": 100
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "claim": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "codeRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "testRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "OFFLINE_FIXTURE",
+              "MODEL_LIVE",
+              "NOT_RUN"
+            ]
+          },
+          "sampleSize": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "claim",
+          "codeRef",
+          "testRef",
+          "commit",
+          "mode",
+          "sampleSize",
+          "limitations"
+        ]
+      },
+      "maxItems": 50
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "maxItems": 30
+    },
+    "localInstall": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "NOT_RUN"
+      ]
+    },
+    "externalPublication": {
+      "const": "NOT_PUBLISHED"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "codeSha",
+    "version",
+    "java",
+    "boot",
+    "artifacts",
+    "checks",
+    "evidence",
+    "limitations",
+    "localInstall",
+    "externalPublication"
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "codeSha": "81fe7439c40beed4ace27ba1652587261080de7f",
+  "version": "0.1.0-SNAPSHOT",
+  "java": 17,
+  "boot": "4.1.1",
+  "artifacts": [
+    "com.agentflow:agent-spring-boot-starter:0.1.0-SNAPSHOT",
+    "com.agentflow:agent-web:0.1.0-SNAPSHOT"
+  ],
+  "checks": [
+    {
+      "id": "full-verify",
+      "command": "mvnw.cmd clean verify",
+      "status": "PASS",
+      "exitCode": 0,
+      "evidenceRef": ".ua/008-final-clean-verify.log"
+    },
+    {
+      "id": "consumers",
+      "command": "pwsh -File scripts/verify-consumers.ps1",
+      "status": "PASS",
+      "exitCode": 0,
+      "evidenceRef": ".ua/008-final-consumers.json"
+    },
+    {
+      "id": "copied-delivery",
+      "command": "pwsh -File scripts/verify-delivery.ps1",
+      "status": "PASS",
+      "exitCode": 0,
+      "evidenceRef": ".ua/008-final-delivery/results.json"
+    },
+    {
+      "id": "frontend",
+      "command": "npm --prefix agent-demo test",
+      "status": "PASS",
+      "exitCode": 0,
+      "evidenceRef": ".ua/008-final-delivery/frontend.log"
+    },
+    {
+      "id": "paid-model",
+      "command": "Explicit optional model experiment",
+      "status": "NOT_RUN",
+      "exitCode": null,
+      "evidenceRef": null
+    },
+    {
+      "id": "third-party-mcp",
+      "command": "Explicit optional external MCP experiment",
+      "status": "NOT_RUN",
+      "exitCode": null,
+      "evidenceRef": null
+    }
+  ],
+  "evidence": [
+    {
+      "claim": "Lightweight assembly and independent consumer matrix",
+      "codeRef": "agent-spring-boot-starter/src/main/java/com/agentflow/autoconfigure/AgentRuntimeAutoConfiguration.java",
+      "testRef": "scripts/verify-consumers.ps1",
+      "commit": "81fe7439c40beed4ace27ba1652587261080de7f",
+      "mode": "OFFLINE_FIXTURE",
+      "sampleSize": 6,
+      "limitations": [
+        "Installed snapshot artifacts, not Maven Central publication"
+      ]
+    },
+    {
+      "claim": "Five isolated HTTP delivery scenarios",
+      "codeRef": "agent-demo/src/test/java/com/agentflow/demo/delivery/DeliveryDemoLauncher.java",
+      "testRef": "agent-demo/src/test/java/com/agentflow/demo/delivery/DeliveryFlowTest.java",
+      "commit": "81fe7439c40beed4ace27ba1652587261080de7f",
+      "mode": "OFFLINE_FIXTURE",
+      "sampleSize": 5,
+      "limitations": [
+        "Synthetic model/retrieval and loopback MCP; no claim about model accuracy"
+      ]
+    },
+    {
+      "claim": "Repeatable baseline mechanism evaluation",
+      "codeRef": "agent-eval/src/main/java/com/agentflow/eval/EvaluationScorer.java",
+      "testRef": "agent-demo/src/test/java/com/agentflow/demo/evaluation/AgentEvaluationSuiteTest.java",
+      "commit": "81fe7439c40beed4ace27ba1652587261080de7f",
+      "mode": "OFFLINE_FIXTURE",
+      "sampleSize": 78,
+      "limitations": [
+        "26 scenarios repeated three times; not 78 independent user questions"
+      ]
+    }
+  ],
+  "limitations": [
+    "Implementation revision above; documentation and final evidence maintained in subsequent commit",
+    "Real paid model, Qdrant and third-party MCP not executed in Feature008",
+    "Microsoft Learn schema limitation retained",
+    "Single process; cancellation after dispatch may leave UNKNOWN side effects"
+  ],
+  "localInstall": "PASS",
+  "externalPublication": "NOT_PUBLISHED"
+}

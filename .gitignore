@@ -89,3 +89,12 @@ README.md
 !docs/
 docs/*
 !docs/evaluation.md
+
+# Reviewed Feature008 public delivery documentation only.
+!/README.md
+!docs/architecture.md
+!docs/integration.md
+!docs/configuration.md
+!docs/demo.md
+!docs/portfolio-evidence.md
+!docs/delivery-checklist.md
