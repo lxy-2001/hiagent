@@ -26,7 +26,8 @@ export function approvalText(item) {
     const fields = (item.argumentPreview || []).map(field => field.name + ': ' + (field.masked ? '[masked]' : field.value)
         + (field.truncated ? '（已截断）' : ''));
     return [status, item.actionSummary, '到期时间：' + item.expiresAt, ...fields,
-        '调用结果：' + item.outcome + '；发起次数：' + item.dispatchCount].join('\n');
+        '调用结果：' + item.outcome + '；发起次数：' + item.dispatchCount,
+        ...(item.outcome === 'UNKNOWN' ? ['可能已执行，取消不会撤销已发起的操作；请核对结果，不要重复提交。'] : [])].join('\n');
 }
 
 export function renderApprovals(container, items, decide, documentRef = document) {

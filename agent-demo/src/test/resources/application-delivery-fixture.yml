@@ -1,0 +1,16 @@
+# Only loaded explicitly by the test-classpath DeliveryDemoLauncher.
+agentflow:
+  tool-policy:
+    rules:
+      - tool-name: knowledge.search
+        action: ALLOW
+        risk: LOW
+        effect: READ_ONLY
+        action-summary: Search synthetic Java documentation
+        visible-arguments: []
+      - tool-name: mcp.demo.note_append
+        action: REQUIRE_APPROVAL
+        risk: HIGH
+        effect: WRITE
+        action-summary: Append one synthetic note
+        visible-arguments: [title]

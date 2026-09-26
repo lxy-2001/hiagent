@@ -67,3 +67,17 @@ for (const status of [204, 410]) {
         assert.equal(recovered,1);
     });
 }
+
+test('closing observation aborts its request and prevents reconnect', async () => {
+    let signal; let calls = 0;
+    const observer = observeRun({taskId:'task',token:'fixture',generation:1,isCurrent:()=>true,
+        fetchImpl: async (url, init) => {
+            calls++; signal = init.signal;
+            return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted')), {once:true}));
+        }});
+    const running = observer.start();
+    observer.stop();
+    await running;
+    assert.equal(signal.aborted, true);
+    assert.equal(calls, 1);
+});

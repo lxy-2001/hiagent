@@ -7,10 +7,10 @@ import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.List;
 
-final class FixedEvidenceRetriever implements RagRetriever {
+public final class FixedEvidenceRetriever implements RagRetriever {
     private final String scenario;
     private final RetrievedChunk chunk;
-    FixedEvidenceRetriever(String scenario) {
+    public FixedEvidenceRetriever(String scenario) {
         this.scenario = scenario;
         String excerpt = "Java interfaces define contracts between modules.";
         try {

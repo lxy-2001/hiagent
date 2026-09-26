@@ -36,3 +36,8 @@ test('approval and unknown nonterminal event frames advance the cursor', async (
     assert.equal(parser.lastEventId(),'3');
     assert.deepEqual(received,['APPROVAL_REQUESTED','APPROVAL_RESOLVED']);
 });
+test('unknown side effect explicitly warns that cancellation does not undo dispatch', () => {
+    const text = approvalText({status:'APPROVED', outcome:'UNKNOWN', dispatchCount:1, actionSummary:'Write', expiresAt:'past'});
+    assert.match(text, /可能已执行/);
+    assert.doesNotMatch(text, /操作成功/);
+});

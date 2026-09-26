@@ -48,7 +48,7 @@ public final class FixtureDemoLauncher {
                         new ToolArguments(Map.of("title","Java17 demo","body",OfflineMcpFixture.PRIVATE_BODY))),TokenUsage.empty())
                     : new FinalAnswerDecision("fixture-final","Offline note receipt confirmed.",TokenUsage.empty());
         }
-        @Bean StringRedisTemplate fixtureRedis() {
+        @Bean public static StringRedisTemplate fixtureRedis() {
             var redis = mock(StringRedisTemplate.class);
             ValueOperations<String,String> values = mock(ValueOperations.class);
             when(redis.opsForValue()).thenReturn(values);
