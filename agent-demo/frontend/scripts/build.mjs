@@ -2,6 +2,7 @@ import { build } from 'vite';
 import { resolve, relative } from 'node:path';
 import { readFile, readdir, mkdir, rm, rename, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 const frontend=resolve(import.meta.dirname,'..');
 const parent=resolve(frontend,'../target');
@@ -19,8 +20,21 @@ try{
  const assets=[];await scan(stage,assets);
  const files=Object.fromEntries(await Promise.all(assets.sort().map(async n=>[n,await hash(stage,n)])));
  const repository=resolve(frontend,'../..');
- const commit=execFileSync('git',['rev-parse','HEAD'],{cwd:repository,encoding:'utf8'}).trim();
- const dirty=execFileSync('git',['status','--porcelain'],{cwd:repository,encoding:'utf8'}).trim().length>0;
+ let commit,dirty;
+ const provenance=resolve(repository,'source-provenance.json');
+ if(existsSync(provenance)){
+  const manifest=JSON.parse(await readFile(provenance,'utf8'));
+  if(manifest.schemaVersion!==1||!/^[a-f0-9]{40}$/.test(manifest.codeSha)||typeof manifest.workingTreeDirty!=='boolean'||!Array.isArray(manifest.files))throw new Error('Invalid source provenance');
+  const declared=new Map(manifest.files.map(file=>[file.path,file.sha256]));
+  if(declared.size!==manifest.files.length)throw new Error('Duplicate provenance paths');
+  for(const [path,digest] of Object.entries(sources))if(declared.get('agent-demo/frontend/'+path)!==digest)throw new Error('Source provenance mismatch: '+path);
+  commit=manifest.codeSha;dirty=manifest.workingTreeDirty;
+ }else{
+  const top=execFileSync('git',['rev-parse','--show-toplevel'],{cwd:repository,encoding:'utf8'}).trim();
+  if(resolve(top)!==repository)throw new Error('Build must belong to its own repository or provide verified source provenance');
+  commit=execFileSync('git',['rev-parse','HEAD'],{cwd:repository,encoding:'utf8'}).trim();
+  dirty=execFileSync('git',['status','--porcelain'],{cwd:repository,encoding:'utf8'}).trim().length>0;
+ }
  await writeFile(resolve(stage,'build-info.json'),JSON.stringify({schemaVersion:1,commit,dirty,sources,files},null,2)+'\n');
  await rm(guarded(output),{recursive:true,force:true});await rename(guarded(stage),guarded(output));
  console.log('Workbench built with source and asset hashes.');

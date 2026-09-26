@@ -31,3 +31,7 @@
 - 生产JAR无评测/测试夹具/H2/Mockito；公开相对链接与稳定schema一致性检查通过。
 
 该记录对应实现提交81fe743及后续文档/验收清单改动。主仓库`mvnw`和用户HTML/learning已有改动未提交，来源dirty字段不会因此伪报为false。完整本地路径在生成的manifest中，原始日志不进入Git。
+
+## 可选新版工作台
+
+Feature009 的中文界面、Node开发、同源API、私有后端配置及独立打包验收见[工作台指南](workbench.md)。默认Maven构建仍使用原Demo；新版需执行 `scripts/build-workbench.ps1`，且应在 `clean` 之后生成资源。真实模型与实际部署不由离线验收背书。

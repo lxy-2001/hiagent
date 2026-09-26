@@ -57,3 +57,7 @@ java -jar agent-demo/target/agent-demo-0.1.0-SNAPSHOT.jar --spring.config.additi
 本地构件坐标已用于仓库外消费者验收。Maven Central、GitHub Release、标签和站点均为 `NOT_PUBLISHED`。007/008 本轮未执行真实付费模型或第三方服务实验；Microsoft Learn 的受限 Schema 不兼容仍是已知限制。分支交付不代表已经合入 main。
 
 开发遵循按 Feature 的 SDD 和阶段测试/提交。设计工作文件 `specs/`、`.specify/` 是本地资料，公开运行说明不依赖它们。
+
+## 可选新版工作台
+
+Feature009 的中文界面、Node开发、同源API、私有后端配置及独立打包验收见[工作台指南](docs/workbench.md)。默认Maven构建仍使用原Demo；新版需执行 `scripts/build-workbench.ps1`，且应在 `clean` 之后生成资源。真实模型与实际部署不由离线验收背书。

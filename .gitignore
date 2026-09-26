@@ -104,3 +104,6 @@ docs/*
 /agent-demo/frontend/test-results/
 /agent-demo/frontend/playwright-report/
 /agent-demo/frontend/coverage/
+
+# Feature009 user-facing build guide
+!docs/workbench.md

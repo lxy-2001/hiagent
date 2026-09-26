@@ -68,3 +68,7 @@ docker compose up -d mysql redis
 需要默认 RAG 才另行启动 qdrant。离线验收不执行以上命令。Compose 不会启动 Java Demo；也不会修改已初始化 MySQL 卷中的账户密码。不要为配置不一致直接删除数据卷。
 
 MCP 默认关闭。开启时逐项配置服务 ID、URL、allowed-tools 和应用侧 tool-policy；高风险/写工具必须审批。版本支持不放宽 Schema，Microsoft Learn 的工具定义仍可能不满足当前受限 Schema。未选能力不应产生连接，选择了但缺配置则明确失败。
+
+## 可选新版工作台
+
+Feature009 的中文界面、Node开发、同源API、私有后端配置及独立打包验收见[工作台指南](workbench.md)。默认Maven构建仍使用原Demo；新版需执行 `scripts/build-workbench.ps1`，且应在 `clean` 之后生成资源。真实模型与实际部署不由离线验收背书。

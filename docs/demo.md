@@ -43,3 +43,7 @@ java -cp $cp com.agentflow.demo.delivery.DeliveryDemoLauncher --offline 18082
 Fixture 模型识别以上固定输入，是运行机制演示，不是任意问题的智能问答。正常生产 JAR 不包含这些 launcher/profile/H2/Mockito。
 
 SSE 使用 Bearer Fetch；未知事件仍推进 cursor，204 停止重连并读终态，410 恢复快照/审批；页面关闭中止请求。APPROVED 只表示已授权，UNKNOWN 明确提示可能已执行，不自动重试写操作。
+
+## 可选新版工作台
+
+Feature009 的中文界面、Node开发、同源API、私有后端配置及独立打包验收见[工作台指南](workbench.md)。默认Maven构建仍使用原Demo；新版需执行 `scripts/build-workbench.ps1`，且应在 `clean` 之后生成资源。真实模型与实际部署不由离线验收背书。
