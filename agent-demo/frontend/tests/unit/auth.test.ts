@@ -65,3 +65,28 @@ describe('in-memory authentication boundary', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });
+
+it('refreshes imminent expiry once before concurrent reads and writes', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1000000);
+  try {
+    let refreshes = 0;
+    const { http, fetcher } = await setup(async (url, init) => {
+      if (url === '/api/auth/refresh') { refreshes++; return json({ ...tokens, accessToken: 'fresh' }); }
+      expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer fresh');
+      return json({ ok: true });
+    });
+    clock.mockReturnValue(1841000);
+    await Promise.all([http.json('/api/read'), http.json('/api/write', { method: 'POST', body: '{}' })]);
+    expect(refreshes).toBe(1);
+    expect(fetcher.mock.calls.filter(([url]) => url === '/api/write')).toHaveLength(1);
+  } finally { clock.mockRestore(); }
+});
+it('does not send a mutation when preflight refresh fails', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1000000);
+  try {
+    const { http, fetcher } = await setup(async () => json({}, 401));
+    clock.mockReturnValue(1841000);
+    await expect(http.json('/api/write', { method: 'POST', body: '{}' })).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    expect(fetcher.mock.calls.filter(([url]) => url === '/api/write')).toHaveLength(0);
+  } finally { clock.mockRestore(); }
+});

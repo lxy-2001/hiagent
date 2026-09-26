@@ -30,3 +30,10 @@ test('two real pages preserve a conflicting memory draft until explicit reconcil
   await second.getByRole('button', { name: '我已核对，使用最新版本继续编辑' }).click(); await row.getByRole('button', { name: '保存偏好' }).click();
   await expect(row).toContainText('版本 2'); await second.close();
 });
+for (const kind of ['none', 'synthetic-empty', 'synthetic-failure'] as const) test(`source panel ${kind} distinguishes evidence availability`, async ({ page }) => {
+  if (kind !== 'none') await page.route('**/api/agent/tasks/*/steps', route => route.fulfill({ json: [{ stepNo: 1, stepType: 'TOOL_RESULT', toolName: 'knowledge.search', input: null, output: kind === 'synthetic-empty' ? 'hits=0 kept=0 empty=NO_MATCH' : null, status: kind === 'synthetic-empty' ? 'SUCCESS' : 'FAILED', latencyMs: 1, promptTokens: null, completionTokens: null, errorMessage: null, decisionId: null, callId: null, errorCode: kind === 'synthetic-failure' ? 'RAG_VECTOR_UNAVAILABLE' : null, terminal: false }] }));
+  await login(page); await submit(page, 'remember'); await expect(page.getByText('Remembered conversation', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '打开任务详情' }).click(); await page.getByRole('tab', { name: '来源', exact: true }).click();
+  await expect(page.locator('.source-panel')).toContainText(kind === 'none' ? '没有可核对的引用来源' : kind === 'synthetic-empty' ? '未检索到可用文档' : '检索服务暂不可用');
+  await page.screenshot({ path: resolve(screenshots, `source-${kind}.png`), fullPage: true });
+});

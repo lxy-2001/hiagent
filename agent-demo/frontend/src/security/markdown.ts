@@ -8,8 +8,22 @@ hljs.registerLanguage('java', java); hljs.registerLanguage('json', json); hljs.r
 const md = new MarkdownIt({ html: false, linkify: false, typographer: false, highlight(code, language) { return language && hljs.getLanguage(language) ? hljs.highlight(code, { language, ignoreIllegals: true }).value : ''; } });
 md.renderer.rules.image = (tokens, index) => `<span class="blocked-image">[图片已阻止：${md.utils.escapeHtml(tokens[index]!.content)}]</span>`;
 md.renderer.rules.link_open = (tokens, index, options, _env, renderer) => { const token = tokens[index]!; const href = String(token.attrGet('href') ?? ''); if (!/^https?:\/\//i.test(href)) token.attrSet('href', '#'); token.attrSet('target', '_blank'); token.attrSet('rel', 'noopener noreferrer'); return renderer.renderToken(tokens, index, options); };
+md.renderer.rules.link_close = (tokens, index, options, _env, renderer) => {
+  let depth = 1, opening = index - 1;
+  for (; opening >= 0; opening--) {
+    if (tokens[opening]!.type === 'link_close') depth++;
+    if (tokens[opening]!.type === 'link_open') { depth--; if (depth === 0) break; }
+  }
+  const href = String(tokens[opening]?.attrGet('href') ?? '');
+  let domain = '';
+  try { if (href && /^https?:\/\//i.test(href)) domain = new URL(href).hostname; } catch { /* Invalid links have no trusted destination. */ }
+  return (domain ? ` <span class="external-domain">(${md.utils.escapeHtml(domain)})</span>` : '') + renderer.renderToken(tokens, index, options);
+};
 md.renderer.rules.text = (tokens, index, _options, env) => {
   const escaped = md.utils.escapeHtml(tokens[index]!.content);
+  let linkDepth = 0;
+  for (let i = 0; i < index; i++) { if (tokens[i]!.type === 'link_open') linkDepth++; else if (tokens[i]!.type === 'link_close') linkDepth--; }
+  if (linkDepth > 0) return escaped;
   return escaped.replace(/\[(S(?:[1-9]|[12][0-9]|3[0-2]))\]/g, (match, id: string) => Array.isArray(env?.sources) && env.sources.includes(id) ? `<button type="button" class="citation-button" data-source-id="${id}" aria-label="查看来源 ${id}">${match}</button>` : match);
 };
 export function renderMarkdown(value: string, sources: string[] = []): string {

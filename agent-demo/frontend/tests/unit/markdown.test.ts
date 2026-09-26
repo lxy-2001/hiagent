@@ -14,3 +14,11 @@ describe('untrusted answer rendering', () => {
     expect(() => renderMarkdown('x'.repeat(65537))).toThrow();
   });
 });
+
+it('never creates a trusted source button inside an external link', () => {
+  const root = document.createElement('div');
+  root.innerHTML = renderMarkdown('[[S1]](https://example.invalid/path) and [S1]', ['S1']);
+  expect(root.querySelector('a button')).toBeNull();
+  expect(root.querySelectorAll('button[data-source-id="S1"]')).toHaveLength(1);
+  expect(root.querySelector('a')?.textContent).toContain('example.invalid');
+});

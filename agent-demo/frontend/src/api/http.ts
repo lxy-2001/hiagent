@@ -24,6 +24,8 @@ export function createHttp(auth: Auth, fetcher: Fetcher = (url, init) => fetch(u
       }
       return result;
     }
+    if (auth.needsRefresh) await auth.ensureAccess(expected);
+    signal.throwIfAborted();
     return send(false);
   }
   async function json(path: string, options: RequestInit = {}): Promise<unknown> {
