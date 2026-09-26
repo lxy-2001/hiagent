@@ -15,10 +15,15 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Collections;
 
 /** Bounded owner-scoped queries over committed conversation facts. */
 @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ, timeout = 2)
 public class ConversationService {
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ConversationService.class);
+    private static final List<String> ACTIVE = List.of("QUEUED", "RUNNING", "WAITING_APPROVAL");
     private static final List<String> TERMINAL = List.of("SUCCEEDED", "FAILED", "CANCELLED", "TIMED_OUT", "BUDGET_EXCEEDED");
     private final EntityManager em;
     private final AgentSessionRepository sessions;
@@ -32,7 +37,11 @@ public class ConversationService {
         this.policy = Objects.requireNonNull(policy);
         this.coordinator = Objects.requireNonNull(coordinator);
     }
-    public record Conversation(String sessionId, String title, Instant createdAt, String lastTurnSequence) { }
+    public record Conversation(String sessionId, String title, Instant createdAt, String lastTurnSequence, String activeTaskId) {
+        public Conversation(String sessionId, String title, Instant createdAt, String lastTurnSequence) {
+            this(sessionId, title, createdAt, lastTurnSequence, null);
+        }
+    }
     public record ConversationPage(List<Conversation> items, boolean hasMore, String nextBefore) { }
     public record Turn(String runId, String sessionId, String turnSequence, String status, String input,
                        String finalAnswer, String terminationReason, boolean recordingComplete,
@@ -40,6 +49,7 @@ public class ConversationService {
     public record TurnPage(List<Turn> items, boolean hasMore, String nextAfterSequence, String untilSequence) { }
     public ConversationPage list(String owner, String before, int limit) {
         validateLimit(limit);
+        requireRecovered();
         Cursor cursor = before == null ? null : decode(before);
         var query = em.createQuery("select s from AgentSessionEntity s where s.userId=:owner"
                 + (cursor == null ? "" : " and (s.createdAt<:time or (s.createdAt=:time and s.id<:id))")
@@ -47,12 +57,72 @@ public class ConversationService {
         if (cursor != null) query.setParameter("time", cursor.createdAt()).setParameter("id", cursor.id());
         var rows = query.setMaxResults(limit + 1).getResultList();
         boolean more = rows.size() > limit;
-        var items = rows.subList(0, Math.min(rows.size(), limit)).stream().map(this::conversation).toList();
+        var page = rows.subList(0, Math.min(rows.size(), limit));
+        var active = activeTasks(owner, page.stream().map(AgentSessionEntity::getId).toList());
+        var items = page.stream().map(entity -> conversation(entity, active.get(entity.getId()))).toList();
         String next = more ? encode(new Cursor(items.get(items.size() - 1).createdAt(), items.get(items.size() - 1).sessionId())) : null;
         return new ConversationPage(items, more, next);
     }
 
-    public Conversation get(String owner, String session) { return conversation(owned(owner, session)); }
+    public Conversation get(String owner, String session) {
+        var entity = owned(owner, session);
+        requireRecovered();
+        return conversation(entity, activeTasks(owner, List.of(session)).get(session));
+    }
+
+    public record HistoryPage(List<Turn> items, boolean hasMore, String nextBeforeSequence, String untilSequence) { }
+
+    public HistoryPage history(String owner, String session, String before, String until, int limit) {
+        validateLimit(limit);
+        var entity = owned(owner, session);
+        requireRecovered();
+        if (before != null && until == null) throw new IllegalArgumentException("untilSequence required");
+        long requestedUpper = until == null ? entity.getLastTurnSequence() : sequence(until);
+        Long exclusive = before == null ? null : sequence(before);
+        if (exclusive != null && (exclusive == 0 || exclusive > requestedUpper)) {
+            throw new IllegalArgumentException("invalid sequence bounds");
+        }
+        long upper = Math.min(requestedUpper, entity.getLastTurnSequence());
+        var query = em.createQuery("select t.id as id, t.turnSequence as sequence, t.status as status, "
+                + "t.terminationReason as reason, t.recordingComplete as recorded, t.createdAt as created, t.finishedAt as finished, "
+                + "length(t.userInput) as inputLength, length(t.finalAnswer) as answerLength from AgentTaskEntity t "
+                + "where t.sessionId=:session and t.userId=:owner and t.status in :terminal "
+                + "and t.turnSequence<=:until " + (exclusive == null ? "" : "and t.turnSequence<:before ")
+                + "order by t.turnSequence desc", Tuple.class)
+                .setParameter("session", session).setParameter("owner", owner)
+                .setParameter("terminal", TERMINAL).setParameter("until", upper).setMaxResults(limit + 1);
+        if (exclusive != null) query.setParameter("before", exclusive);
+        var rows = query.getResultList();
+        boolean more = rows.size() > limit;
+        var items = new ArrayList<Turn>();
+        for (var row : rows.subList(0, Math.min(rows.size(), limit))) items.add(turn(owner, session, row));
+        Collections.reverse(items);
+        return new HistoryPage(List.copyOf(items), more, more ? items.get(0).turnSequence() : null, Long.toString(upper));
+    }
+
+    private void requireRecovered() {
+        if (coordinator.isStartupRecoveryBlocked()) {
+            throw new RunCoordinator.RunUnavailableException("SERVICE_RECOVERING", null);
+        }
+    }
+
+    private Map<String, String> activeTasks(String owner, List<String> sessionIds) {
+        if (sessionIds.isEmpty()) return Map.of();
+        var rows = em.createQuery("select t.sessionId as session, t.id as id from AgentTaskEntity t "
+                + "where t.userId=:owner and t.sessionId in :sessions and t.status in :active "
+                + "order by t.sessionId, t.id", Tuple.class)
+                .setParameter("owner", owner).setParameter("sessions", sessionIds).setParameter("active", ACTIVE)
+                .setMaxResults(sessionIds.size() + 1).getResultList();
+        Map<String, String> active = new HashMap<>();
+        for (var row : rows) {
+            String session = row.get("session", String.class);
+            if (active.putIfAbsent(session, row.get("id", String.class)) != null) {
+                LOG.error("Inconsistent active task count for session {}", session);
+                throw new RunCoordinator.RunUnavailableException("PERSISTENCE_UNAVAILABLE", null);
+            }
+        }
+        return active;
+    }
 
     public TurnPage turns(String owner, String session, String after, String until, int limit) {
         validateLimit(limit);
@@ -112,13 +182,13 @@ public class ConversationService {
         return sessions.findByIdAndUserId(session, owner).orElseThrow(RunCoordinator.RunNotFoundException::new);
     }
 
-    private Conversation conversation(AgentSessionEntity entity) {
+    private Conversation conversation(AgentSessionEntity entity, String activeTaskId) {
         String title = policy.sanitizeHistory(entity.getTitle());
         if (title.length() > 200) {
             int end = Character.isHighSurrogate(title.charAt(199)) ? 199 : 200;
             title = title.substring(0, end);
         }
-        return new Conversation(entity.getId(), title, entity.getCreatedAt(), Long.toString(entity.getLastTurnSequence()));
+        return new Conversation(entity.getId(), title, entity.getCreatedAt(), Long.toString(entity.getLastTurnSequence()), activeTaskId);
     }
 
     private record Cursor(Instant createdAt, String id) { }

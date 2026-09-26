@@ -82,4 +82,54 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>workbench</id>
+            <build>
+                <resources>
+                    <resource>
+                        <directory>src/main/resources</directory>
+                        <filtering>false</filtering>
+                        <excludes><exclude>static/index.html</exclude></excludes>
+                    </resource>
+                    <resource>
+                        <directory>${project.build.directory}/workbench</directory>
+                        <targetPath>static</targetPath>
+                        <filtering>false</filtering>
+                        <includes><include>index.html</include><include>assets/**</include></includes>
+                    </resource>
+                    <resource>
+                        <directory>${project.build.directory}/workbench</directory>
+                        <targetPath>META-INF/workbench</targetPath>
+                        <filtering>false</filtering>
+                        <includes><include>build-info.json</include><include>asset-manifest.json</include></includes>
+                    </resource>
+                </resources>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>require-workbench-build</id>
+                                <phase>validate</phase>
+                                <goals><goal>enforce</goal></goals>
+                                <configuration>
+                                    <rules>
+                                        <requireFilesExist>
+                                            <files>
+                                                <file>${project.build.directory}/workbench/index.html</file>
+                                                <file>${project.build.directory}/workbench/asset-manifest.json</file>
+                                                <file>${project.build.directory}/workbench/build-info.json</file>
+                                            </files>
+                                        </requireFilesExist>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

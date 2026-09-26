@@ -75,6 +75,7 @@ class TemporaryDemoEndpointSnapshotTest {
             new Operation("GET", "/api/agent/sessions"),
             new Operation("GET", "/api/agent/sessions/{sessionId}"),
             new Operation("GET", "/api/agent/sessions/{sessionId}/turns"),
+            new Operation("GET", "/api/agent/sessions/{sessionId}/history"),
             new Operation("GET", "/api/agent/sessions/{sessionId}/memories"),
             new Operation("PUT", "/api/agent/sessions/{sessionId}/memories/{key}"),
             new Operation("DELETE", "/api/agent/sessions/{sessionId}/memories/{key}")
@@ -123,7 +124,7 @@ class TemporaryDemoEndpointSnapshotTest {
     }
 
     @Test
-    void registersEighteenOperationsPreservingTheOriginalTwelve() {
+    void registersNineteenOperationsPreservingTheOriginalTwelve() {
         Set<Operation> actual = new HashSet<>();
         handlerMapping.getHandlerMethods().forEach((mapping, handler) -> {
             Class<?> beanType = handler.getBeanType();
@@ -140,7 +141,7 @@ class TemporaryDemoEndpointSnapshotTest {
             }
         });
 
-        assertThat(actual).hasSize(18).containsExactlyInAnyOrderElementsOf(EXPECTED_OPERATIONS);
+        assertThat(actual).hasSize(19).containsExactlyInAnyOrderElementsOf(EXPECTED_OPERATIONS);
     }
 
     @Test

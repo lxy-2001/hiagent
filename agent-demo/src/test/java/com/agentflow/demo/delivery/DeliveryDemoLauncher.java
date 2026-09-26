@@ -131,6 +131,10 @@ public final class DeliveryDemoLauncher implements AutoCloseable {
 
     @TestConfiguration(proxyBeanMethods = false) @Profile("delivery-fixture")
     public static class Configuration {
+        @Bean @Primary com.agentflow.demo.workbench.UiContextConfiguration.UiContext workbenchFixtureUiContext() {
+            return new com.agentflow.demo.workbench.UiContextConfiguration.UiContext(
+                    com.agentflow.demo.workbench.UiContextConfiguration.Mode.OFFLINE_FIXTURE, "offline-fixture", true, true);
+        }
         @Bean RagRetriever deliveryRetriever(DeliveryDemoLauncher fixture) {
             return new FixedEvidenceRetriever(fixture.scenario.equals("dependency-failure") ? "retrieval-failure" : fixture.scenario);
         }

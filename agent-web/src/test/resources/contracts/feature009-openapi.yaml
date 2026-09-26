@@ -1,0 +1,569 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HiAgent Feature009 read-only UI additions",
+    "version": "009-design-1",
+    "description": "设计增量，尚未实现；其余操作保持003–006与当前Java源码。"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/agent/sessions": {
+      "get": {
+        "operationId": "listConversationsWithActiveTask",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；Cache-Control: no-store",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证失败，不要求Demo错误体统一为Agent Error；客户端处理空或非JSON响应"
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_RECOVERING / PERSISTENCE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/sessions/{sessionId}": {
+      "get": {
+        "operationId": "getConversationWithActiveTask",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；Cache-Control: no-store",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证失败，不要求Demo错误体统一为Agent Error；客户端处理空或非JSON响应"
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_RECOVERING / PERSISTENCE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/sessions/{sessionId}/history": {
+      "get": {
+        "operationId": "getRecentConversationHistory",
+        "description": "首屏最近终态；before排他/until包容；响应items升序。更多约束见ui-api.md。",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 36
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
+          },
+          {
+            "name": "untilSequence",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]{0,18})$",
+              "description": "十进制long字符串，服务端另校验<=9223372036854775807；前端禁止转Number"
+            }
+          },
+          {
+            "name": "beforeSequence",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$",
+              "description": "十进制long字符串，服务端另校验<=9223372036854775807；前端禁止转Number"
+            },
+            "description": "存在时untilSequence必填；before<=until，服务端执行交叉校验"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功；Cache-Control: no-store",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_REQUEST",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证失败，不要求Demo错误体统一为Agent Error；客户端处理空或非JSON响应"
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SERVICE_RECOVERING / PERSISTENCE_UNAVAILABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/demo/ui-context": {
+      "get": {
+        "operationId": "getDemoUiContext",
+        "responses": {
+          "200": {
+            "description": "成功；Cache-Control: no-store",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UiContext"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "认证失败，不要求Demo错误体统一为Agent Error；客户端处理空或非JSON响应"
+          },
+          "429": {
+            "description": "RATE_LIMITED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "服务不可用；客户端必须处理非JSON"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Conversation": {
+        "type": "object",
+        "required": [
+          "sessionId",
+          "title",
+          "createdAt",
+          "lastTurnSequence",
+          "activeTaskId"
+        ],
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "maxLength": 36
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastTurnSequence": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "十进制long字符串，服务端另校验<=9223372036854775807；前端禁止转Number"
+          },
+          "activeTaskId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "ConversationPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "hasMore",
+          "nextBefore"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Conversation"
+            },
+            "maxItems": 50
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextBefore": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Turn": {
+        "type": "object",
+        "required": [
+          "runId",
+          "sessionId",
+          "turnSequence",
+          "status",
+          "input",
+          "finalAnswer",
+          "terminationReason",
+          "recordingComplete",
+          "contentUnavailable",
+          "createdAt",
+          "finishedAt"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "turnSequence": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "十进制long字符串，服务端另校验<=9223372036854775807；前端禁止转Number"
+          },
+          "status": {
+            "enum": [
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "TIMED_OUT",
+              "BUDGET_EXCEEDED"
+            ]
+          },
+          "input": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "finalAnswer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "terminationReason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recordingComplete": {
+            "type": "boolean"
+          },
+          "contentUnavailable": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "HistoryPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "hasMore",
+          "nextBeforeSequence",
+          "untilSequence"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Turn"
+            },
+            "maxItems": 50
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextBeforeSequence": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "十进制long字符串，服务端另校验<=9223372036854775807；前端禁止转Number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "untilSequence": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "十进制long字符串，服务端另校验<=9223372036854775807；前端禁止转Number"
+          }
+        }
+      },
+      "UiContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "modelLabel",
+          "ragEnabled",
+          "mcpEnabled"
+        ],
+        "properties": {
+          "mode": {
+            "enum": [
+              "REAL_CONFIGURED",
+              "OFFLINE_FIXTURE"
+            ]
+          },
+          "modelLabel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 128
+          },
+          "ragEnabled": {
+            "type": "boolean"
+          },
+          "mcpEnabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

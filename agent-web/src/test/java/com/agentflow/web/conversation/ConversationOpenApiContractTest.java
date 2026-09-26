@@ -45,7 +45,7 @@ class ConversationOpenApiContractTest {
             var mapper = new ObjectMapper();
             var slot = new ConfirmedMemoryService.Slot("s", "project_stack", "PROJECT_FACT", "DELETED", null, "9007199254740993", null, null);
             assertThat(mapper.readTree(mapper.writeValueAsString(slot)).get("version").asText()).isEqualTo("9007199254740993");
-            assertThat(ConversationController.class.getDeclaredMethods()).filteredOn(m -> m.isAnnotationPresent(org.springframework.web.bind.annotation.GetMapping.class)).hasSize(3);
+            assertThat(ConversationController.class.getDeclaredMethods()).filteredOn(m -> m.isAnnotationPresent(org.springframework.web.bind.annotation.GetMapping.class)).hasSize(4);
             assertThat(ConfirmedMemoryController.class.getDeclaredMethods()).filteredOn(m -> m.isAnnotationPresent(org.springframework.web.bind.annotation.DeleteMapping.class)).hasSize(1);
         }
     }

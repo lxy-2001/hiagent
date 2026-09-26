@@ -42,6 +42,10 @@ public final class FixtureDemoLauncher {
     @TestConfiguration(proxyBeanMethods = false)
     @org.springframework.context.annotation.Profile("fixture")
     public static class FixtureConfiguration {
+        @Bean @org.springframework.context.annotation.Primary com.agentflow.demo.workbench.UiContextConfiguration.UiContext workbenchFixtureUiContext() {
+            return new com.agentflow.demo.workbench.UiContextConfiguration.UiContext(
+                    com.agentflow.demo.workbench.UiContextConfiguration.Mode.OFFLINE_FIXTURE, "offline-fixture", true, true);
+        }
         @Bean AgentModelClient fixtureModel() {
             return request -> request.iteration() == 1
                     ? new ToolCallDecision("fixture-decision", new ToolCall("fixture-call", "mcp.demo.note_append",

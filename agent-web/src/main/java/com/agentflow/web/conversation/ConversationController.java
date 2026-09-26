@@ -35,6 +35,13 @@ public class ConversationController {
         return response(service.turns(jwt.getSubject(), sessionId, afterSequence, untilSequence, limit));
     }
 
+    @GetMapping("/{sessionId}/history")
+    public ResponseEntity<ConversationService.HistoryPage> history(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable String sessionId, @RequestParam(required = false) String beforeSequence,
+            @RequestParam(required = false) String untilSequence, @RequestParam(defaultValue = "20") int limit) {
+        return response(service.history(jwt.getSubject(), sessionId, beforeSequence, untilSequence, limit));
+    }
+
     private static <T> ResponseEntity<T> response(T body) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(body);
     }
