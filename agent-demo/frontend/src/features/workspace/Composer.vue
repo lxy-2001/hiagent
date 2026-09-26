@@ -1,0 +1,10 @@
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { ArrowUp, Square } from '@lucide/vue';
+const props = defineProps<{ text: string; evidence: boolean; evidenceEnabled: boolean; busy: boolean; active: boolean; uncertain: boolean }>();
+const emit = defineEmits<{ 'update:text': [value: string]; 'update:evidence': [value: boolean]; submit: []; cancel: []; confirm: [] }>();
+const composing = ref(false);
+const canSend = computed(() => !!props.text.trim() && props.text.length <= 8000 && !props.busy && !props.active && !props.uncertain);
+function keydown(event: KeyboardEvent) { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && !composing.value && event.keyCode !== 229) { event.preventDefault(); if (canSend.value) emit('submit'); } }
+</script>
+<template><div><div v-if="uncertain" class="error-box" role="alert">提交结果尚未确认。请先核对左侧会话和当前任务，避免重复执行。<button class="text-button" @click="emit('confirm')">我已核对，允许手动重新提交</button></div><div class="composer"><label class="sr-only" for="task-input">任务内容</label><textarea id="task-input" :value="text" rows="3" maxlength="8000" placeholder="描述你想完成的事…" :disabled="busy" @input="emit('update:text', ($event.target as HTMLTextAreaElement).value)" @compositionstart="composing = true" @compositionend="composing = false" @keydown="keydown"/><div class="composer-bottom"><label v-if="evidenceEnabled" class="evidence-option"><input type="checkbox" :checked="evidence" :disabled="busy || active" @change="emit('update:evidence', ($event.target as HTMLInputElement).checked)"/>需要文档依据</label><span class="muted small" v-else>Enter 发送 · Shift + Enter 换行</span><div class="composer-actions"><span class="small muted" v-if="text.length > 7200">{{ text.length }}/8000</span><button v-if="active" class="icon-button stop-button" aria-label="取消当前任务" @click="emit('cancel')"><Square :size="17"/></button><button v-else class="send-button" aria-label="发送任务" :disabled="!canSend" @click="emit('submit')"><ArrowUp :size="20"/></button></div></div></div><p class="welcome-note">AI 的回答可能有误，请核对关键信息与引用来源。</p></div></template>

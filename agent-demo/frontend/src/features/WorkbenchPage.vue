@@ -1,34 +1,62 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
-import { Plus, Menu, PanelLeftClose, Settings2, CircleHelp, LogOut, ArrowUpRight, ArrowUp, Layers } from '@lucide/vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { Plus, Menu, PanelLeftClose, PanelRight, Settings2, CircleHelp, LogOut } from '@lucide/vue';
 import BrandMark from '../components/ui/BrandMark.vue';
 import PreferencesDialog from './settings/PreferencesDialog.vue';
 import HelpDialog from './settings/HelpDialog.vue';
+import SessionSidebar from './workspace/SessionSidebar.vue';
+import WelcomePanel from './workspace/WelcomePanel.vue';
+import Composer from './workspace/Composer.vue';
+import MessageList from './workspace/MessageList.vue';
+import RunInspector from './runs/RunInspector.vue';
+import { runsApi } from '../api/runs';
 import { auth } from '../state/auth';
+import { workspace as ws } from '../state/workspace';
+import { useActiveRun } from '../composables/useActiveRun';
 import { getUiContext } from '../api/ui-context';
-import type { UiContext } from '../domain/contracts';
-const router = useRouter();
-const sidebar = ref(false), dialog = ref<'preferences' | 'help' | null>(null), context = ref<UiContext | null>(null), contextError = ref(false);
-const draft = ref(''); const input = ref<HTMLTextAreaElement>(); const controller = new AbortController();
-onMounted(async () => { try { context.value = await getUiContext(controller.signal); } catch { if (!controller.signal.aborted) contextError.value = true; } });
-onBeforeUnmount(() => controller.abort());
+import { terminal, type UiContext, type RunSnapshot, type Step } from '../domain/contracts';
+const route = useRoute(), router = useRouter();
+const sidebar = ref(false), inspector = ref(false), dialog = ref<'preferences' | 'help' | null>(null), context = ref<UiContext | null>(null), contextError = ref(false);
+const controller = new AbortController(); let selection = 0, inspection = 0;
+const inspectedSnapshot = ref<RunSnapshot | null>(null), inspectedSteps = ref<Step[]>([]);
+const detailsSnapshot = computed(() => inspectedSnapshot.value ?? run.snapshot.value);
+const run = useActiveRun(async () => { await ws.refreshHistory(); await ws.loadSessions(); });
+const active = computed(() => !!ws.session.value?.activeTaskId || !!run.snapshot.value && !terminal(run.snapshot.value.status));
+const isNew = computed(() => route.path === '/new');
+watch(() => route.params.sessionId, async value => {
+  const expected = ++selection; inspection++; inspectedSnapshot.value = null; inspectedSteps.value = []; run.stop(); run.snapshot.value = null;
+  await ws.select(typeof value === 'string' ? value : null);
+  if (expected !== selection) return;
+  const id = ws.session.value?.activeTaskId ?? (typeof route.query.run === 'string' ? route.query.run : null);
+  if (id) void run.open(id);
+}, { immediate: true });
+onMounted(async () => { void ws.loadSessions(); try { context.value = await getUiContext(controller.signal); } catch { if (!controller.signal.aborted) contextError.value = true; } });
+onBeforeUnmount(() => { selection++; controller.abort(); run.stop(); });
 async function logout() { const confirmed = await auth.logout(); await router.replace({ path: '/login', query: confirmed ? {} : { logout: 'unconfirmed' } }); }
-function example(value: string) { draft.value = value; input.value?.focus(); }
+function example(value: string) { ws.draft.value.text = value; document.querySelector<HTMLTextAreaElement>('#task-input')?.focus(); }
+async function send() {
+  const result = await ws.submit(); if (!result) return;
+  if (route.params.sessionId !== result.sessionId) await router.push({ path: '/sessions/' + encodeURIComponent(result.sessionId), query: { run: result.runId } });
+  else { void run.open(result.taskId); await ws.refreshHistory(); }
+}
+function focusMain() { document.getElementById('main-content')?.focus(); }
+async function inspect(id: string) { inspector.value = true; const expected = ++inspection; inspectedSnapshot.value = null; inspectedSteps.value = []; if (run.snapshot.value?.runId === id) return; try { const [snapshot, steps] = await Promise.all([runsApi.snapshot(id, controller.signal), runsApi.steps(id, controller.signal)]); if (inspection === expected) { inspectedSnapshot.value = snapshot; inspectedSteps.value = steps; } } catch { if (inspection === expected) ws.error.value = '暂时无法读取这轮任务的详情。'; } }
 </script>
 <template>
-  <div class="workbench"><a class="skip-link" href="#main-content">跳到主要内容</a>
+  <div class="workbench"><a class="skip-link" href="#main-content" @click.prevent="focusMain">跳到主要内容</a>
     <button v-if="sidebar" class="sidebar-backdrop" aria-label="关闭会话导航" @click="sidebar = false"/>
     <aside class="sidebar" :class="{ open: sidebar }" aria-label="会话导航"><div class="sidebar-heading"><RouterLink to="/new" class="brand"><BrandMark/><span>HiAgent<span class="brand-dot">.</span></span></RouterLink><button class="icon-button sidebar-close" aria-label="关闭会话导航" @click="sidebar = false"><PanelLeftClose :size="18"/></button></div>
       <RouterLink to="/new" class="new-task" @click="sidebar = false"><Plus :size="18"/> 新任务 <span>↗</span></RouterLink>
-      <div class="sidebar-history"><p class="eyebrow">你的会话</p><p class="muted small">从右侧开始一次新的探索。</p></div>
+      <SessionSidebar :items="ws.sessions.value" :selected="ws.key.value" :loading="ws.listing.value" :more="!!ws.nextSessions.value" :error="ws.listError.value" @select="sidebar = false" @more="ws.loadSessions(true)" @retry="ws.loadSessions()"/>
       <div class="sidebar-footer"><div class="mode-label"><span class="status-dot"/>{{ context?.mode === 'OFFLINE_FIXTURE' ? '离线演示' : context ? '模型已配置' : contextError ? '配置摘要暂不可用' : '正在读取配置' }}</div><p class="model-label">{{ context?.modelLabel ?? 'HiAgent 工作空间' }}</p><div class="account-row"><span class="avatar">{{ auth.user.value?.username.slice(0, 1).toUpperCase() }}</span><span class="account-name">{{ auth.user.value?.username }}</span><button class="icon-button" aria-label="外观偏好" @click="dialog = 'preferences'"><Settings2 :size="17"/></button><button class="icon-button" aria-label="使用帮助" @click="dialog = 'help'"><CircleHelp :size="17"/></button><button class="icon-button" aria-label="退出登录" @click="logout"><LogOut :size="17"/></button></div></div>
     </aside>
-    <div class="workspace"><header class="topbar"><button class="icon-button mobile-menu" aria-label="打开会话导航" :aria-expanded="sidebar" @click="sidebar = true"><Menu :size="20"/></button><span>工作台 <span class="topbar-slash">/</span> <strong>新任务</strong></span><span class="topbar-note"><Layers :size="15"/> 专注于你的下一步</span></header>
-      <main id="main-content" class="welcome" tabindex="-1"><div class="welcome-content"><BrandMark class="welcome-mark"/><p class="eyebrow">为思考留一点空间</p><h1>今天想完成什么？</h1><p class="welcome-description">提出问题，探索思路，让每一步都有迹可循。</p>
-        <div class="suggestions"><button @click="example('帮我梳理一个 Java 接口的设计思路')"><span>梳理设计思路</span><small>把复杂问题，拆成清晰的步骤</small><ArrowUpRight :size="18"/></button><button @click="example('解释构造注入和字段注入的区别')"><span>理解一个概念</span><small>从原理出发，联系具体场景</small><ArrowUpRight :size="18"/></button><button v-if="context?.ragEnabled" @click="example('根据知识库解释项目的模块边界')"><span>从知识库找答案</span><small>结合文档，核对答案的依据</small><ArrowUpRight :size="18"/></button></div>
-        <div class="composer"><label class="sr-only" for="task-input">任务内容</label><textarea ref="input" id="task-input" v-model="draft" rows="3" maxlength="8000" placeholder="描述你想完成的事…"/><div class="composer-bottom"><span class="muted small">对话功能正在接入</span><button class="send-button" aria-label="发送任务" disabled><ArrowUp :size="20"/></button></div></div><p class="welcome-note">AI 的回答可能有误，请核对关键信息与引用来源。</p>
-      </div></main>
-    </div><PreferencesDialog v-if="dialog === 'preferences'" @close="dialog = null"/><HelpDialog v-if="dialog === 'help'" @close="dialog = null"/>
+    <div class="workspace"><header class="topbar"><button class="icon-button mobile-menu" aria-label="打开会话导航" :aria-expanded="sidebar" @click="sidebar = true"><Menu :size="20"/></button><span class="topbar-title">工作台 <span class="topbar-slash">/</span> <strong>{{ ws.session.value?.title ?? '新任务' }}</strong></span><button v-if="!isNew" class="icon-button" aria-label="打开任务详情" :aria-expanded="inspector" @click="inspector = !inspector"><PanelRight :size="19"/></button></header>
+      <main id="main-content" class="conversation-main" tabindex="-1"><p v-if="ws.error.value || run.error.value" class="error-box" role="alert">{{ ws.error.value || run.error.value }}</p>
+        <div v-if="isNew" class="welcome"><div class="welcome-content"><WelcomePanel :rag-enabled="context?.ragEnabled ?? false" @example="example"/><Composer v-model:text="ws.draft.value.text" v-model:evidence="ws.draft.value.evidence" :evidence-enabled="context?.ragEnabled ?? false" :busy="ws.draft.value.status === 'submitting'" :active="active" :uncertain="ws.draft.value.status === 'uncertain'" @submit="send" @cancel="run.cancel" @confirm="ws.confirmResubmit"/></div></div>
+        <template v-else><p v-if="ws.loading.value" class="loading-state" role="status">正在读取会话…</p><MessageList v-else :turns="ws.turns.value" :snapshot="run.snapshot.value" :older="ws.hasOlder.value" :loading="ws.loadingOlder.value" :load-older="ws.older" @inspect="inspect"/><div class="bottom-composer"><Composer v-model:text="ws.draft.value.text" v-model:evidence="ws.draft.value.evidence" :evidence-enabled="context?.ragEnabled ?? false" :busy="ws.loading.value || ws.draft.value.status === 'submitting'" :active="active" :uncertain="ws.draft.value.status === 'uncertain'" @submit="send" @cancel="run.cancel" @confirm="ws.confirmResubmit"/></div></template>
+      </main>
+    </div><button v-if="inspector" class="inspector-backdrop" aria-label="关闭任务详情" @click="inspector = false"/><RunInspector v-if="inspector" :snapshot="detailsSnapshot" :steps="inspectedSnapshot ? inspectedSteps : run.steps.value" :summaries="inspectedSnapshot ? [] : run.summaries.value" :state="inspectedSnapshot ? 'closed' : run.state.value" @close="inspector = false" @pause="run.stop" @resume="run.snapshot.value && run.open(run.snapshot.value.taskId)"/>
+    <PreferencesDialog v-if="dialog === 'preferences'" @close="dialog = null"/><HelpDialog v-if="dialog === 'help'" @close="dialog = null"/>
   </div>
 </template>
