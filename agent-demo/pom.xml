@@ -16,6 +16,12 @@
     <dependencies>
         <dependency>
             <groupId>com.agentflow</groupId>
+            <artifactId>agent-eval</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.agentflow</groupId>
             <artifactId>agent-mcp</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -81,4 +81,11 @@ class ReportTest {
         var injection = metadata(); injection.put("model", "<script>SECRET_SENTINEL</script>");
         assertThrows(IllegalArgumentException.class, () -> RunReport.create(data, EvalVariant.baseline(), 1, "OFFLINE_FIXTURE", injection, List.of()));
     }
+    @Test void comparisonPublishesBothArtifactsAtomically(@TempDir Path directory) throws Exception {
+        var comparison = new ReportComparator().compare(EvalJson.MAPPER.createObjectNode(), EvalJson.MAPPER.createObjectNode(), "contextWindow");
+        var output = new ReportWriter().writeComparison(directory, comparison);
+        assertTrue(Files.isRegularFile(output.resolve("compare.json")));
+        assertTrue(Files.readString(output.resolve("compare.md")).contains("INCOMPARABLE"));
+        assertEquals(comparison, EvalJson.MAPPER.readTree(Files.readAllBytes(output.resolve("compare.json"))));
+    }
 }

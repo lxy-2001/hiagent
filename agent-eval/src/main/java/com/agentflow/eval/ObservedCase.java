@@ -12,10 +12,19 @@ public record ObservedCase(AgentResult result, List<AgentEvent> events,
                            List<EvaluationMetrics.Attempt> attempts,
                            boolean collectorComplete, Integer dispatchCount,
                            Map<EvalCase.Rule, Fact> facts,
-                           String webStatus, String webTerminationReason, WebTrace webTrace) {
+                           String webStatus, String webTerminationReason, WebTrace webTrace,
+                           Map<String, EvaluationMetrics.Metric> metrics, List<String> supportingRunIds) {
+    public ObservedCase(AgentResult result, List<AgentEvent> events, List<ContextDiagnostics> diagnostics,
+                        List<EvaluationMetrics.Attempt> attempts, boolean complete, Integer dispatchCount,
+                        Map<EvalCase.Rule, Fact> facts, String status, String reason, WebTrace webTrace) {
+        this(result, events, diagnostics, attempts, complete, dispatchCount, facts, status, reason, webTrace, Map.of(), List.of());
+    }
     public record StepFact(int stepNo, boolean terminal, String type, String status, String toolName, String callId, String errorCode) { }
-    public record WebTrace(String runId, List<StepFact> steps, boolean recordingComplete) {
-        public WebTrace { steps = List.copyOf(steps); }
+    public record LifecycleEvent(String runId, long sequence, String type, String status, String reason) { }
+    public record WebTrace(String runId, List<StepFact> steps, boolean recordingComplete,
+                           List<LifecycleEvent> lifecycle, int modelAttempts) {
+        public WebTrace(String runId, List<StepFact> steps, boolean complete) { this(runId, steps, complete, List.of(), -1); }
+        public WebTrace { steps = List.copyOf(steps); lifecycle = List.copyOf(lifecycle); }
     }
     public ObservedCase(AgentResult result, List<AgentEvent> events, List<ContextDiagnostics> diagnostics,
                         List<EvaluationMetrics.Attempt> attempts, boolean complete, Integer dispatchCount,
@@ -25,6 +34,7 @@ public record ObservedCase(AgentResult result, List<AgentEvent> events,
     public ObservedCase {
         events = List.copyOf(events); contextDiagnostics = List.copyOf(contextDiagnostics);
         attempts = List.copyOf(attempts); facts = Map.copyOf(facts);
+        metrics = Map.copyOf(metrics); supportingRunIds = List.copyOf(supportingRunIds);
         if (dispatchCount != null && dispatchCount < 0) throw new IllegalArgumentException("Negative dispatch count");
     }
     /** A driver captures actual values; required values come from its fixed fixture, never case expectations. */

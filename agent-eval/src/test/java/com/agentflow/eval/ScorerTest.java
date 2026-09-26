@@ -50,13 +50,18 @@ class ScorerTest {
         }
     }
     @Test void contextSourceFailureUsesWebEvidenceWithoutInventingCoreResult() throws Exception {
-        var event = com.agentflow.core.AgentEvent.traced("web-run", com.agentflow.core.AgentStepType.FAILURE,
-                "failed", "", 1, null, true);
-        var trace = new ObservedCase.WebTrace("web-run", List.of(new ObservedCase.StepFact(1, true, "FAILURE", "FAILED", null, null, "CONTEXT_SOURCE_UNAVAILABLE")), true);
-        var observed = new ObservedCase(null, List.of(event), List.of(), List.of(), true, 0,
-                Map.of(EvalCase.Rule.NO_SECRET, new ObservedCase.Fact(List.of(), List.of())),
-                "FAILED", "CONTEXT_SOURCE_UNAVAILABLE", trace);
-        assertEquals(CaseReport.Status.PASS, new EvaluationScorer().score(scenario("C23"), observed).status());
+        var lifecycle = List.of(new ObservedCase.LifecycleEvent("web-run", 1, "RUN_CREATED", null, null),
+                new ObservedCase.LifecycleEvent("web-run", 2, "RUN_STARTED", null, null),
+                new ObservedCase.LifecycleEvent("web-run", 3, "RUN_TERMINATED", "FAILED", "CONTEXT_SOURCE_UNAVAILABLE"));
+        for (int mode = 0; mode < 4; mode++) {
+            var events = mode == 1 ? lifecycle.subList(0, 2) : mode == 2 ? lifecycle.subList(1, 3) : lifecycle;
+            var trace = new ObservedCase.WebTrace("web-run", List.of(), false, events, mode == 3 ? 1 : 0);
+            var observed = new ObservedCase(null, List.of(), List.of(), List.of(), true, 0,
+                    Map.of(EvalCase.Rule.NO_SECRET, new ObservedCase.Fact(List.of(), List.of())),
+                    "FAILED", "CONTEXT_SOURCE_UNAVAILABLE", trace);
+            assertEquals(mode == 0 ? CaseReport.Status.PASS : CaseReport.Status.INCOMPLETE,
+                    new EvaluationScorer().score(scenario("C23"), observed).status());
+        }
     }
     @Test void allDeclaredRulesRequireEvidenceAcrossAllTwentySixCases() throws Exception {
         var dataset = EvalDataset.load(getClass().getResourceAsStream("/evaluation/dataset-v1.json").readAllBytes());

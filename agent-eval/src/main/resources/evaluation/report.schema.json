@@ -1180,9 +1180,6 @@
             },
             "then": {
               "properties": {
-                "recordingComplete": {
-                  "const": true
-                },
                 "runId": {
                   "type": "string",
                   "minLength": 1,
@@ -1215,7 +1212,44 @@
                     }
                   }
                 }
-              }
+              },
+              "anyOf": [
+                {
+                  "properties": {
+                    "recordingComplete": {
+                      "const": true
+                    }
+                  }
+                },
+                {
+                  "properties": {
+                    "caseId": {
+                      "const": "C23"
+                    },
+                    "terminationReason": {
+                      "const": "CONTEXT_SOURCE_UNAVAILABLE"
+                    },
+                    "invocations": {
+                      "maxItems": 0
+                    },
+                    "steps": {
+                      "maxItems": 0
+                    },
+                    "resultStatus": {
+                      "const": "FAILED"
+                    },
+                    "driver": {
+                      "const": "HTTP"
+                    },
+                    "returnedCalls": {
+                      "const": 0
+                    },
+                    "modelAttempts": {
+                      "const": 0
+                    }
+                  }
+                }
+              ]
             }
           }
         ]

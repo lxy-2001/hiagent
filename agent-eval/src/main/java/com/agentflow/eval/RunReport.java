@@ -100,7 +100,7 @@ public final class RunReport {
         node.put("caseStatus", score == null ? "NOT_RUN" : score.status().name());
         node.put("resultStatus", result == null ? observed == null ? null : safe(observed.webStatus()) : result.status().name());
         node.put("terminationReason", result == null ? observed == null ? null : safe(observed.webTerminationReason()) : result.terminationReason().name());
-        node.put("recordingComplete", observed != null && EvaluationScorer.traceComplete(observed));
+        node.put("recordingComplete", observed != null && (observed.webTrace() == null ? EvaluationScorer.traceComplete(observed) : observed.webTrace().recordingComplete()));
         node.set("assertions", EvalJson.MAPPER.valueToTree(score == null ? List.of() : score.assertions()));
         var steps = node.putArray("steps");
         var invocations = node.putArray("invocations");

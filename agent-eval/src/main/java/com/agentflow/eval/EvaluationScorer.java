@@ -42,6 +42,7 @@ public final class EvaluationScorer {
     public static boolean traceComplete(ObservedCase observed) {
         if (!observed.collectorComplete() || observed.dispatchCount() == null) return false;
         var result = observed.result();
+        if (result == null && "CONTEXT_SOURCE_UNAVAILABLE".equals(observed.webTerminationReason())) return lifecycleComplete(observed);
         String runId;
         java.util.List<ObservedCase.StepFact> steps;
         if (result != null) {
@@ -68,5 +69,18 @@ public final class EvaluationScorer {
             if (event.terminal()) terminalEvents++;
         }
         return terminalEvents == 1 && observed.events().get(observed.events().size() - 1).terminal();
+    }
+    private static boolean lifecycleComplete(ObservedCase observed) {
+        var web = observed.webTrace();
+        if (web == null || !web.steps().isEmpty() || !observed.events().isEmpty() || web.modelAttempts() != 0
+                || observed.dispatchCount() != 0 || !"FAILED".equals(observed.webStatus())) return false;
+        var expected = java.util.List.of("RUN_CREATED", "RUN_STARTED", "RUN_TERMINATED");
+        if (web.lifecycle().size() != expected.size()) return false;
+        for (int i = 0; i < expected.size(); i++) {
+            var event = web.lifecycle().get(i);
+            if (!web.runId().equals(event.runId()) || event.sequence() != i + 1 || !expected.get(i).equals(event.type())) return false;
+        }
+        var terminal = web.lifecycle().get(2);
+        return "FAILED".equals(terminal.status()) && "CONTEXT_SOURCE_UNAVAILABLE".equals(terminal.reason());
     }
 }
