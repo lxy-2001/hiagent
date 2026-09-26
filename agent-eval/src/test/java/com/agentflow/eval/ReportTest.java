@@ -88,4 +88,16 @@ class ReportTest {
         assertTrue(Files.readString(output.resolve("compare.md")).contains("INCOMPARABLE"));
         assertEquals(comparison, EvalJson.MAPPER.readTree(Files.readAllBytes(output.resolve("compare.json"))));
     }
+    @Test void missingAndFailedExecutionsRetainEveryApplicableHardAssertion() throws Exception {
+        var data = dataset();
+        int expectedHard = data.cases().stream().mapToInt(c -> c.expectations().hardRules().size()).sum();
+        var failed = new RunReport.Execution("C01", 1, null,
+                new CaseReport("C01", CaseReport.Status.ERROR, java.util.List.of()), Map.of(), java.util.List.of());
+        var report = RunReport.create(data, EvalVariant.baseline(), 1, "OFFLINE_FIXTURE", metadata(), java.util.List.of(failed)).document();
+        assertEquals(expectedHard, report.path("summary").path("hardApplicable").asInt());
+        assertEquals(expectedHard, report.path("summary").path("hardIncomplete").asInt());
+        assertEquals(0, report.path("summary").path("hardPassed").asInt());
+        assertEquals("ERROR", report.path("cases").get(0).path("caseStatus").asText());
+        assertEquals("NOT_RUN", report.path("cases").get(1).path("caseStatus").asText());
+    }
 }

@@ -101,7 +101,8 @@ public final class RunReport {
         node.put("resultStatus", result == null ? observed == null ? null : safe(observed.webStatus()) : result.status().name());
         node.put("terminationReason", result == null ? observed == null ? null : safe(observed.webTerminationReason()) : result.terminationReason().name());
         node.put("recordingComplete", observed != null && (observed.webTrace() == null ? EvaluationScorer.traceComplete(observed) : observed.webTrace().recordingComplete()));
-        node.set("assertions", EvalJson.MAPPER.valueToTree(score == null ? List.of() : score.assertions()));
+        var assertions = observed == null ? missingAssertions(c) : score.assertions();
+        node.set("assertions", EvalJson.MAPPER.valueToTree(assertions));
         var steps = node.putArray("steps");
         var invocations = node.putArray("invocations");
         var citations = node.putArray("citations");
@@ -147,6 +148,14 @@ public final class RunReport {
         return node;
     }
 
+    private static List<AssertionResult> missingAssertions(EvalCase definition) {
+        var assertions = new ArrayList<AssertionResult>();
+        for (var rule : definition.expectations().hardRules())
+            assertions.add(new AssertionResult(rule, true, AssertionResult.Status.INCOMPLETE, "EVIDENCE_MISSING", null, null));
+        for (var rule : definition.expectations().taskRules())
+            assertions.add(new AssertionResult(rule, false, AssertionResult.Status.INCOMPLETE, "EVIDENCE_MISSING", null, null));
+        return List.copyOf(assertions);
+    }
     private static ObjectNode provenance(EvalDataset data, EvalVariant variant, Map<String, Object> metadata) {
         var expected = Set.of("codeSha", "codeStatus", "workingTreeDirty", "trackedDiffHash", "untrackedCount",
                 "fixtureHash", "assertionHash", "promptHash", "policyHash", "configHash", "fixedConfigHash",
