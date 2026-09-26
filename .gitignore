@@ -98,3 +98,9 @@ docs/*
 !docs/demo.md
 !docs/portfolio-evidence.md
 !docs/delivery-checklist.md
+
+# Feature009 frontend dependencies and local test output
+/agent-demo/frontend/node_modules/
+/agent-demo/frontend/test-results/
+/agent-demo/frontend/playwright-report/
+/agent-demo/frontend/coverage/
