@@ -1,0 +1,768 @@
+openapi: 3.1.0
+info:
+  title: HiAgent H01 history and artifacts
+  version: 010-design
+  description: 仅定义H01新增接口；既有tasks/steps/events/turns与认证契约继续有效。此文件是待实施设计。
+security:
+- bearerAuth: []
+paths:
+  /api/agent/sessions/{sessionId}/messages:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    get:
+      operationId: getSessionMessages
+      summary: 读取已确认的有序消息/事实，不读取全部历史，不刷新使用时间
+      parameters:
+      - name: afterSequence
+        in: query
+        schema:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+          default: '0'
+      - name: untilSequence
+        in: query
+        schema:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: 首个请求固定untilSequence，后续沿用；正文为有界预览，响应最多256KiB
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryPage'
+        '400':
+          description: 参数或游标无效
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未认证
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 不存在、不属于当前用户或会话已删除
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: 持久化不可用或本地提交未确认
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: RATE_LIMITED
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/agent/sessions/{sessionId}/context:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    get:
+      operationId: getSessionContext
+      summary: 上下文配置、检查点、估算及用量诊断；不返回完整Prompt或provider载荷
+      responses:
+        '200':
+          description: 诊断快照，不刷新lastUsedAt
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextSnapshot'
+        '400':
+          description: 参数或游标无效
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未认证
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 不存在、不属于当前用户或会话已删除
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: 持久化不可用或本地提交未确认
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: RATE_LIMITED
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/agent/sessions/{sessionId}/touch:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    post:
+      operationId: touchSession
+      summary: 用户主动打开会话时显式刷新使用时间；后台轮询禁止调用
+      responses:
+        '204':
+          description: 使用时间已确认
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+        '400':
+          description: 参数或游标无效
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未认证
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 不存在、不属于当前用户或会话已删除
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: 持久化不可用或本地提交未确认
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: RATE_LIMITED
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/agent/sessions/{sessionId}:
+    parameters:
+    - name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 36
+    delete:
+      operationId: deleteSession
+      summary: 用户显式删除空闲会话；LRU不调用此接口
+      responses:
+        '202':
+          description: 已隐藏并进入有界清理，重复请求仍可报告pending
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionDeletion'
+        '400':
+          description: 参数或游标无效
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未认证
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 不存在、不属于当前用户或会话已删除
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: SESSION_BUSY：含排队、执行或待审批Run
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: 持久化不可用或本地提交未确认
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: RATE_LIMITED
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/agent/artifacts/{artifactId}:
+    get:
+      operationId: readArtifactRange
+      summary: 按范围读取用户所属附件；真实读取更新使用时间
+      parameters:
+      - name: artifactId
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 64
+      - name: offsetBytes
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: maxBytes
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 65536
+          default: 32768
+      responses:
+        '200':
+          description: UTF-8完整边界，最多8192 Token；nextOffsetBytes用于继续
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactRange'
+        '400':
+          description: 参数或游标无效
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未认证
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 不存在、不属于当前用户或会话已删除
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '410':
+          description: ARTIFACT_EVICTED或ARTIFACT_MISSING；先通过归属检查
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: 持久化不可用或本地提交未确认
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: RATE_LIMITED
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required:
+      - code
+      - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        taskId:
+          type:
+          - string
+          - 'null'
+    HistoryMessage:
+      type: object
+      required:
+      - sequence
+      - runId
+      - kind
+      - occurredAt
+      - preview
+      - contentUnavailable
+      - truncated
+      - redacted
+      properties:
+        sequence:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+        runId:
+          type: string
+        kind:
+          type: string
+          enum:
+          - USER_MESSAGE
+          - ASSISTANT_MESSAGE
+          - TOOL_CALL
+          - TOOL_EXECUTION_INTENT
+          - TOOL_RESULT
+          - RUN_TERMINAL
+          - RECOVERY_NOTICE
+        role:
+          type:
+          - string
+          - 'null'
+        occurredAt:
+          type: string
+          format: date-time
+        callId:
+          type:
+          - string
+          - 'null'
+        toolName:
+          type:
+          - string
+          - 'null'
+        status:
+          type:
+          - string
+          - 'null'
+        preview:
+          type: string
+          maxLength: 4096
+        artifactId:
+          type:
+          - string
+          - 'null'
+        contentUnavailable:
+          type: boolean
+        truncated:
+          type: boolean
+        decisionId:
+          type:
+          - string
+          - 'null'
+        redacted:
+          type: boolean
+      additionalProperties: false
+    HistoryPage:
+      type: object
+      required:
+      - items
+      - untilSequence
+      - hasMore
+      - nextAfterSequence
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/HistoryMessage'
+        untilSequence:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+        hasMore:
+          type: boolean
+        nextAfterSequence:
+          type:
+          - string
+          - 'null'
+      additionalProperties: false
+    Usage:
+      type: object
+      required:
+      - inputTokens
+      - outputTokens
+      - cachedInputTokens
+      - reasoningTokens
+      properties:
+        inputTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        outputTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        cachedInputTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        reasoningTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+      additionalProperties: false
+    ContextSnapshot:
+      type: object
+      required:
+      - sessionId
+      - model
+      - windowTokens
+      - estimatedInputTokens
+      - checkpointId
+      - coveredThroughSequence
+      - usageComplete
+      - actualUsage
+      - knownUsage
+      - outputReserveTokens
+      - safetyTokens
+      - compactionThresholdTokens
+      - estimateSource
+      - lastCompaction
+      - historyState
+      properties:
+        sessionId:
+          type: string
+        model:
+          type: string
+        windowTokens:
+          type: integer
+          minimum: 1
+        estimatedInputTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        checkpointId:
+          type:
+          - string
+          - 'null'
+        coveredThroughSequence:
+          type: string
+          pattern: ^(0|[1-9][0-9]{0,18})$
+        summaryTokenCount:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        usageComplete:
+          type: boolean
+        actualUsage:
+          anyOf:
+          - $ref: '#/components/schemas/Usage'
+          - type: 'null'
+        knownUsage:
+          $ref: '#/components/schemas/Usage'
+        historyState:
+          type: string
+          enum:
+          - CONFIRMED
+          - UNCONFIRMED
+          - UNAVAILABLE
+        outputReserveTokens:
+          type: integer
+          minimum: 1
+          description: 当前Run或最近请求的单次输出预留；尚无请求时为有效配置值
+        safetyTokens:
+          type: integer
+          minimum: 0
+        compactionThresholdTokens:
+          type: integer
+          minimum: 1
+        estimateSource:
+          type:
+          - string
+          - 'null'
+          description: 估算方法和编码版本；尚无请求时可为null，不伪称精确计费
+        lastCompaction:
+          anyOf:
+          - $ref: '#/components/schemas/CompactionDiagnostic'
+          - type: 'null'
+      additionalProperties: false
+    ArtifactRange:
+      type: object
+      required:
+      - artifactId
+      - state
+      - content
+      - actualOffsetBytes
+      - nextOffsetBytes
+      - eof
+      - savedBytes
+      - truncated
+      - redacted
+      properties:
+        artifactId:
+          type: string
+        state:
+          type: string
+          enum:
+          - AVAILABLE
+          - TRUNCATED
+        content:
+          type: string
+        actualOffsetBytes:
+          type: integer
+          minimum: 0
+        nextOffsetBytes:
+          type: integer
+          minimum: 0
+        eof:
+          type: boolean
+        savedBytes:
+          type: integer
+          minimum: 0
+        truncated:
+          type: boolean
+        redacted:
+          type: boolean
+      additionalProperties: false
+    SessionDeletion:
+      type: object
+      required:
+      - sessionId
+      - status
+      properties:
+        sessionId:
+          type: string
+        status:
+          type: string
+          const: CLEANUP_PENDING
+      additionalProperties: false
+    CompactionDiagnostic:
+      type: object
+      required:
+      - requestKey
+      - status
+      - checkpointId
+      - coveredThroughSequence
+      - sourceHistoryTokens
+      - retainedHistoryTokens
+      - summaryTokens
+      - failureCode
+      properties:
+        requestKey:
+          type: string
+        status:
+          type: string
+          enum:
+          - SUCCEEDED
+          - FAILED
+        checkpointId:
+          type:
+          - string
+          - 'null'
+        coveredThroughSequence:
+          type:
+          - string
+          - 'null'
+          pattern: ^(0|[1-9][0-9]{0,18})$
+        sourceHistoryTokens:
+          type: integer
+          minimum: 0
+        retainedHistoryTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        summaryTokens:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+        failureCode:
+          type:
+          - string
+          - 'null'
+      description: 当前Run或会话最近一次压缩尝试；失败没有新检查点。实际模型调用与检查点通过requestKey关联
+      additionalProperties: false
+x-termination-reason-additions:
+- HISTORY_PERSISTENCE_FAILED
+- CONTEXT_COMPACTION_FAILED
+- ARTIFACT_STORAGE_FAILED
