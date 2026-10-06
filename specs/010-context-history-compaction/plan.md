@@ -4,7 +4,7 @@
 **Date**: 2026-10-06
 **Spec**: [spec.md](spec.md)
 **Input**: 已澄清的31项FR、5个用户故事与8项成功标准。
-**Status**: Phase 1–3 实现与阶段门禁已通过；Phase 4 全仓验证与交付进行中。
+**Status**: VERIFIED — 2026-10-07完成4个Phase、59项任务及全仓验证，阶段提交和交付记录见[verification.md](verification.md)。
 
 ## Summary
 
@@ -40,7 +40,7 @@
 | 真实状态与安全 | PASS | 持久化故障、未知操作、权限、引用契约 |
 | 简历项目边界 | PASS | 无分布式租约、RAG重构、语义Judge、桌面产品化 |
 
-PASS仅指设计符合约束，不代表实现或测试已通过。
+上表保留设计阶段的宪法检查。实现后五项原则复核、全仓测试及analyze/converge结果见[verification.md](verification.md)，不以设计PASS代替产品证据。
 
 ## Project Structure
 
@@ -66,8 +66,8 @@ plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.
 
 1. 本地文件库与基线：T001–T004，提交a90ef97。
 2. 纯Java契约与计数适配：T005–T009，提交b208bb0。
-3. 完整上下文管线：T010–T053，按US1 → US3 → US2 → US5 → US4依赖次序完成；覆盖可靠历史、附件、压缩、有限补写及Responses装配。
-4. 一条端到端验收与交付门禁：T054–T059。
+3. 完整上下文管线：T010–T053，按US1 → US3 → US2 → US5 → US4依赖次序完成；覆盖可靠历史、附件、压缩、有限补写及Responses装配，提交481e399。
+4. 一条端到端验收与交付门禁：T054–T059，提交845d4b0。
 
 共59项。2026-10-07将原Phase 3–7合并为一个集成提交边界，原因是共享Runtime、迁移和恢复/装配文件；范围、任务编号、故事顺序和验收标准不变。最终完整装配在提交前统一验证，端到端测试独立归入Phase 4。
 
@@ -116,4 +116,4 @@ plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.
 
 ## Complexity Tracking
 
-无宪法例外。端口对应真实替换边界：历史、附件I/O、摘要模型及provider续接存储；不建通用工作流引擎、消息总线或一类一接口。实现路径见上表；未完成验证的状态以verification和tasks为准。
+无宪法例外。端口对应真实替换边界：历史、附件I/O、摘要模型及provider续接存储；不建通用工作流引擎、消息总线或一类一接口。实现路径见上表；全部任务和验证已完成，实际证据与限制以verification和tasks为准。

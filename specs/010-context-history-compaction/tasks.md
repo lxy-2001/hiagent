@@ -1,7 +1,7 @@
 # Tasks: 010 / H01 上下文与会话历史升级
 
 **日期**：2026-10-06  
-**状态**：Phase 1–4实现与验收完成，59/59任务已验证；阶段提交与最终Feature交付见verification.md。按用户要求收紧新增测试，保留原功能范围和验收标准。
+**状态**：VERIFIED；2026-10-07完成Phase 1–4，59/59任务已验证，四个阶段提交已完成；最终Feature交付见verification.md。按用户要求收紧新增测试，保留原功能范围和验收标准。
 **Input**：[spec.md](spec.md)、[plan.md](plan.md)、[research.md](research.md)、[data-model.md](data-model.md)、[contracts/](contracts/)、[quickstart.md](quickstart.md)。
 
 ## 执行规则
@@ -119,7 +119,7 @@
 
 **目标**：生产协议和本地装配接通，实际用量与缺失值有区别。
 
-**主验证点**：OpenAiResponsesAgentModelClientTest共用Mock测主模型/摘要；HarnessAutoConfigurationTest测装配/汇总；JpaHistoryStoreTest补provider持久化。
+**主验证点**：OpenAiResponsesAgentModelClientTest共用Mock测主模型/摘要；LocalStorageFileTest、AgentWebAutoConfigurationTest、AgentLlmAutoConfigurationTest及ContextHistoryServiceTest复用装配/用量验证；JpaHistoryStoreTest补provider持久化。
 
 - [X] T044 [P] [US4] 在 `agent-llm/src/test/java/com/agentflow/llm/OpenAiResponsesAgentModelClientTest.java` 共用一个HTTP Mock覆盖主请求和摘要适配：text+call/call_id/必要opaque续接、完整有效input、摘要无工具、显式失败/取消与返回体上限；用参数化样例检查usage缺失/0/缓存子项。先确认目标失败，不分建ResponsesCompactionModelTest或真实供应商测试矩阵。
 - [X] T045 [P] [US4] 在 `agent-demo/src/test/java/com/agentflow/demo/LocalStorageFileTest.java` 及已有Web/LLM自动配置测试中覆盖完整默认装配、自定义Bean退让和缺必需存储启动失败，附一项主模型/摘要用量去重汇总；扩展 `agent-web/src/test/java/com/agentflow/web/context/JpaHistoryStoreTest.java` 验证opaque续接保存/恢复/压缩后释放。现有旧chat/embedding回归继续使用，不分建HarnessUsageTest、ResponsesContinuationTest。

@@ -1,6 +1,6 @@
 # H01 Core / Runtime Contract
 
-适用FR-001–016、FR-028–031。以下是待实现的项目公共契约；Core不得依赖Spring、数据库、JTokkit或厂商SDK。
+适用FR-001–016、FR-028–031。以下契约已在H01实现，验证记录见../verification.md；Core不得依赖Spring、数据库、JTokkit或厂商SDK。
 
 ## 1. 入口及兼容
 

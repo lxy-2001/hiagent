@@ -4,11 +4,11 @@
 
 **Created**: 2026-10-06
 
-**Status**: Implementing — Phase 1–3 已验证，最终全仓门禁与交付待完成；共59项任务，Feature仍为ACTIVE。
+**Status**: VERIFIED — 2026-10-07完成Phase 1–4，59/59任务及全仓门禁通过；交付证据见[verification.md](verification.md)。
 
 **Roadmap Feature**: 010（第二阶段 H01）/ 可恢复、有容量边界的连续会话上下文。
 
-**Input**: 用户要求基于 HiAgent 复用现有 Runtime；先固定并澄清H01规格，现已明确要求按Spec Kit生成具体plan、tasks等SDD文件。
+**Input**: 用户要求基于 HiAgent 复用现有 Runtime，按Spec Kit固定规格、计划与任务，并完成整个H01 Feature。
 
 ## Feature Outcome *(mandatory)*
 
@@ -280,4 +280,4 @@ Q1–Q3 均已关闭。附件采用用户确认的会话级配额与全局最近
 - Responses 本地/远端状态衔接、模型能力校验和供应商用量映射；不把远端状态或缓存等同于本地历史。
 - 各工具长参数/长结果的历史表示与预览策略、压缩 Prompt 的版本和回归样例；有界补写的幂等标识及结果不确定时的恢复核对。
 
-上述技术选择已经在[research.md](research.md)、[data-model.md](data-model.md)及[contracts/](contracts/)细化；实际迁移、模型适配、压缩质量和故障恢复仍须按59项任务取得实现证据。
+上述技术选择已按59项任务实现；迁移、Responses协议、压缩边界和故障恢复的离线证据见[verification.md](verification.md)。真实模型的摘要语义质量、账号可用性和缓存收益未用付费调用验证。

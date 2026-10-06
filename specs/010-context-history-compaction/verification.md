@@ -1,6 +1,6 @@
 # H01 Verification / Evidence
 
-**当前状态：Phase 1–4实现与验收已完成，共59项；最终状态文档、阶段提交和分支推送按本文末尾交付记录确认。** 日期和耗时以机器测试日志记录为准。下列设计阶段的探针与文档检查保留为历史，不替代产品证据。
+**当前状态：VERIFIED — 2026-10-07完成Phase 1–4及59/59任务，全仓门禁、analyze/converge和四个阶段提交均通过。最终文档提交与远端推送回执在完成报告中确认。** 日期和耗时以机器测试日志记录为准。下列设计阶段的探针与文档检查保留为历史，不替代产品证据。
 
 实施工作树：`C:/Users/25118/.codex/worktrees/hiagent-h01/hiagent`；分支：`codex/010-context-history-compaction`。原`E:/hiagent`工作区及用户已有改动保留；本工作树中的用户`mvnw`改动也不纳入提交。
 
@@ -220,6 +220,12 @@ LocalStorageFileTest 初次因缺少 local-harness profile 失败；实现后真
 - 原公开finalAnswer仍受65,536字符边界；默认8次决策等循环策略留给H02升级。H03文件编辑、H04真实终端、桌面壳、安装能力及009前端合并均不在H01。
 - 既有RAG门禁曾出现的两次失败已完整保留；后续聚焦/阶段/全仓门禁未复现，但其根因仍未确认。
 
+### 最终文档直接校验
+
+- 59/59任务勾选且ID唯一连续，实施为4个Phase；spec/plan/tasks/verification与路线图010状态均为VERIFIED。
+- 最终9份状态文档的73个本地链接均可解析；SDD入口对未随工作树提供的AGENTS.md保留文件名引用，避免无效链接。压缩Prompt系统指令及输出结构与Core资源一致，文档另含程序侧保障说明。
+- 最终状态提交只涉及文档；生产代码保持全仓门禁验证状态，唯一新增用量断言已单独通过，不因文案调整重复全部测试。
+
 ### 提交与交付记录
 
 | 边界 | 提交 | 信息 |
@@ -227,5 +233,6 @@ LocalStorageFileTest 初次因缺少 local-harness profile 失败；实现后真
 | Phase 1 / T001–T004 | a90ef97e2ec315fd57cbdda6b5b425014d2fbff4 | build(010): complete phase 1 - local storage baseline |
 | Phase 2 / T005–T009 | b208bb06e729dbebd373a6033586de544b869750 | feat(010): complete phase 2 - context contracts |
 | Phase 3 / T010–T053 | 481e399f8474f34fefe90ea32754689c2e9b2929 | feat(010): complete phase 3 - durable harness context pipeline |
+| Phase 4 / T054–T059 | 845d4b014f13b1d7cfb6c4d1490e43e781457fc5 | test(010): complete phase 4 - harness context acceptance |
 
-Phase 4验收和审查已通过；阶段SHA将在提交成功后由最终状态文档补记。分支推送在最终状态提交后执行，以真实Git回执确认；不合并main、不创建PR或Release。
+最终状态文档提交使用`docs(010): finalize verified delivery documentation`，同步spec、plan、tasks、需求检查表、路线图与SDD入口。此文档随该提交一起交付，提交自身SHA及远端成功回执由完成报告确认，不在提交前宣称已推送。交付分支为`codex/010-context-history-compaction`，不合并main、不创建PR或Release。

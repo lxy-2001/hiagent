@@ -3,7 +3,7 @@
 **Purpose**: 检查基础规格的范围、可验证性与进入下一阶段的条件；不代表功能实现验收。
 **Created**: 2026-10-06
 **Feature**: [spec.md](../spec.md)
-**Result**: Q1–Q3均已澄清，规格质量检查16/16通过。当前已生成plan、tasks和配套契约；59项实施任务未完成，本检查表不等同于实现验收。
+**Result**: Q1–Q3均已澄清，规格质量检查16/16通过。2026-10-07实际实现已VERIFIED，4个Phase、59项任务全部完成；本表保留规格质量与历史检查，产品验收证据见[verification.md](../verification.md)。
 
 ## Content Quality
 
@@ -35,14 +35,14 @@
 | 要求 | 场景 | 主要成功标准 / 未决点 |
 | --- | --- | --- |
 | FR-001–FR-007 | US1、US5 | SC-001、SC-002、SC-006 |
-| FR-008–FR-016 | US2、US4 | SC-002、SC-003；默认参数已定，计数/协议留 plan 验证 |
+| FR-008–FR-016 | US2、US4 | SC-002、SC-003；ContextCompactorTest、JtokkitTokenEstimatorTest、Responses适配及两次压缩主线已验证 |
 | FR-017–FR-022 | US3、US5 | SC-004、SC-005；Q2 已关闭，会话配额与全局最近使用淘汰 |
-| FR-023 | US1、US5 | SC-007；plan已选择H2文件库，真实迁移/JPA/故障验收待实施 |
+| FR-023 | US1、US5 | SC-007；H2文件库的实际迁移/JPA/回滚/重开/锁冲突及本地默认启动已验证，见LocalStorageFileTest与verification |
 | FR-024–FR-028 | US4 | SC-003、SC-007 |
 | FR-029–FR-031 | US1、US5 | SC-001、SC-006；Q1/Q3 已关闭，有限补写后停止，不迁移旧数据 |
 | 默认验证边界 | 全部场景 | SC-008 |
 
-## Notes
+## Notes（规格形成时的历史记录）
 
 - 用户先要求基本规格及澄清，随后明确授权plan/tasks；相应历史记录按阶段保留，当前设计与59项任务已生成，产品待实施。
 - OpenAI Responses API、默认 gpt-6.1-sol、272K 工作窗口、本地存储和复用现有 Runtime 是用户已确认的约束；它们不等于自行扩展实现方案。当前引擎与接口设计见plan及contracts，尚未取得产品实现证据。
@@ -81,3 +81,8 @@
 ### 2026-10-06：测试范围收紧
 
 按用户要求复审测试负担，合并重复套件与形式性任务：8个Phase、59项待实施任务，计划新增测试文件由27个合并为13个职责位置。保留31项FR、8项SC、关键失败边界、TDD、已有测试及最终门禁；一条E2E主线，故障/容量/权限在主验证点覆盖。CHK001–CHK016仍表示需求质量检查；历史72项任务记录保留当时状态，当前任务以tasks.md为准。直接校验结果见[verification.md](../verification.md)。
+
+
+### 2026-10-07：实施与最终验收
+
+4个Phase、59/59任务及31条FR/8条SC的实现覆盖完成；全仓clean verify为1,019项测试、0失败、0错误、1项既有可选Qdrant跳过，补充主线用量断言单独通过。analyze无未解决HIGH/CRITICAL，converge无剩余工作。四个阶段SHA、实际命令与未验证的真实模型限制见[verification.md](../verification.md)；上方设计时期的“待实施”记录保留原时点含义。

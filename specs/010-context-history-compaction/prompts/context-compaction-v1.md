@@ -1,6 +1,6 @@
 # Context Compaction Prompt v1
 
-此文档是H01待实现Prompt。实现时作为版本化资源载入，默认与主模型相同，单独摘要请求且无工具。它不是已验证的模型效果承诺。
+此文档对应H01已实现的版本化Prompt资源：agent-core/src/main/resources/prompts/context-compaction-v1.txt。默认与主模型相同，使用单独摘要请求且无工具。结构与协议已离线验证，不承诺未验证的真实模型摘要效果。
 
 ## 系统指令
 
