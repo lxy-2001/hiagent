@@ -1,7 +1,7 @@
 # Tasks: 010 / H01 上下文与会话历史升级
 
 **日期**：2026-10-06  
-**状态**：Phase 1–3 已验证；Phase 3 准备提交，Phase 4 最终门禁与交付进行中。按用户要求收紧新增测试，保留原功能范围和验收标准。
+**状态**：Phase 1–4实现与验收完成，59/59任务已验证；阶段提交与最终Feature交付见verification.md。按用户要求收紧新增测试，保留原功能范围和验收标准。
 **Input**：[spec.md](spec.md)、[plan.md](plan.md)、[research.md](research.md)、[data-model.md](data-model.md)、[contracts/](contracts/)、[quickstart.md](quickstart.md)。
 
 ## 执行规则
@@ -143,12 +143,12 @@
 
 **主验证点**：HarnessContextFlowTest仅一条完整主线；其余验收读取主验证点结果，不把所有失败组合重新跑成E2E。
 
-- [ ] T054 在 `agent-demo/src/test/java/com/agentflow/demo/HarnessContextFlowTest.java` 的显式离线配置与Fixture中写一条端到端主线：跨Run历史→大输出附件→两次压缩→关闭重开→读取有效上下文与附件，并核对实际工具调用数及用量。其余故障/LRU/所有权以各自主测试证据验收，不在E2E再跑完整矩阵；新增集成缺口按TDD修复。
-- [ ] T055 同步 `specs/010-context-history-compaction/contracts/openapi.yaml` 与已实现接口，复用 `agent-demo/src/test/java/com/agentflow/demo/ContextHistoryApiTest.java` 的HTTP结果检查正常/错误DTO；旧任务/步骤/SSE路径不改名，不另建等价契约测试套件。
-- [ ] T056 核对 `specs/010-context-history-compaction/quickstart.md` 的主验证点已有证据，仅补遗漏或受新修改影响的场景；最后运行一次 `./mvnw.cmd clean verify`，将测试数/退出码与限制记入 `specs/010-context-history-compaction/verification.md`。已有测试不删除/跳过，成功后无新改动、失败或未决风险不重复全仓验证；新增依赖随构建解析和既有门禁检查，不增加独立企业安全扫描平台。
-- [ ] T057 按speckit-analyze只读复核 `specs/010-context-history-compaction/spec.md`、`specs/010-context-history-compaction/plan.md`、`specs/010-context-history-compaction/tasks.md` 和契约；以独立文档修订处理所有HIGH/CRITICAL再重跑分析，将报告结果记入 `specs/010-context-history-compaction/verification.md`，不能把当前设计分析充作实现后分析。
-- [ ] T058 执行speckit-converge，对照 `specs/010-context-history-compaction/tasks.md` 与实际代码/证据找剩余未实现工作；如追加任务，先按TDD完成并复验，再确认没有未完成验收，不因预算或文档齐全提前结束。
-- [ ] T059 在 `specs/010-context-history-compaction/verification.md` 记录简历演示代码路径、离线事实与限制，审查最终产品diff、凭据/真实响应泄漏及排除项；汇总所有既有阶段SHA；本阶段提交与最终状态更新按下方交付检查点执行。
+- [X] T054 在 `agent-demo/src/test/java/com/agentflow/demo/HarnessContextFlowTest.java` 的显式离线配置与Fixture中写一条端到端主线：跨Run历史→大输出附件→两次压缩→关闭重开→读取有效上下文与附件，并核对实际工具调用数及用量。其余故障/LRU/所有权以各自主测试证据验收，不在E2E再跑完整矩阵；新增集成缺口按TDD修复。
+- [X] T055 同步 `specs/010-context-history-compaction/contracts/openapi.yaml` 与已实现接口，复用 `agent-demo/src/test/java/com/agentflow/demo/ContextHistoryApiTest.java` 的HTTP结果检查正常/错误DTO；旧任务/步骤/SSE路径不改名，不另建等价契约测试套件。
+- [X] T056 核对 `specs/010-context-history-compaction/quickstart.md` 的主验证点已有证据，仅补遗漏或受新修改影响的场景；最后运行一次 `./mvnw.cmd clean verify`，将测试数/退出码与限制记入 `specs/010-context-history-compaction/verification.md`。已有测试不删除/跳过，成功后无新改动、失败或未决风险不重复全仓验证；新增依赖随构建解析和既有门禁检查，不增加独立企业安全扫描平台。
+- [X] T057 按speckit-analyze只读复核 `specs/010-context-history-compaction/spec.md`、`specs/010-context-history-compaction/plan.md`、`specs/010-context-history-compaction/tasks.md` 和契约；以独立文档修订处理所有HIGH/CRITICAL再重跑分析，将报告结果记入 `specs/010-context-history-compaction/verification.md`，不能把当前设计分析充作实现后分析。
+- [X] T058 执行speckit-converge，对照 `specs/010-context-history-compaction/tasks.md` 与实际代码/证据找剩余未实现工作；如追加任务，先按TDD完成并复验，再确认没有未完成验收，不因预算或文档齐全提前结束。
+- [X] T059 在 `specs/010-context-history-compaction/verification.md` 记录简历演示代码路径、离线事实与限制，审查最终产品diff、凭据/真实响应泄漏及排除项；汇总所有既有阶段SHA；本阶段提交与最终状态更新按下方交付检查点执行。
 
 **阶段门禁**：`./mvnw.cmd clean verify`。执行和证据复用遵循文首规则，Phase 4使用最终同一次全仓验证。
 

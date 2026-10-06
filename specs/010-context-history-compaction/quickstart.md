@@ -1,6 +1,6 @@
 # H01 实施验证指南
 
-日期：2026-10-06。当前为待实施设计，以下测试文件/场景均为计划，不能据此声称产品验证通过。实施顺序与门禁以[tasks.md](tasks.md)为准。
+日期：2026-10-07。本文说明实际实现的运行入口与验证安排；已执行结果以[verification.md](verification.md)为准，实施顺序和门禁见[tasks.md](tasks.md)。
 
 ## 1. 验证边界
 
@@ -26,7 +26,7 @@
 | agent-core/src/test/java/com/agentflow/core/context/ContextCompactorTest.java | 软阈值/硬上限、工具配对、20%目标、连续压缩、失败保留旧窗口；Prompt结构/信任边界 |
 | agent-web/src/test/java/com/agentflow/web/context/BoundedPersistenceRetryTest.java | 暂时恢复、耗尽、不可重试、取消/到期；4次总尝试和同一写入补确认 |
 | agent-llm/src/test/java/com/agentflow/llm/OpenAiResponsesAgentModelClientTest.java | 一套HTTP Mock覆盖主调用/摘要、text+call、续接、失败取消、usage缺失/0/子项 |
-| agent-demo/src/test/java/com/agentflow/demo/HarnessAutoConfigurationTest.java | 真实默认装配、自定义Bean退让、缺必需能力失败、一次用量汇总 |
+| LocalStorageFileTest、AgentWebAutoConfigurationTest、AgentLlmAutoConfigurationTest及ContextHistoryServiceTest | 默认Demo完整启动、Bean退让/缺能力失败及真实/未知用量汇总，复用现有测试位置 |
 | agent-demo/src/test/java/com/agentflow/demo/HarnessContextFlowTest.java | 下节唯一完整端到端主线 |
 
 复用已有ModelDecisionContractTest、ContextContractTest、CoreDependencyBoundaryTest、RunFinalTransactionTest、RunPersistenceRecoveryTest、AgentLlmAutoConfigurationTest、StarterOverrideTest及agent-eval/ContractTest。现有取消、审批、SSE、RAG与资源释放测试正常参加模块回归；只有本次变化带来的实际缺口才补断言，不再复制同义套件。
@@ -58,7 +58,7 @@
 ./mvnw.cmd clean verify
 ~~~
 
-这是Phase 8同一次门禁，不需要再按本文把所有定向命令重复执行一遍。新修改、失败或未决问题才需要重跑受影响检查。测试发现缺陷时保留失败证据并修复，不能减少断言制造通过。
+这是Phase 4同一次门禁，不需要再按本文把所有定向命令重复执行一遍。新修改、失败或未决问题才需要重跑受影响检查。测试发现缺陷时保留失败证据并修复，不能减少断言制造通过。
 
 ## 5. 接口和证据
 
@@ -70,4 +70,19 @@
 
 ## 6. 完成标准
 
-完成任务并记录证据 → 全仓verify → 实现后speckit-analyze无未解决HIGH/CRITICAL → speckit-converge无剩余工作 → 更新路线图和验证记录 → 阶段及最终文档提交 → 推送Feature分支。当前仍待实施，以上产品验证未执行。
+完成任务并记录证据 → 全仓verify → 实现后speckit-analyze无未解决HIGH/CRITICAL → speckit-converge无剩余工作 → 更新路线图和验证记录 → 阶段及最终文档提交 → 推送Feature分支。当前实施状态和已执行验证以verification记录为准。
+
+## 7. 本地启动与模型配置
+
+Demo默认profile是local-harness，H2文件库与托管附件默认放在 `%LOCALAPPDATA%/HiAgent`。可以用 `agentflow.harness.storage.data-root` 指定独立数据目录。生产路径必须配置真实模型Key和至少32字节的本地JWT密钥；缺少必需配置时明确启动失败，不选择Fake。
+
+~~~powershell
+$env:AGENTFLOW_JWT_SECRET = "<随机生成且至少32字节的本地JWT密钥>"
+$env:AGENTFLOW_HARNESS_API_KEY = "<你的Key>"
+$env:AGENTFLOW_HARNESS_BASE_URL = "https://api.openai.com/v1"
+$env:AGENTFLOW_HARNESS_MODEL = "gpt-6.1-sol"
+./mvnw.cmd -pl agent-demo -am package -DskipTests
+java -jar agent-demo/target/agent-demo-0.1.0-SNAPSHOT.jar
+~~~
+
+`gpt-6.1-sol`只是用户指定的默认配置字符串；实际服务需支持该模型及Responses工具协议，测试不证明账号或模型可用。自建OpenAI兼容服务可更改base-url和model；模型窗口/编码需配套配置。离线端到端Fixture只存在测试源码，用于证明上下文、存储和恢复流程。

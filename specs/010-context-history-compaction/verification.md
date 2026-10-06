@@ -1,6 +1,6 @@
 # H01 Verification / Evidence
 
-日期：2026-10-07。**当前处于实现后集成验证，Feature保持ACTIVE。** Phase 1–2已有提交；Phase 3门禁、最终全仓验证和交付状态按后续实际记录更新。下列设计阶段的探针与文档检查保留为历史，不替代产品证据。
+**当前状态：Phase 1–4实现与验收已完成，共59项；最终状态文档、阶段提交和分支推送按本文末尾交付记录确认。** 日期和耗时以机器测试日志记录为准。下列设计阶段的探针与文档检查保留为历史，不替代产品证据。
 
 实施工作树：`C:/Users/25118/.codex/worktrees/hiagent-h01/hiagent`；分支：`codex/010-context-history-compaction`。原`E:/hiagent`工作区及用户已有改动保留；本工作树中的用户`mvnw`改动也不纳入提交。
 
@@ -79,7 +79,7 @@ Spec Kit的最终analyze为只读，报告在本次会话输出；实施开始�
 
 该设计阶段尚无产品验收结论和提交SHA。技术设计决定已写入，不需要重复确认用户已经拍板的行为；若实际兼容测试推翻数据库/协议假设，应先更新SDD后实施。
 
-## 6. 2026-10-06 测试范围复审
+## 6. 2026-10-06 测试范围复审（历史）
 
 - 用户要求：符合个人简历项目规模，保留有效测试，避免企业级和重复测试。
 - 8个Phase不变；任务72→59，计划新增测试文件27→13，直接引用的既有测试4→8。合并测试编写/证据记录任务，产品功能与31项FR、8项SC不变；13只是职责规划，不是数量门槛。
@@ -121,7 +121,7 @@ LocalStorageFileTest 初次因缺少 local-harness profile 失败；实现后真
 
 单次Artifact正文Token计量减去消息格式开销，协议读取上限8192与实际配置限额分别生效；不删除无进展保护。附件预览/墓碑按ID查询数据库，不全量驻留内存。全局清理与新Run准入通过短领取协调，准入保护直到事务完成，数据库和文件I/O不持有该monitor。
 
-## 9. Phase 4 已执行主线（门禁仍待完成）
+## 9. Phase 4 早期主线记录（历史，最终结果见下文）
 
 `HarnessContextFlowTest.offlineHarnessRunsTwiceCompactsTwiceAndReopensWithoutToolReplay`在`hiagent-h01-artifact-final-green2.log`通过；一条显式离线Fixture验证跨Run历史、大结果附件、两次压缩、关闭重开、有效尾部/引用及工具不重放。该次聚焦运行共12项、0失败/0错误/0跳过；它不替代全仓verify、公开HTTP回归、analyze或converge。
 
@@ -147,3 +147,85 @@ LocalStorageFileTest 初次因缺少 local-harness profile 失败；实现后真
 - RunDatabaseTimeoutTest改用独立timeout-test profile，保持MySQL connectTimeout/socketTimeout及Hikari断言；聚焦`RunDatabaseTimeoutTest,RagConversationEndToEndTest`在`hiagent-h01-focused-timeout-rag.log`中5项通过，0失败/错误/跳过。
 - 最终阶段命令：`./mvnw.cmd -pl agent-demo,agent-eval -am test`，日志`hiagent-h01-phase3-gate-reviewed.log`；退出0、BUILD SUCCESS，9个测试模块共1,019项，0失败、0错误、1项跳过。Demo 69项全部通过，其中原RAG 4项亦通过；前述RAG失败在聚焦和最终门禁均未复现，不声称已证明其根因。结束时间为日志记录的2026-10-07T06:14:48+08:00。
 - 唯一跳过的是原有RealQdrantSmokeTest，按其既有显式真实服务开关运行；本次未增加跳过或弱化既有断言。全仓最终verify另列于Phase 4。
+
+## Phase 4 / T054–T059：最终验收与实现后审查
+
+### 全仓验证
+
+- 命令：`./mvnw.cmd clean verify`。退出码0，`BUILD SUCCESS`，全部10个reactor条目成功，Demo可执行jar已打包。日志：`%TEMP%/hiagent-h01-final-clean-verify.log`；机器日志结束时间`2026-10-07T06:24:01+08:00`，耗时04:02。
+- 从本次Surefire XML独立汇总：1,019项，0失败、0错误、1跳过。唯一跳过为既有`RealQdrantSmokeTest.roundTripsDeterministicVectorsUsingAllProtocolOperations`，其真实服务开关`feature005.realQdrant=true`未开启；没有新增跳过或弱化断言。
+
+| 模块 | 测试 | 失败 | 错误 | 跳过 |
+|---|---:|---:|---:|---:|
+| agent-core | 405 | 0 | 0 | 0 |
+| agent-llm | 68 | 0 | 0 | 0 |
+| agent-tool | 16 | 0 | 0 | 0 |
+| agent-rag | 62 | 0 | 0 | 1 |
+| agent-mcp | 79 | 0 | 0 | 0 |
+| agent-spring-boot-starter | 7 | 0 | 0 | 0 |
+| agent-web | 274 | 0 | 0 | 0 |
+| agent-eval | 39 | 0 | 0 | 0 |
+| agent-demo | 69 | 0 | 0 | 0 |
+| 合计 | 1,019 | 0 | 0 | 1 |
+
+- 本次包含真实H2/Flyway/JPA文件库重开、默认装配、本地认证链、新HTTP接口、Responses HTTP Mock、既有RAG/审批/取消/SSE/资源释放回归。前述RAG失败在本次全仓验证中未复现，仍不声称已证明其根因。
+- 全仓通过后，仅在已有端到端主线补充两个Run的用量断言，没有修改生产代码。针对修改执行`./mvnw.cmd -pl agent-demo -am -Dtest=HarnessContextFlowTest -Dsurefire.failIfNoSpecifiedTests=false test`：退出0、1项通过、0失败/错误/跳过。日志`%TEMP%/hiagent-h01-phase4-usage-acceptance.log`，机器日志结束时间`2026-10-07T06:36:15+08:00`。其他套件证据复用同一生产代码状态的全仓结果，后续文档更新不重复全仓测试。
+
+### 唯一完整主线及公开契约
+
+- `HarnessContextFlowTest.offlineHarnessRunsTwiceCompactsTwiceAndReopensWithoutToolReplay`采用显式测试Fixture，真实Coordinator、Runtime、H2及附件存储：跨两个Run持续记录→一次大工具输出形成附件→连续两次压缩→关闭重开应用→恢复第二检查点与未覆盖消息→按范围读取附件。工具实际调用总数为1；重开和恢复新增工具调用、模型请求均为0；历史含一个工具意图及两个终态，检查点序号保持且压缩目标≤20%。
+- 两个Run分别核对Fixture报告用量：5次主模型决定加1次摘要，输入600、输出80,104、总计80,704 Token；摘要只累计一次。此为确定性离线计数，不是真实模型质量或账单。
+- OpenAPI直接校验：3.1.0、5条路径/5个操作、8个Schema、35个内部引用均可解析，operationId唯一，JWT bearer及各响应Cache-Control:no-store符合实现。`ContextHistoryApiTest`在全仓门禁中覆盖新增消息/诊断/touch/删除/附件范围接口；旧任务/步骤/SSE接口及认证不改名。
+
+### speckit-analyze：实现后只读报告
+
+| 项目 | 核对结果 |
+|---|---|
+| 需求 / 成功标准 | 31条FR + 8条SC，共39条，全部有具体任务，覆盖率100% |
+| 任务 | 59个唯一且连续ID，无重复、无失效任务引用 |
+| 故事 / 验收 | 5个用户故事，22个验收场景 |
+| 文档 / 路径 | 任务引用89个仓库文件均存在；需求检查表16/16通过 |
+| 冲突 / 歧义 / 重复 | 未发现需修复的跨文档冲突、需求歧义或重复任务 |
+| HIGH / CRITICAL | 0个未解决问题；宪法五项原则无违反 |
+
+逐条需求到任务的映射见tasks.md的“需求追踪”；对应实现/主验证点见plan、quickstart及上方阶段证据。本次报告针对实际实现，设计阶段分析保留为历史。状态文案由后续独立完成文档更新，不将设计时的NOT RUN表当作当前状态。
+
+### speckit-converge：实现与验收收敛
+
+- 已逐项核对31条FR、8条SC、22个验收场景、16项设计决定（9项项目机制 + 7项适配/集成）和5项宪法原则。
+- 结果：converged。没有missing/partial/contradicts/unrequested的待实现产品缺口；最后的证据与交付工作已在T054–T059覆盖，无需追加重复任务。
+- 审查期间tasks.md字节内容/哈希保持不变，没有写入空Convergence阶段；通过后由实施流程勾选既有任务。
+- `.specify/extensions.yml`不存在，analyze/converge/implement无待执行扩展hook。
+
+### 范围与敏感信息审查
+
+- 按基线fb3de112eb220a743232fdad1af710c092826540核对Feature改动路径；本阶段只提交一条E2E、对应契约/启动指南、任务状态与验证记录。
+- 132个Feature源文件/文档的凭据模式检查没有候选命中；API/JWT示例只用占位符/环境变量。Core依赖边界测试通过，无Spring/JPA/provider实现倒灌Core。
+- `git diff --check`通过；mvnw用户改动、H01临时协调文件、日志、target及真实模型响应不纳入任何提交。只使用明确路径暂存，原E:/hiagent工作区不修改。
+
+### 可讲解代码路径与限制
+
+| 展示机制 | 核心路径 | 验证证据 |
+|---|---|---|
+| 自研循环 + 可靠交互记录 | DefaultAgentRuntime → ContextSessionService → JpaHistoryStore；RunPersistence创建/终态事务 | HarnessRuntimeTest、JpaHistoryStoreTest、原Run事务/恢复测试 |
+| 增量窗口与检查点恢复 | WorkingContext、ContextSessionService有界缓存 | HarnessRuntimeTest、HarnessContextFlowTest |
+| 容量触发与合法压缩切分 | ContextCompactor、CompactionPrompt、ResponsesCompactionModel、JtokkitTokenEstimator | ContextCompactorTest、分词/Responses适配测试、两次压缩主线 |
+| 大输出附件及两级LRU | LocalArtifactStore、ArtifactMaintenance、ReadArtifactTool | 附件/工具主测试、ContextHistoryApiTest、主线范围读取 |
+| 有限补写与零重放 | BoundedPersistenceRetry、OrphanCallRecovery、RunCoordinator/RunPersistence | 重试、故障/恢复及既有取消/SSE测试 |
+| Responses协议与用量真伪边界 | OpenAiResponsesAgentModelClient、ResponsesDecisionMapper、ModelCallLedger | HTTP Mock、ContextHistoryServiceTest、主线用量断言 |
+| Windows本地独立启动 | application-local-harness.yml、V7迁移、精确自动配置 | LocalStorageFileTest、LocalWebDependencyTest及默认应用启动 |
+
+- 默认`gpt-6.1-sol`是用户指定且可配置的模型名称，未用付费请求验证供应商/账号可用性；离线测试不证明真实摘要语义质量、Prompt缓存命中率或计费收益。
+- H2默认只供单进程本地使用。结构化历史保留，大附件达到配额后可清理，保留墓碑和当时预览，不承诺全部附件永久全文可读。
+- 原公开finalAnswer仍受65,536字符边界；默认8次决策等循环策略留给H02升级。H03文件编辑、H04真实终端、桌面壳、安装能力及009前端合并均不在H01。
+- 既有RAG门禁曾出现的两次失败已完整保留；后续聚焦/阶段/全仓门禁未复现，但其根因仍未确认。
+
+### 提交与交付记录
+
+| 边界 | 提交 | 信息 |
+|---|---|---|
+| Phase 1 / T001–T004 | a90ef97e2ec315fd57cbdda6b5b425014d2fbff4 | build(010): complete phase 1 - local storage baseline |
+| Phase 2 / T005–T009 | b208bb06e729dbebd373a6033586de544b869750 | feat(010): complete phase 2 - context contracts |
+| Phase 3 / T010–T053 | 481e399f8474f34fefe90ea32754689c2e9b2929 | feat(010): complete phase 3 - durable harness context pipeline |
+
+Phase 4验收和审查已通过；阶段SHA将在提交成功后由最终状态文档补记。分支推送在最终状态提交后执行，以真实Git回执确认；不合并main、不创建PR或Release。

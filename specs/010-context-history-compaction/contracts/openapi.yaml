@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: HiAgent H01 history and artifacts
-  version: 010-design
-  description: 仅定义H01新增接口；既有tasks/steps/events/turns与认证契约继续有效。此文件是待实施设计。
+  version: 010
+  description: 仅定义H01新增接口；既有tasks/steps/events/turns与认证契约继续有效。此文件对应已实现的新增接口，HTTP验证见ContextHistoryApiTest。
 security:
 - bearerAuth: []
 paths:
