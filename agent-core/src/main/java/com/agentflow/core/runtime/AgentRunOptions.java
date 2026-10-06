@@ -8,7 +8,8 @@ public record AgentRunOptions(
         ExecutionBudget budget,
         CancellationSignal cancellationSignal,
         com.agentflow.core.approval.ApprovalGate approvalGate,
-        java.time.Duration approvalTtl
+        java.time.Duration approvalTtl,
+        com.agentflow.core.context.ContextSession contextSession
 ) {
     public AgentRunOptions {
         Objects.requireNonNull(approvalTtl,"approvalTtl");
@@ -18,6 +19,9 @@ public record AgentRunOptions(
         Objects.requireNonNull(cancellationSignal, "cancellationSignal must not be null");
     }
 
+    public AgentRunOptions(ExecutionBudget budget,CancellationSignal signal,com.agentflow.core.approval.ApprovalGate gate,java.time.Duration ttl) {
+        this(budget,signal,gate,ttl,null);
+    }
     public AgentRunOptions(ExecutionBudget budget,CancellationSignal signal,com.agentflow.core.approval.ApprovalGate gate) {
         this(budget,signal,gate,java.time.Duration.ofSeconds(30));
     }

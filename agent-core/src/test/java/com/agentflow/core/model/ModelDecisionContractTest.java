@@ -18,6 +18,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ModelDecisionContractTest {
 
+    @Test void orderedTurnRetainsTextAndCallButRejectsTwoCalls() {
+        var call=new ToolCall("c1","uppercase-text",new ToolArguments(Map.of("text","hello")));
+        var items=List.of(ModelMessage.assistant("先处理文本"),ModelMessage.assistantToolCall(call));
+        var turn=new AssistantTurnDecision("d1",items,AssistantTurnDecision.NextAction.TOOL_CALL,TokenUsage.empty(),UsageSource.UNKNOWN,null,null);
+        assertEquals(items,turn.orderedItems()); assertEquals(call,turn.toolCall());
+        assertThrows(IllegalArgumentException.class,()->new AssistantTurnDecision("d2",List.of(items.get(1),items.get(1)),AssistantTurnDecision.NextAction.TOOL_CALL,TokenUsage.empty(),UsageSource.UNKNOWN,null,null));
+        assertThrows(IllegalArgumentException.class,()->new AssistantTurnDecision("d2",items,AssistantTurnDecision.NextAction.FINAL,TokenUsage.empty(),UsageSource.UNKNOWN,null,null));
+    }
+
     @Test
     void finalDecisionRequiresNonBlankAnswer() {
         assertThrows(IllegalArgumentException.class,

@@ -37,6 +37,8 @@ class ContextContractTest {
         assertThrows(IllegalArgumentException.class, () -> new ConfirmedMemory("project_stack", "PROJECT_FACT", "x", 1, "MODEL"));
     }
 
+    @Test void acceptsHarnessWindow() { assertEquals(272000, new ContextPolicy("s", "v", 272000).windowLimit()); }
+
     @Test void copiesCallerListsAndValidatesApplicationPolicy() {
         var turns = new ArrayList<>(List.of(new ConversationTurn("r", 1, "u", "a")));
         var seed = new ContextSeed(1, turns, List.of(), false, 0);
@@ -45,7 +47,7 @@ class ContextContractTest {
         assertEquals(16384, ContextPolicy.defaults().windowLimit());
         assertThrows(IllegalArgumentException.class, () -> new ContextPolicy("s", "版本", 1));
         assertThrows(IllegalArgumentException.class, () -> new ContextPolicy("s".repeat(2049), "v", 1));
-        assertThrows(IllegalArgumentException.class, () -> new ContextPolicy("s", "v", 131073));
+        assertThrows(IllegalArgumentException.class, () -> new ContextPolicy("s", "v", 1_000_001));
     }
     @Test void validatesImmutableBoundedSeedAndLegacyRequest() {
         var turn = new ConversationTurn("r1", 1, "hello", "world");

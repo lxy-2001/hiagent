@@ -2,7 +2,7 @@ package com.agentflow.core.model;
 
 import com.agentflow.core.chat.TokenUsage;
 
-public sealed interface ModelDecision permits FinalAnswerDecision, ToolCallDecision {
+public sealed interface ModelDecision permits FinalAnswerDecision, ToolCallDecision, AssistantTurnDecision {
     String decisionId();
     TokenUsage usage();
     UsageSource usageSource();

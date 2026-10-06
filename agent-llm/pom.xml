@@ -14,6 +14,7 @@
     <name>AgentFlow LLM</name>
 
     <dependencies>
+        <dependency><groupId>com.knuddels</groupId><artifactId>jtokkit</artifactId><version>1.1.0</version></dependency>
         <dependency>
             <groupId>com.agentflow</groupId>
             <artifactId>agent-core</artifactId>

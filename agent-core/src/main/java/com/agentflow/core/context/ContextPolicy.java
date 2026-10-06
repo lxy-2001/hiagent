@@ -20,8 +20,8 @@ public record ContextPolicy(String systemText, String promptVersion, long window
                 || !promptVersion.chars().allMatch(character -> character >= 33 && character <= 126)) {
             throw new IllegalArgumentException("promptVersion must contain 1..32 printable ASCII characters");
         }
-        if (windowLimit < 1 || windowLimit > 131072) {
-            throw new IllegalArgumentException("windowLimit must be within 1..131072");
+        if (windowLimit < 1 || windowLimit > 1_000_000) {
+            throw new IllegalArgumentException("windowLimit must be within 1..1_000_000");
         }
     }
 
