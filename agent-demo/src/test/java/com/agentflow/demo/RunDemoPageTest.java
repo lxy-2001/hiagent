@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.url=jdbc:h2:mem:agentflow-page;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.flyway.enabled=false",
+        "spring.flyway.enabled=false", "agentflow.harness.enabled=false",
         "agentflow.knowledge.bootstrap.enabled=false",
         "agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32"
 })

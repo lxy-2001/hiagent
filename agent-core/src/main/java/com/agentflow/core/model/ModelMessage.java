@@ -11,7 +11,8 @@ public record ModelMessage(
         String content,
         String name,
         String toolCallId,
-        ToolCall toolCall
+        ToolCall toolCall,
+        String adapterStateRef
 ) {
     public ModelMessage {
         Objects.requireNonNull(role, "role must not be null");
@@ -20,6 +21,10 @@ public record ModelMessage(
         if ("tool".equals(role) && "knowledge.search".equals(name)
                 && ToolResult.RETRIEVAL_PENDING.equals(content)) {
             throw new IllegalArgumentException("retrieval evidence must be bound before model delivery");
+        }
+        if (adapterStateRef != null && (adapterStateRef.isBlank() || adapterStateRef.length() > 128
+                || !"assistant".equals(role))) {
+            throw new IllegalArgumentException("invalid opaque adapter reference");
         }
         if (role.isEmpty()) {
             throw new IllegalArgumentException("role must not be blank");
@@ -36,8 +41,17 @@ public record ModelMessage(
         }
     }
 
+    public ModelMessage(String role, String content, String name, String toolCallId, ToolCall toolCall) {
+        this(role, content, name, toolCallId, toolCall, null);
+    }
+
     public ModelMessage(String role, String content) {
-        this(role, content, null, null, null);
+        this(role, content, null, null, null, null);
+    }
+
+    /** The core carries only an opaque adapter key, never a provider payload. */
+    public ModelMessage withAdapterStateRef(String reference) {
+        return new ModelMessage(role, content, name, toolCallId, toolCall, reference);
     }
 
     public static ModelMessage user(String content) {

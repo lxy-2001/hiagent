@@ -5,9 +5,19 @@ import java.util.Objects;
 /** Converts untrusted Tool output into a bounded, call-correlated envelope. */
 public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
     public static final int MAX_OUTPUT_CHARS = 8192;
+    public static final long MAX_MANAGED_OUTPUT_BYTES = 64L * 1024 * 1024;
 
     @Override
     public ToolResult normalize(ToolCall call, ToolResult raw) {
+        return normalize(call, raw, false);
+    }
+
+    @Override
+    public ToolResult normalizeManaged(ToolCall call, ToolResult raw) {
+        return normalize(call, raw, true);
+    }
+
+    private ToolResult normalize(ToolCall call, ToolResult raw, boolean managed) {
         Objects.requireNonNull(call, "call must not be null");
         if (raw == null) {
             return failure(call, "TOOL_RESULT_INVALID", "tool returned null result");
@@ -22,12 +32,23 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
                 && raw.retrievalPayload() == null) {
             return failure(call, "TOOL_RESULT_INVALID", "retrieval result requires source evidence");
         }
+        // Retrieval retains its existing evidence limits; only ordinary persisted outputs are externalized.
+        managed = managed && !"knowledge.search".equals(call.name()) && raw.retrievalPayload() == null;
         String output = raw.output();
-        if (output != null && output.length() > MAX_OUTPUT_CHARS) {
+        boolean truncated = raw.truncated();
+        if (managed) {
+            BoundedOutput bounded = boundManaged(output);
+            output = bounded.output();
+            truncated |= bounded.truncated();
+        } else if (output != null && output.length() > MAX_OUTPUT_CHARS) {
             return failure(call, "TOOL_RESULT_TOO_LARGE", "tool result exceeds output limit");
         }
         output = redact(output);
-        if (output != null && output.length() > MAX_OUTPUT_CHARS) {
+        if (managed) {
+            BoundedOutput bounded = boundManaged(output);
+            output = bounded.output();
+            truncated |= bounded.truncated();
+        } else if (output != null && output.length() > MAX_OUTPUT_CHARS) {
             return failure(call, "TOOL_RESULT_TOO_LARGE", "redacted tool result exceeds output limit");
         }
         if (raw.retrievalPayload() != null) {
@@ -43,13 +64,34 @@ public final class DefaultToolResultNormalizer implements ToolResultNormalizer {
                 return failure(call, "TOOL_RESULT_INVALID", "successful tool result must have output");
             }
             return new ToolResult(call.name(), output, ToolResultStatus.SUCCESS, null,
-                    sanitize(raw.diagnostic()), raw.truncated(), call.callId(), raw.retrievalPayload());
+                    sanitize(raw.diagnostic()), truncated, call.callId(), raw.retrievalPayload());
         }
         if (raw.errorCode() == null || raw.errorCode().isBlank()) {
             return failure(call, "TOOL_RESULT_INVALID", "failed tool result must have error code");
         }
         return new ToolResult(call.name(), output, ToolResultStatus.FAILED,
-                safeErrorCode(raw.errorCode()), sanitize(raw.diagnostic()), raw.truncated(), call.callId());
+                safeErrorCode(raw.errorCode()), sanitize(raw.diagnostic()), truncated, call.callId());
+    }
+
+    private record BoundedOutput(String output, boolean truncated) { }
+
+    /** Retains a UTF-8 prefix without splitting a surrogate pair or changing execution status. */
+    private static BoundedOutput boundManaged(String output) {
+        if (output == null) return new BoundedOutput(null, false);
+        long bytes = 0;
+        for (int index = 0; index < output.length();) {
+            char c = output.charAt(index);
+            boolean pair = Character.isHighSurrogate(c) && index + 1 < output.length()
+                    && Character.isLowSurrogate(output.charAt(index + 1));
+            int width = pair ? 4 : c < 0x80 ? 1 : c < 0x800 ? 2
+                    : Character.isSurrogate(c) ? 1 : 3;
+            if (bytes + width > MAX_MANAGED_OUTPUT_BYTES) {
+                return new BoundedOutput(output.substring(0, index), true);
+            }
+            bytes += width;
+            index += pair ? 2 : 1;
+        }
+        return new BoundedOutput(output, false);
     }
 
     private static String safeErrorCode(String code) {

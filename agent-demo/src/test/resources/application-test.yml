@@ -14,6 +14,8 @@ spring:
       - org.springframework.boot.data.redis.autoconfigure.DataRedisRepositoriesAutoConfiguration
 
 agentflow:
+  harness:
+    enabled: false
   knowledge:
     bootstrap:
       enabled: false

@@ -38,6 +38,9 @@ public final class RunCoordinator implements AutoCloseable {
                             AtomicBoolean observationsComplete) { }
 
     private final AgentRuntime runtime;
+    private com.agentflow.web.context.ContextSessionService contextSessions;
+    private ExecutionBudget harnessBudget;
+    public void configureContextSessions(com.agentflow.web.context.ContextSessionService sessions, ExecutionBudget budget) { this.contextSessions=Objects.requireNonNull(sessions); this.harnessBudget=Objects.requireNonNull(budget); }
     private final ContextSource contextSource;
     private final Duration sourceTimeout;
     private final RunPersistence persistence;
@@ -228,8 +231,8 @@ public final class RunCoordinator implements AutoCloseable {
             return;
         }
         long preparationStarted = monotonicNanos.getAsLong();
-        ExecutionBudget defaults = ExecutionBudget.defaults();
-        ExecutionBudget totalBudget = new ExecutionBudget(defaults.maxIterations(), properties.maxDuration(),
+        ExecutionBudget defaults = harnessBudget == null ? ExecutionBudget.defaults() : harnessBudget;
+        ExecutionBudget totalBudget = new ExecutionBudget(defaults.maxIterations(), harnessBudget == null ? properties.maxDuration() : defaults.maxDuration(),
                 defaults.maxPromptTokens(), defaults.maxCompletionTokens());
         ContextSeed seed = null;
         boolean sourceFailed = false;
@@ -260,30 +263,61 @@ public final class RunCoordinator implements AutoCloseable {
             failWithoutRuntime(owned, RunResultProjector.FailureKind.CONTEXT_SOURCE_UNAVAILABLE);
             return;
         }
-        AgentResult result;
+        AgentResult result = null;
+        RunResultProjector.FinalProjection preparationFailure = null;
         var gate = applicationApprovalGate != null || approvals == null ? null : new com.agentflow.web.approval.WebApprovalGate(approvals, control, draft -> {
             try {
                 if (events.publish(control.taskId(), draft).status() != RunEventHub.PublishStatus.PUBLISHED)
                     owned.observationsComplete().set(false);
             } catch (RuntimeException failure) { owned.observationsComplete().set(false); }
         }, () -> monotonicNanos.getAsLong() - preparationStarted >= totalBudget.maxDuration().toNanos());
+        com.agentflow.core.context.ContextSession contextSession = null;
         try {
+            if (contextSessions != null) contextSession = contextSessions.open(new com.agentflow.core.context.HistoryStore.Scope(control.userId(), owned.command().sessionId(), control.taskId()),
+                    new com.agentflow.core.context.HistoryStore.Io(control, clock.instant().plus(totalBudget.maxDuration().minusNanos(preparationNanos))), taskAuthority(owned.command().input(), seed));
+            preparationNanos = Math.max(0, monotonicNanos.getAsLong() - preparationStarted);
+            if (control.isCancelled()) throw new com.agentflow.core.context.ContextSessionException("CANCELLED");
+            if (preparationNanos >= totalBudget.maxDuration().toNanos()) throw new com.agentflow.core.context.ContextSessionException("TIMED_OUT");
             AgentRequest request = new AgentRequest(control.taskId(), owned.command().sessionId(),
                     control.userId(), owned.command().input(), seed, owned.command().requireEvidence());
             ExecutionBudget remaining = new ExecutionBudget(totalBudget.maxIterations(),
                     totalBudget.maxDuration().minusNanos(preparationNanos), totalBudget.maxPromptTokens(), totalBudget.maxCompletionTokens());
             result = runtime.run(request, event -> observe(owned, event),
-                    new AgentRunOptions(remaining, control, applicationApprovalGate == null ? gate : applicationApprovalGate, approvalTtl));
+                    new AgentRunOptions(remaining, control, applicationApprovalGate == null ? gate : applicationApprovalGate, approvalTtl, contextSession));
+        } catch (com.agentflow.core.context.ContextSessionException failure) {
+            preparationFailure = contextFailure(control, failure.code());
         } catch (RuntimeException failure) {
             result = null;
+        } finally {
+            try { if (contextSession != null) contextSession.close(); }
+            catch (RuntimeException failure) { owned.observationsComplete().set(false); }
+            try { if (gate != null) gate.close(); }
+            catch (RuntimeException failure) { owned.observationsComplete().set(false); }
         }
-        if (gate != null) gate.close();
-        RunResultProjector.FinalProjection projection = result == null
+        RunResultProjector.FinalProjection projection = preparationFailure != null ? preparationFailure : result == null
                 ? resultProjector.projectFailure(control.taskId(),
                     RunResultProjector.FailureKind.INTERNAL_ERROR, clock.instant(), control.isCancelled())
                 : resultProjector.project(control.taskId(), result, clock.instant(), control.isCancelled(),
                     owned.observationsComplete().get());
         finish(owned, projection);
+    }
+
+    private java.util.List<com.agentflow.core.model.ModelMessage> taskAuthority(String input, ContextSeed seed) {
+        var messages = new java.util.ArrayList<com.agentflow.core.model.ModelMessage>();
+        for (var memory : seed.memories()) messages.add(com.agentflow.core.model.ModelMessage.user(
+                "Confirmed memory data (source=USER_CONFIRMED, key="+memory.key()+", version="+memory.version()+"):\n"+memory.value()));
+        messages.add(com.agentflow.core.model.ModelMessage.user(input));
+        return java.util.List.copyOf(messages);
+    }
+
+    private RunResultProjector.FinalProjection contextFailure(RunControl control, String code) {
+        RunTerminationReason reason;
+        try { reason = RunTerminationReason.valueOf(code); }
+        catch (IllegalArgumentException unknown) { reason = RunTerminationReason.HISTORY_PERSISTENCE_FAILED; }
+        var status = reason == RunTerminationReason.CANCELLED ? RunLifecycleStatus.CANCELLED
+                : reason == RunTerminationReason.TIMED_OUT ? RunLifecycleStatus.TIMED_OUT : RunLifecycleStatus.FAILED;
+        return new RunResultProjector.FinalProjection(control.taskId(), status, reason, null, null, null,
+                clock.instant(), control.isCancelled(), false, reason.name(), java.util.List.of());
     }
 
     private void observe(OwnedRun owned, AgentEvent event) {

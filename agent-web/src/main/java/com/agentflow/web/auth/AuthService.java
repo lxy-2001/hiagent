@@ -16,7 +16,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthService {
@@ -25,18 +24,26 @@ public class AuthService {
     private final AuthRefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final StringRedisTemplate redisTemplate;
+    private final com.agentflow.web.support.WebRequestStateStore stateStore;
     private final AgentFlowProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public AuthService(SysUserRepository userRepository, AuthRefreshTokenRepository refreshTokenRepository,
                        PasswordEncoder passwordEncoder, JwtService jwtService, StringRedisTemplate redisTemplate,
                        AgentFlowProperties properties) {
+        this(userRepository, refreshTokenRepository, passwordEncoder, jwtService,
+                new com.agentflow.web.support.RedisWebRequestStateStore(redisTemplate), properties);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public AuthService(SysUserRepository userRepository, AuthRefreshTokenRepository refreshTokenRepository,
+                       PasswordEncoder passwordEncoder, JwtService jwtService,
+                       com.agentflow.web.support.WebRequestStateStore stateStore, AgentFlowProperties properties) {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.redisTemplate = redisTemplate;
+        this.stateStore = stateStore;
         this.properties = properties;
     }
 
@@ -72,7 +79,7 @@ public class AuthService {
         if (jwt != null && jwt.getId() != null && jwt.getExpiresAt() != null) {
             Duration ttl = Duration.between(Instant.now(), jwt.getExpiresAt());
             if (!ttl.isNegative() && !ttl.isZero()) {
-                redisTemplate.opsForValue().set("auth:blacklist:" + jwt.getId(), "1", ttl.toSeconds(), TimeUnit.SECONDS);
+                stateStore.revokeAccess(jwt.getId(), jwt.getExpiresAt());
             }
         }
         if (refreshToken != null && !refreshToken.isBlank()) {
@@ -89,8 +96,7 @@ public class AuthService {
         AuthRefreshToken stored = new AuthRefreshToken(Ids.newId(), user.getId(), Hashing.sha256Hex(refreshToken),
                 expiresAt, Instant.now());
         refreshTokenRepository.save(stored);
-        redisTemplate.opsForValue().set("auth:refresh:" + stored.getUserId() + ":" + stored.hashCode(), "1",
-                properties.security().getRefreshTokenTtl().toSeconds(), TimeUnit.SECONDS);
+        // The database row is the sole refresh-token authority in both local and Redis modes.
         return new AuthController.TokenResponse(accessToken.value(), refreshToken, accessToken.expiresInSeconds());
     }
 

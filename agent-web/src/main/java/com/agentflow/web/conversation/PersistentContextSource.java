@@ -21,10 +21,17 @@ import java.util.Objects;
 public class PersistentContextSource implements ContextSource {
     private final EntityManager entityManager;
     private final ContextTextPolicy textPolicy;
+    private final boolean harnessEnabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PersistentContextSource(EntityManager entityManager, ContextTextPolicy textPolicy) {
+        this(entityManager, textPolicy, false);
+    }
+
+    public PersistentContextSource(EntityManager entityManager, ContextTextPolicy textPolicy, boolean harnessEnabled) {
         this.entityManager = Objects.requireNonNull(entityManager);
         this.textPolicy = Objects.requireNonNull(textPolicy);
+        this.harnessEnabled = harnessEnabled;
     }
 
     @Override
@@ -43,7 +50,7 @@ public class PersistentContextSource implements ContextSource {
             long sequence = ((Number) current.get(0).get("sequence")).longValue();
             if (sequence < 1) throw unavailable();
             long through = sequence - 1;
-            var candidates = timed(entityManager.createQuery("select t.id as id, t.turnSequence as sequence, "
+            List<Tuple> candidates = harnessEnabled ? List.of() : timed(entityManager.createQuery("select t.id as id, t.turnSequence as sequence, "
                             + "length(t.userInput) as inputLength, length(t.finalAnswer) as answerLength "
                             + "from AgentTaskEntity t where t.sessionId=:session and t.userId=:owner "
                             + "and t.status='SUCCEEDED' and t.turnSequence<:current order by t.turnSequence desc", Tuple.class)

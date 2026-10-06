@@ -80,11 +80,31 @@ class ConfirmedMemoryServiceTest {
         try { service.put("owner", "race", "project_stack", value, 1); return true; }
         catch (ConfirmedMemoryService.VersionConflictException expected) { return false; }
     }
+    @Test void deletionMarkerHidesExistingMemoryAndPreventsAnyNewModification() {
+        session("deleting-memory");
+        var saved = service.put("owner", "deleting-memory", "project_stack", "Java", 0);
+        Instant now = Instant.now();
+        jdbc.update("insert into agent_session_context(session_id,last_record_sequence,context_revision,last_used_at,deleted_at) values(?,0,0,?,?)",
+                "deleting-memory", now, now);
+        assertThatThrownBy(() -> service.get("owner", "deleting-memory"))
+                .isInstanceOf(RunCoordinator.RunNotFoundException.class);
+        assertThatThrownBy(() -> service.put("owner", "deleting-memory", "project_stack", "Kotlin", 1))
+                .isInstanceOf(RunCoordinator.RunNotFoundException.class);
+        assertThatThrownBy(() -> service.delete("owner", "deleting-memory", "project_stack", 1))
+                .isInstanceOf(RunCoordinator.RunNotFoundException.class);
+        assertThat(memories.findBySessionIdAndKey("deleting-memory", "project_stack").orElseThrow().getValue())
+                .isEqualTo(saved.value());
+    }
     private void session(String id) { sessions.saveAndFlush(new AgentSessionEntity(id, "owner", "title", Instant.now())); }
     @SpringBootConfiguration
     @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
-    @EntityScan(basePackageClasses = {AgentTaskEntity.class, ConfirmedMemoryEntity.class})
+    @EntityScan(basePackageClasses = {AgentTaskEntity.class, ConfirmedMemoryEntity.class, com.agentflow.web.context.SessionContextEntity.class})
     @EnableJpaRepositories(basePackageClasses = {AgentTaskRepository.class, ConfirmedMemoryRepository.class})
-    @Import({ConfirmedMemoryService.class, ContextTextPolicy.class})
-    static class App { }
+    @Import(ContextTextPolicy.class)
+    static class App {
+        @org.springframework.context.annotation.Bean
+        ConfirmedMemoryService service(AgentSessionRepository sessions, ConfirmedMemoryRepository memories,
+                                       ContextTextPolicy policy) {
+            return new ConfirmedMemoryService(sessions, memories, policy, true);
+        } }
 }

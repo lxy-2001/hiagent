@@ -10,6 +10,9 @@ import com.agentflow.core.AgentResult;
 import com.agentflow.core.AgentStepType;
 import com.agentflow.core.chat.TokenUsage;
 import com.agentflow.core.context.ContextAssembler;
+import com.agentflow.core.context.ContextSession;
+import com.agentflow.core.context.ContextSessionException;
+import com.agentflow.core.model.AssistantTurnDecision;
 import com.agentflow.core.context.ContextAssembly;
 import com.agentflow.core.context.ContextPolicy;
 import com.agentflow.core.context.ContextTextPolicy;
@@ -48,7 +51,7 @@ import java.util.Set;
 
 /** Pure Java, bounded, single-Tool-call-per-iteration Agent decision loop. */
 public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntime {
-    private static final ToolResultNormalizer SAFETY_NORMALIZER = new DefaultToolResultNormalizer();
+    private static final DefaultToolResultNormalizer SAFETY_NORMALIZER = new DefaultToolResultNormalizer();
     private final AgentModelClient modelClient;
     private final ToolRegistry toolRegistry;
     private final ToolExecutor toolExecutor;
@@ -119,9 +122,15 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
         Set<String> decisionIds = new HashSet<>();
         Set<String> callIds = new HashSet<>();
         long startedAt = timeSource.nanoTime();
+        ContextSession session = effectiveOptions.contextSession();
         var toolControl = new ToolExecutionControl(effectiveOptions.cancellationSignal(), timeSource, effectiveOptions.budget().maxDuration());
 
         try {
+            if (session != null && (!request.taskId().equals(session.scope().runId())
+                    || !request.sessionId().equals(session.scope().sessionId())
+                    || !request.userId().equals(session.scope().userId()))) {
+                throw new IllegalArgumentException("context session belongs to another request");
+            }
             List<ToolDefinition> definitions = List.copyOf(
                     Objects.requireNonNull(toolRegistry.enabledDefinitions(), "enabled definitions must not be null")).stream()
                     .filter(definition -> {
@@ -137,32 +146,49 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     return finishFailure(request, trace, budget, boundary.reason(), boundary.status(), boundary.diagnostic());
                 }
 
-                ContextAssembly assembly = contextAssembler.assemble(request, context.messages(), definitions,
-                        iteration, budget.remainingCompletionTokens());
-                if (assembly.ready()) {
-                    trace.success(AgentStepType.CONTEXT_ASSEMBLY, "context", null, assembly.diagnostics().summary(),
-                            0, null, null, null, false);
+                AgentModelRequest modelRequest;
+                if (session != null) {
+                    final int currentIteration = iteration;
+                    List<com.agentflow.core.model.ModelMessage> messages;
+                    try {
+                        messages = durable(() -> session.prepare(definitions, budget.remainingCompletionTokens(),
+                                Math.max(0L, (long) effectiveOptions.budget().maxPromptTokens() - budget.promptTokens()), currentIteration));
+                    } finally {
+                        budget.record(durable(session::drainPreparationUsage));
+                    }
+                    modelRequest = new AgentModelRequest(request, messages, definitions,
+                            iteration, budget.remainingCompletionTokens());
                 } else {
-                    trace.failure(AgentStepType.CONTEXT_ASSEMBLY, "context", null, assembly.diagnostics().summary(),
-                            0, assembly.rejectionReason(), null, null, false);
+                    ContextAssembly assembly = contextAssembler.assemble(request, context.messages(), definitions,
+                            iteration, budget.remainingCompletionTokens());
+                    if (assembly.ready()) {
+                        trace.success(AgentStepType.CONTEXT_ASSEMBLY, "context", null, assembly.diagnostics().summary(),
+                                0, null, null, null, false);
+                    } else {
+                        trace.failure(AgentStepType.CONTEXT_ASSEMBLY, "context", null, assembly.diagnostics().summary(),
+                                0, assembly.rejectionReason(), null, null, false);
+                    }
+                    if (!assembly.ready()) {
+                        TerminationReason reason = TerminationReason.valueOf(assembly.rejectionReason());
+                        RunStatus status = reason == TerminationReason.CONTEXT_BUDGET_EXCEEDED
+                                ? RunStatus.BUDGET_EXCEEDED : RunStatus.FAILED;
+                        return finishFailure(request, trace, budget, reason, status, "context assembly rejected");
+                    }
+                    modelRequest = assembly.request();
                 }
                 boundary = boundary(effectiveOptions, budget, iteration, startedAt);
                 if (boundary != null) {
                     return finishFailure(request, trace, budget, boundary.reason(), boundary.status(), boundary.diagnostic());
                 }
-                if (!assembly.ready()) {
-                    TerminationReason reason = TerminationReason.valueOf(assembly.rejectionReason());
-                    RunStatus status = reason == TerminationReason.CONTEXT_BUDGET_EXCEEDED
-                            ? RunStatus.BUDGET_EXCEEDED : RunStatus.FAILED;
-                    return finishFailure(request, trace, budget, reason, status, "context assembly rejected");
-                }
-                AgentModelRequest modelRequest = assembly.request();
                 Set<String> eligibleEvidence = context.evidence().eligibleFor(modelRequest.messages());
                 long actionStarted = timeSource.nanoTime();
                 ModelDecision decision;
                 try {
                     decision = modelClient.decide(modelRequest);
+                } catch (ContextSessionException failure) {
+                    throw failure;
                 } catch (RuntimeException ex) {
+                    if (session != null) { durable(() -> { session.modelFailure("MODEL_ERROR"); return null; }); }
                     trace.failure(AgentStepType.MODEL_DECISION, "model", request.input(), "model decision failed",
                             elapsed(actionStarted), AgentErrorCode.MODEL_ERROR.name(), null, null, false);
                     return finishFailure(request, trace, budget, TerminationReason.MODEL_ERROR,
@@ -185,6 +211,21 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 }
 
                 budget.record(decision.usage());
+                if (session != null) {
+                    ModelDecision confirmed = decision;
+                    durable(() -> { session.confirm(confirmed); return null; });
+                }
+                if (decision instanceof AssistantTurnDecision turn) {
+                    if (session == null) context.confirmAssistantItems(turn.orderedItems());
+                    if (turn.nextAction() == AssistantTurnDecision.NextAction.CONTINUE) {
+                        trace.success(AgentStepType.MODEL_DECISION, "model", null, turn.visibleText(),
+                                elapsed(actionStarted), turn.usage(), turn.decisionId(), null, false);
+                        continue;
+                    }
+                    decision = turn.nextAction() == AssistantTurnDecision.NextAction.FINAL
+                            ? new FinalAnswerDecision(turn.decisionId(), turn.visibleText(), turn.usage(), turn.usageSource())
+                            : new ToolCallDecision(turn.decisionId(), turn.toolCall(), turn.usage(), turn.usageSource());
+                }
                 trace.success(AgentStepType.MODEL_DECISION, "model", request.input(),
                         decisionDescription(decision), elapsed(actionStarted), decision.usage(),
                         decision.decisionId(), decision instanceof ToolCallDecision tool
@@ -196,6 +237,9 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 // is blocked by tokenBudgetReached().
                 Termination afterDecision = afterDecisionBoundary(effectiveOptions, budget, startedAt);
                 if (afterDecision != null) {
+                    if (decision instanceof ToolCallDecision pendingCall) {
+                        confirmNotDispatched(session, pendingCall.toolCall(), afterDecision);
+                    }
                     return finishFailure(request, trace, budget, afterDecision.reason(),
                             afterDecision.status(), afterDecision.diagnostic());
                 }
@@ -251,10 +295,11 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 // allowed, while the next model action will be rejected.
                 Termination beforeTool = afterDecisionBoundary(effectiveOptions, budget, startedAt);
                 if (beforeTool != null) {
+                    confirmNotDispatched(session, call, beforeTool);
                     return finishFailure(request, trace, budget, beforeTool.reason(),
                             beforeTool.status(), beforeTool.diagnostic());
                 }
-                context.confirmToolCall(call);
+                if (session == null && !context.hasToolCall(call.callId())) context.confirmToolCall(call);
                 trace.success(AgentStepType.TOOL_CALL, call.name(), toolInput(call),
                         "requested", 0, null, toolDecision.decisionId(), call.callId(), false);
 
@@ -262,15 +307,15 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 try {
                     lookup = toolRegistry.lookup(call.name());
                 } catch (RuntimeException ex) {
-                    return toolFailure(request, trace, budget, call, toolDecision,
+                    return toolFailure(session, request, trace, budget, call, toolDecision,
                             TerminationReason.UNKNOWN_TOOL, AgentErrorCode.UNKNOWN_TOOL.name(), "tool lookup failed");
                 }
                 if (lookup == null || lookup.availability() == ToolAvailability.UNKNOWN) {
-                    return toolFailure(request, trace, budget, call, toolDecision,
+                    return toolFailure(session, request, trace, budget, call, toolDecision,
                             TerminationReason.UNKNOWN_TOOL, AgentErrorCode.UNKNOWN_TOOL.name(), "unknown tool");
                 }
                 if (lookup.availability() == ToolAvailability.DISABLED) {
-                    return toolFailure(request, trace, budget, call, toolDecision,
+                    return toolFailure(session, request, trace, budget, call, toolDecision,
                             TerminationReason.DISABLED_TOOL, AgentErrorCode.DISABLED_TOOL.name(), "tool is disabled");
                 }
 
@@ -278,32 +323,44 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 try {
                     validation = lookup.registration().definition().schema().validate(call.arguments());
                 } catch (RuntimeException ex) {
-                    return toolFailure(request, trace, budget, call, toolDecision,
+                    return toolFailure(session, request, trace, budget, call, toolDecision,
                             TerminationReason.INVALID_TOOL_ARGUMENTS, AgentErrorCode.INVALID_TOOL_ARGUMENTS.name(),
                             "tool arguments invalid");
                 }
                 if (!validation.valid()) {
-                    return toolFailure(request, trace, budget, call, toolDecision,
+                    return toolFailure(session, request, trace, budget, call, toolDecision,
                             TerminationReason.INVALID_TOOL_ARGUMENTS, AgentErrorCode.INVALID_TOOL_ARGUMENTS.name(),
                             validation.violations().toString());
                 }
                 ToolCall validatedCall = new ToolCall(call.callId(), call.name(), validation.arguments());
 
                 ToolExecutionControl approvalControl=toolControl.child(effectiveOptions.approvalTtl());
-                PreparedToolCall prepared=PreparedToolCall.prepare(request.taskId(),request.sessionId(),request.userId(),
-                        lookup.registration(),validatedCall,Instant.now());
+                PreparedToolCall prepared = session == null
+                        ? PreparedToolCall.prepare(request.taskId(), request.sessionId(), request.userId(), lookup.registration(), validatedCall, Instant.now())
+                        : PreparedToolCall.prepareManaged(request.taskId(), request.sessionId(), request.userId(), lookup.registration(), validatedCall, Instant.now());
                 ToolPolicyDecision policy=Objects.requireNonNull(executionPolicy.decide(call.name()),"policy decision");
                 InvocationTrace invocation=trace.beginInvocation(prepared,policy);
                 Termination authorization=authorize(prepared,policy,invocation,effectiveOptions,approvalControl,startedAt);
-                if (authorization != null) return finishFailure(request,trace,budget,authorization.reason(),authorization.status(),authorization.diagnostic());
+                if (authorization != null) {
+                    confirmNotDispatched(session, call, authorization);
+                    return finishFailure(request, trace, budget, authorization.reason(), authorization.status(), authorization.diagnostic());
+                }
 
+                if (session != null) {
+                    durable(() -> { session.intent(validatedCall); return null; });
+                }
                 long toolStarted = timeSource.nanoTime();
                 invocation.dispatched();
                 ToolResult rawResult;
                 try {
                     rawResult = toolExecutor.execute(validatedCall,
-                            new com.agentflow.core.tool.ToolContext(request.taskId(), request.sessionId(), request.userId(), List.of(), toolControl, prepared.registration()));
+                            new com.agentflow.core.tool.ToolContext(request.taskId(), request.sessionId(), request.userId(), List.of(), toolControl, prepared.registration(), session != null));
                 } catch (RuntimeException ex) {
+                    if (session != null) {
+                        String failureCode = policy.effect() == ToolPolicyDecision.Effect.WRITE
+                                ? "AMBIGUOUS_TOOL_OUTCOME" : "TOOL_ERROR";
+                        durable(() -> session.result(ToolResult.failure(call.name(), call.callId(), failureCode, "tool execution failed")));
+                    }
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),
                             "tool execution failed", elapsed(toolStarted), AgentErrorCode.TOOL_ERROR.name(),
                             toolDecision.decisionId(), call.callId(), false);
@@ -320,7 +377,9 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                 ToolResult normalized;
                 String retrievalSummary = null;
                 try {
-                    normalized = canonicalize(validatedCall, resultNormalizer.normalize(validatedCall, rawResult));
+                    normalized = canonicalize(validatedCall, session == null
+                            ? resultNormalizer.normalize(validatedCall, rawResult)
+                            : resultNormalizer.normalizeManaged(validatedCall, rawResult), session != null);
                     if (rawResult != null && rawResult.retrievalPayload() != null && normalized.status() == ToolResultStatus.SUCCESS
                             && !rawResult.retrievalPayload().equals(normalized.retrievalPayload())) {
                         throw new IllegalArgumentException("retrieval evidence changed");
@@ -329,12 +388,15 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                         var bound = context.evidence().bind(call.callId(), normalized.retrievalPayload());
                         retrievalSummary = bound.summary();
                         normalized = canonicalize(validatedCall, new ToolResult(normalized.toolName(), bound.output(), normalized.status(),
-                                null, bound.summary(), false, call.callId(), normalized.retrievalPayload()));
+                                null, bound.summary(), false, call.callId(), normalized.retrievalPayload()), session != null);
                     }
                 } catch (RuntimeException ex) {
                     boolean invalidSource = "knowledge.search".equals(call.name())
                             && "RAG_SOURCE_INVALID".equals(ex.getMessage());
                     String code = invalidSource ? "RAG_SOURCE_INVALID" : AgentErrorCode.TOOL_RESULT_INVALID.name();
+                    if (session != null) {
+                        durable(() -> session.result(ToolResult.failure(call.name(), call.callId(), code, "tool result invalid")));
+                    }
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),
                             "tool result invalid", elapsed(toolStarted), code,
                             toolDecision.decisionId(), call.callId(), false);
@@ -347,7 +409,7 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                                     ? TerminationReason.AMBIGUOUS_TOOL_OUTCOME : terminationReasonFor(code),
                             RunStatus.FAILED, invalidSource ? "retrieval source invalid" : "tool result invalid");
                 }
-                if (normalized.outputOrEmpty().length() > 8192) {
+                if (session == null && normalized.outputOrEmpty().length() > 8192) {
                     trace.failure(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),
                             "tool result exceeds output limit", elapsed(toolStarted),
                             AgentErrorCode.TOOL_RESULT_TOO_LARGE.name(), toolDecision.decisionId(), call.callId(), false);
@@ -358,6 +420,10 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     }
                     return finishFailure(request, trace, budget, TerminationReason.TOOL_RESULT_TOO_LARGE,
                             RunStatus.FAILED, "tool result exceeds output limit");
+                }
+                if (session != null) {
+                    ToolResult confirmedResult = normalized;
+                    normalized = durable(() -> session.result(confirmedResult));
                 }
                 invocation.result(normalized,elapsed(toolStarted));
                 trace.completeInvocation(normalized.errorCode());
@@ -370,7 +436,7 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                     trace.success(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),
                             retrievalSummary == null ? normalized.outputOrEmpty() : retrievalSummary,
                             elapsed(toolStarted), null, toolDecision.decisionId(), call.callId(), false);
-                    context.confirmToolResult(normalized);
+                    if (session == null) context.confirmToolResult(normalized);
                 }
                 Termination afterTool = afterToolBoundary(effectiveOptions, startedAt);
                 if (afterTool != null) {
@@ -382,12 +448,27 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
                             RunStatus.FAILED, "knowledge.search".equals(call.name()) ? "retrieval failed" : "tool failed");
                 }
             }
+        } catch (ContextSessionException ex) {
+            TerminationReason reason;
+            try { reason = TerminationReason.valueOf(ex.code()); }
+            catch (IllegalArgumentException unknown) { reason = TerminationReason.HISTORY_PERSISTENCE_FAILED; }
+            RunStatus status = reason == TerminationReason.CANCELLED ? RunStatus.CANCELLED
+                    : reason == TerminationReason.TIMED_OUT ? RunStatus.TIMED_OUT
+                    : reason == TerminationReason.CONTEXT_BUDGET_EXCEEDED || reason == TerminationReason.BUDGET_EXCEEDED
+                            ? RunStatus.BUDGET_EXCEEDED : RunStatus.FAILED;
+            return finishFailure(request, trace, budget, reason, status, reason.name());
         } catch (RuntimeException ex) {
             trace.failure(AgentStepType.FAILURE, "runtime", request.input(), "runtime input or context invalid",
                     0, AgentErrorCode.INVALID_INPUT.name(), null, null, false);
             return finishFailure(request, trace, budget, TerminationReason.INVALID_INPUT,
                     RunStatus.FAILED, "runtime input or context invalid");
         }
+    }
+
+    private static <T> T durable(java.util.function.Supplier<T> action) {
+        try { return action.get(); }
+        catch (ContextSessionException failure) { throw failure; }
+        catch (RuntimeException failure) { throw new ContextSessionException("HISTORY_PERSISTENCE_FAILED", failure); }
     }
 
     private Termination authorize(PreparedToolCall prepared, ToolPolicyDecision policy,
@@ -471,9 +552,20 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
         return new Termination(reason, status, reason.name());
     }
 
-    private AgentResult toolFailure(AgentRequest request, RuntimeTrace trace, BudgetTracker budget,
+    private static void confirmNotDispatched(ContextSession session, ToolCall call, Termination stop) {
+        if (session != null) {
+            durable(() -> session.result(ToolResult.failure(call.name(), call.callId(),
+                    stop.reason().name(), "tool was not dispatched")));
+        }
+    }
+
+    private AgentResult toolFailure(ContextSession session, AgentRequest request, RuntimeTrace trace, BudgetTracker budget,
                                     ToolCall call, ToolCallDecision decision, TerminationReason reason,
                                     String code, String diagnostic) {
+        if (session != null) {
+            String stableDiagnostic = diagnostic;
+            durable(() -> session.result(ToolResult.failure(call.name(), call.callId(), code, stableDiagnostic)));
+        }
         if ("knowledge.search".equals(call.name())) { diagnostic = "retrieval failed"; }
         trace.failure(AgentStepType.TOOL_RESULT, call.name(), toolInput(call),
                 diagnostic, 0, code, decision.decisionId(), call.callId(), false);
@@ -486,10 +578,10 @@ public final class DefaultAgentRuntime implements com.agentflow.core.AgentRuntim
         return new AgentResult(request.taskId(),null,trace.steps(),status,reason,budget.snapshot(),diagnostic,List.of(),trace.toolInvocations());
     }
 
-    private static ToolResult canonicalize(ToolCall call, ToolResult result) {
+    private static ToolResult canonicalize(ToolCall call, ToolResult result, boolean managed) {
         // The Runtime owns the final trust boundary; a custom normalizer must not be
         // able to bypass call correlation, output bounds, or credential redaction.
-        ToolResult safe = SAFETY_NORMALIZER.normalize(call, result);
+        ToolResult safe = managed ? SAFETY_NORMALIZER.normalizeManaged(call, result) : SAFETY_NORMALIZER.normalize(call, result);
         if (safe.status() == ToolResultStatus.SUCCESS
                 && (safe.output() == null || safe.output().isBlank())) {
             throw new IllegalArgumentException("successful tool result must have output");

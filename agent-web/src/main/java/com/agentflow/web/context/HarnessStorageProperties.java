@@ -10,6 +10,17 @@ public class HarnessStorageProperties {
     public Path getDataRoot() { return dataRoot; }
     public void setDataRoot(Path dataRoot) {
         if (dataRoot == null || dataRoot.toString().isBlank()) throw new IllegalArgumentException("dataRoot is required");
-        this.dataRoot = dataRoot.toAbsolutePath().normalize();
+        Path resolved = dataRoot.toAbsolutePath().normalize();
+        try {
+            if (java.nio.file.Files.exists(resolved)) resolved = resolved.toRealPath();
+        } catch (java.io.IOException failure) {
+            throw new IllegalArgumentException("dataRoot cannot be resolved", failure);
+        }
+        Path workspace = Path.of("").toAbsolutePath().normalize();
+        if (resolved.getParent() == null || resolved.startsWith(workspace)
+                || java.nio.file.Files.exists(resolved.resolve(".git"))) {
+            throw new IllegalArgumentException("dataRoot must be a dedicated directory outside the checkout");
+        }
+        this.dataRoot = resolved;
     }
 }

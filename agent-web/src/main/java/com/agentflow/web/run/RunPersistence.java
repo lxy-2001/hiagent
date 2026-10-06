@@ -24,6 +24,16 @@ public class RunPersistence {
     private final AgentTaskRepository tasks;
     private final AgentStepRepository steps;
     private final EntityManager entityManager;
+    private com.agentflow.web.context.JpaHistoryStore history;
+    private com.agentflow.web.artifact.ArtifactAdmissionCoordinator artifactAdmissions;
+
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void configureArtifacts(com.agentflow.web.artifact.LocalArtifactStore artifacts) {
+        this.artifactAdmissions = artifacts.admissions();
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required=false)
+    public void configureHistory(com.agentflow.web.context.JpaHistoryStore history) { this.history = history; }
 
     public RunPersistence(AgentSessionRepository sessions, AgentTaskRepository tasks,
                           AgentStepRepository steps, EntityManager entityManager) {
@@ -35,29 +45,59 @@ public class RunPersistence {
 
     @Transactional(readOnly = true, timeout = 3)
     public boolean ownsSession(String userId, String sessionId) {
-        return sessions.findByIdAndUserId(sessionId, userId).isPresent();
+        return sessions.findByIdAndUserId(sessionId, userId).isPresent()
+                && (history == null || sessions.deletionMarkerCount(sessionId) == 0);
     }
 
     @Transactional(timeout = 3)
     public RunSnapshot createQueued(CreateCommand command) {
         Objects.requireNonNull(command, "command must not be null");
-        AgentSessionEntity session;
-        if (command.createSession()) {
-            session = new AgentSessionEntity(command.sessionId(), command.userId(), command.title(), command.createdAt());
-            entityManager.persist(session);
-        } else {
-            session = sessions.findOwnedForUpdate(command.sessionId(), command.userId())
-                    .orElseThrow(() -> new CreateRejectedException("NOT_FOUND"));
+        var admission = artifactAdmissions == null ? null : artifactAdmissions.tryAdmission(command.sessionId())
+                .orElseThrow(() -> new CreateRejectedException("PERSISTENCE_UNAVAILABLE"));
+        boolean deferred = false;
+        try {
+            if (admission != null && org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                        new org.springframework.transaction.support.TransactionSynchronization() {
+                            @Override public void afterCompletion(int status) { admission.close(); }
+                        });
+                deferred = true;
+            }
+            AgentSessionEntity session;
+            if (command.createSession()) {
+                session = new AgentSessionEntity(command.sessionId(), command.userId(), command.title(), command.createdAt());
+                entityManager.persist(session);
+            } else {
+                session = sessions.findOwnedForUpdate(command.sessionId(), command.userId())
+                        .orElseThrow(() -> new CreateRejectedException("NOT_FOUND"));
+            }
+            if (history != null && !command.createSession()) {
+                if (sessions.deletionMarkerCount(command.sessionId()) != 0) {
+                    throw new CreateRejectedException("NOT_FOUND");
+                }
+                // Session lock precedes the context and task locks throughout the harness path.
+                history.lockContext(new com.agentflow.core.context.HistoryStore.Scope(command.userId(), command.sessionId(), command.taskId()), false);
+            }
+            long sequence;
+            try { sequence = session.allocateTurnSequence(); }
+            catch (ArithmeticException exhausted) { throw new CreateRejectedException("TURN_SEQUENCE_EXHAUSTED"); }
+            AgentTaskEntity task = new AgentTaskEntity(command.taskId(), command.sessionId(),
+                    command.userId(), command.input(), RunLifecycleStatus.QUEUED.name(),
+                    command.createdAt(), sequence, command.requireEvidence());
+            entityManager.persist(task);
+            entityManager.flush();
+            if (history != null) {
+                var scope = new com.agentflow.core.context.HistoryStore.Scope(command.userId(), command.sessionId(), command.taskId());
+                var items = List.of(new com.agentflow.core.context.HistoryStore.Item(
+                        com.agentflow.core.context.HistoryStore.Kind.USER_MESSAGE, com.agentflow.core.model.ModelMessage.user(command.input()),
+                        command.createdAt(), null, null, null, null, null));
+                history.appendBatch(scope, "user:" + command.taskId(), history.payloadHash(items), items, historyIo());
+            }
+            return snapshot(task);
+        } finally {
+            // The admission remains protected until the outer transaction commits or rolls back.
+            if (admission != null && !deferred) admission.close();
         }
-        long sequence;
-        try { sequence = session.allocateTurnSequence(); }
-        catch (ArithmeticException exhausted) { throw new CreateRejectedException("TURN_SEQUENCE_EXHAUSTED"); }
-        AgentTaskEntity task = new AgentTaskEntity(command.taskId(), command.sessionId(),
-                command.userId(), command.input(), RunLifecycleStatus.QUEUED.name(),
-                command.createdAt(), sequence, command.requireEvidence());
-        entityManager.persist(task);
-        entityManager.flush();
-        return snapshot(task);
     }
 
     @Transactional(timeout = 3)
@@ -88,6 +128,11 @@ public class RunPersistence {
     @Transactional(timeout = 3)
     public CommittedTerminal complete(RunResultProjector.FinalProjection projection) {
         Objects.requireNonNull(projection, "projection must not be null");
+        if (history != null) {
+            var identity = entityManager.createQuery("select t.userId, t.sessionId from AgentTaskEntity t where t.id=:id", Object[].class)
+                    .setParameter("id", projection.taskId()).getResultStream().findFirst().orElseThrow(() -> new IllegalStateException("run does not exist"));
+            history.lockContext(new com.agentflow.core.context.HistoryStore.Scope((String) identity[0], (String) identity[1], projection.taskId()));
+        }
         AgentTaskEntity task = tasks.findByIdForUpdate(projection.taskId()).orElse(null);
         if (task == null) {
             throw new IllegalStateException("run does not exist");
@@ -106,6 +151,13 @@ public class RunPersistence {
             entityManager.persist(new AgentStepEntity(step, projection.finishedAt()));
         }
         task.applyFinal(projection);
+        if (history != null) {
+            var scope = new com.agentflow.core.context.HistoryStore.Scope(task.getUserId(), task.getSessionId(), task.getId());
+            var items = List.of(new com.agentflow.core.context.HistoryStore.Item(
+                    com.agentflow.core.context.HistoryStore.Kind.RUN_TERMINAL, null, projection.finishedAt(),
+                    null, null, projection.status().name() + ":" + projection.terminationReason().name(), null, null));
+            history.appendBatch(scope, "terminal:" + task.getId(), history.payloadHash(items), items, historyIo());
+        }
         entityManager.flush();
         return new CommittedTerminal(snapshot(task), true, false, resolved);
     }
@@ -153,6 +205,16 @@ public class RunPersistence {
     public Optional<RunSnapshot> getOwned(String userId, String taskId) {
         requireNonBlank(userId, "userId");
         requireNonBlank(taskId, "taskId");
+        if (history != null) {
+            // Check visibility before hydrating the task and its bounded citation body.
+            List<String> sessionIds = entityManager.createQuery(
+                    "select t.sessionId from AgentTaskEntity t where t.id=:taskId and t.userId=:userId", String.class)
+                    .setParameter("taskId", taskId).setParameter("userId", userId)
+                    .setMaxResults(1).getResultList();
+            if (sessionIds.isEmpty() || sessions.deletionMarkerCount(sessionIds.get(0)) != 0) {
+                return Optional.empty();
+            }
+        }
         Long bytes = tasks.ownedCitationBytes(taskId, userId);
         if (bytes == null) { return Optional.empty(); }
         if (bytes > CitationSnapshotCodec.MAX_BYTES) { throw new CitationSnapshotCodec.UnavailableException(); }
@@ -301,6 +363,10 @@ public class RunPersistence {
                         : com.agentflow.core.runtime.TerminationReason.valueOf(task.getRuntimeReason()),
                 task.getErrorCode(), task.isRecordingComplete(), usage, task.isRequireEvidence(),
                 new CitationSnapshotCodec().decode(task.getCitationsJson()));
+    }
+
+    private static com.agentflow.core.context.HistoryStore.Io historyIo() {
+        return new com.agentflow.core.context.HistoryStore.Io(com.agentflow.core.cancel.CancellationSignal.NONE, Instant.now().plusSeconds(3));
     }
 
     private static void requireNonBlank(String value, String field) {

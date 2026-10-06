@@ -24,7 +24,7 @@ public class ContextAssembler {
         this.estimator = Objects.requireNonNull(estimator, "estimator must not be null");
         this.textPolicy = Objects.requireNonNull(textPolicy, "textPolicy must not be null");
         this.estimatorVersion = Objects.requireNonNull(estimator.version(), "estimator version must not be null");
-        if (estimatorVersion.isBlank() || estimatorVersion.length() > 32
+        if (estimatorVersion.isBlank() || estimatorVersion.length() > 100
                 || !estimatorVersion.chars().allMatch(c -> c >= 33 && c <= 126)) {
             throw new IllegalArgumentException("estimator version must be bounded printable ASCII");
         }

@@ -1,10 +1,10 @@
 # Feature Specification: 010 / H01 上下文与会话历史升级
 
-**Feature Branch**: codex/010-context-history-compaction（计划实施分支，尚未创建）；本轮仅完成SDD文档，不切换当前代码分支。
+**Feature Branch**: codex/010-context-history-compaction；在隔离工作树实施，保留原工作区。
 
 **Created**: 2026-10-06
 
-**Status**: Planned — 行为澄清完成，plan、tasks及配套契约已生成；59项任务待实施，Feature仍为ACTIVE。
+**Status**: Implementing — Phase 1–3 已验证，最终全仓门禁与交付待完成；共59项任务，Feature仍为ACTIVE。
 
 **Roadmap Feature**: 010（第二阶段 H01）/ 可恢复、有容量边界的连续会话上下文。
 
@@ -16,7 +16,7 @@
 
 **Why Now**: 现有上下文偏向单 Run 的工具交互和跨 Run 的成功问答，无法充分承载后续 Harness 长任务。H01 先形成历史、容量、压缩、附件和模型适配的完整基础，H02–H04 再接入任务进度、文件及终端能力。
 
-**本轮交付边界**: 本文件固定行为要求、默认参数和验收方向；Q1–Q3均已关闭。实现设计见[plan.md](plan.md)，任务见[tasks.md](tasks.md)，验证流程见[quickstart.md](quickstart.md)。本轮完成技术设计、数据模型、契约和任务拆分；产品代码、数据迁移/清理、提交与推送均未开始。
+**本轮交付边界**: 按本规格完成H01后端实现、验证和独立分支交付；Q1–Q3均已关闭。实现设计见[plan.md](plan.md)，任务见[tasks.md](tasks.md)，验证流程见[quickstart.md](quickstart.md)，实际证据见[verification.md](verification.md)。不迁移或删除旧MySQL库，不合入009，不实现H02–H04。
 
 **已有决定来源**: [第二阶段约定](../stage-02-harness/planning/implementation-spec.md)、[讨论记录](../stage-02-harness/discussion.md)。被本规格明确吸收的 H01 要求进入正式范围；其他 Feature 的内容不因此成为 010 验收条件。
 
@@ -267,7 +267,7 @@
 - “完整历史”指有来源、有关联的消息与执行记录；附件不按天过期，但可能因单件截断、保存失败、会话删除或两级配额淘汰而不再完整可读，必须真实标记。存储记录不保证有损摘要绝不遗漏语义。
 - 272K 是本项目选择的工作窗口，默认模型名称和容量均可配置。上表数值已按用户授权选为默认参数，估算实现和摘要质量仍需后续验证。
 - 不迁移旧数据已确认；数据库引擎是 plan 的技术选择，不再以旧历史保留作为选型前提。
-- 本轮生成并检查SDD设计材料；尚未实施，也不执行旧数据库或实际附件清理。
+- 本轮实施SDD规定的H01能力；仅清理本地托管附件，旧数据库不迁移或删除。
 
 ### 行为澄清状态
 

@@ -15,11 +15,18 @@ public class ConfirmedMemoryService {
     private final AgentSessionRepository sessions;
     private final ConfirmedMemoryRepository memories;
     private final ContextTextPolicy textPolicy;
+    private final boolean harnessEnabled;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ConfirmedMemoryService(AgentSessionRepository sessions, ConfirmedMemoryRepository memories, ContextTextPolicy textPolicy) {
+        this(sessions, memories, textPolicy, false);
+    }
+    public ConfirmedMemoryService(AgentSessionRepository sessions, ConfirmedMemoryRepository memories,
+                                  ContextTextPolicy textPolicy, boolean harnessEnabled) {
         this.sessions = Objects.requireNonNull(sessions);
         this.memories = Objects.requireNonNull(memories);
         this.textPolicy = Objects.requireNonNull(textPolicy);
+        this.harnessEnabled = harnessEnabled;
     }
     public record Slot(String sessionId, String key, String type, String state, String value, String version, String source, Instant updatedAt) { }
     public static final class VersionConflictException extends RuntimeException { }
@@ -27,6 +34,7 @@ public class ConfirmedMemoryService {
     @Transactional(readOnly = true, timeout = 2)
     public List<Slot> get(String owner, String session) {
         if (sessions.findByIdAndUserId(session, owner).isEmpty()) throw new RunCoordinator.RunNotFoundException();
+        rejectDeletionMarker(session);
         List<ConfirmedMemoryEntity> found = memories.findBySessionId(session);
         return List.of(ConfirmedMemory.PREFERRED_LANGUAGE, ConfirmedMemory.PROJECT_STACK).stream()
                 .map(key -> slot(session, key, found.stream().filter(value -> key.equals(value.getKey())).findFirst().orElse(null))).toList();
@@ -48,6 +56,7 @@ public class ConfirmedMemoryService {
     private Slot write(String owner, String session, String key, String value, long expected) {
         if (expected < 0) throw new IllegalArgumentException("invalid version");
         sessions.findOwnedForUpdate(session, owner).orElseThrow(RunCoordinator.RunNotFoundException::new);
+        rejectDeletionMarker(session);
         ConfirmedMemoryEntity entity = memories.findBySessionIdAndKey(session, key).orElse(null);
         long actual = entity == null ? 0 : entity.getVersion();
         if (expected != actual) throw new VersionConflictException();
@@ -58,6 +67,12 @@ public class ConfirmedMemoryService {
         entity.update(value, Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS));
         memories.saveAndFlush(entity);
         return slot(session, key, entity);
+    }
+
+    private void rejectDeletionMarker(String session) {
+        if (harnessEnabled && sessions.deletionMarkerCount(session) != 0) {
+            throw new RunCoordinator.RunNotFoundException();
+        }
     }
 
     public static void validateKey(String key) {

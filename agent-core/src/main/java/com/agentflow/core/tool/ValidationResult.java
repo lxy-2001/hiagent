@@ -7,7 +7,9 @@ public record ValidationResult(boolean valid, ToolArguments arguments, List<Viol
     public ValidationResult {
         Objects.requireNonNull(arguments, "arguments must not be null");
         Objects.requireNonNull(violations, "violations must not be null");
-        arguments = new ToolArguments(arguments.values());
+        // Preserve the existing defensive-copy contract and the managed envelope policy.
+        arguments = arguments.isManaged() ? ToolArguments.managed(arguments.values())
+                : new ToolArguments(arguments.values());
         violations = List.copyOf(violations);
         if (valid && !violations.isEmpty()) {
             throw new IllegalArgumentException("valid result cannot contain violations");

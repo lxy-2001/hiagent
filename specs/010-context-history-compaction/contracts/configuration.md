@@ -12,7 +12,7 @@
 | agentflow.harness.model.api-key | 环境变量 | 不在源码、历史或日志保存实际值 |
 | agentflow.harness.context.window-tokens | 272000 | 正整数，所有阈值与输出预留可满足 |
 | agentflow.harness.context.compact-ratio | 0.80 | 0.80～0.85 |
-| agentflow.harness.context.output-tokens | 32768 | 单请求，另受Run剩余输出预算约束 |
+| agentflow.harness.context.output-tokens | 32768 | 单请求，另受Run剩余输出预算约束；摘要总生成额度还受请求剩余窗口约束 |
 | agentflow.harness.context.safety-tokens | 8192 | 必须留出正的输入空间 |
 | agentflow.harness.context.compacted-history-ratio | 0.20 | (0,1)，默认约五倍压缩目标 |
 | agentflow.harness.context.summary-tokens | 8192 | 可见摘要上限，服从动态20%目标 |
@@ -43,7 +43,7 @@ max-file≤session-max≤total-max；target<max；配置变小触发有界清理
 ## 装配职责
 
 - AgentWebAutoConfiguration注册持久HistoryStore、ContextSessionService、LocalArtifactStore、维护器及HTTP适配；明确依赖EntityManager/DataSource，不用包扫描偶然发现。
-- AgentLlmAutoConfiguration按harness.enabled及harness.model.protocol选择AgentModelClient，注册ResponsesCompactionModel、JtokkitTokenEstimator及续接端口消费者；用户同类型Bean优先。ResponsesContinuationStore的持久实现由Web提供，缺失时Harness启动失败。
+- AgentLlmAutoConfiguration按harness.enabled及harness.model.protocol选择AgentModelClient，注册ResponsesCompactionModel、JtokkitTokenEstimator及续接端口消费者；用户同类型Bean优先。ResponsesContinuationStore的持久实现由Web提供，缺失时Harness启动失败。LLM定义ResponsesRunSupport这个实际调用边界，Web提供本次Run的取消/截止时间和计费记录回调；不让LLM依赖Web，也不把厂商计数类型放进Core。
 - AgentRuntimeAutoConfiguration装配纯Java上下文服务和同一个DefaultAgentRuntime，不把JPA或算法写进Starter；旧构造器/显式瞬态模式有单独测试。
 - AgentToolAutoConfiguration只在ArtifactStore可用时注册ReadArtifactTool，默认策略明确允许该READ_ONLY工具；自定义Registry由应用负责包含它，Harness启动须检查所需能力而非偷偷替换用户Registry。
 - Demo负责H2依赖、数据目录和默认profile；不把H2硬塞进基础Starter，不改变RAG/MCP按需装配。禁用Harness仍可验证008既有集成契约。

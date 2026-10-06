@@ -10,6 +10,10 @@ public class RunApiExceptionHandler {
     ResponseEntity<RunApiErrorWriter.ErrorResponse> approvalConflict(com.agentflow.web.approval.ApprovalService.ConflictException e) {
         return response(HttpStatus.CONFLICT, e.code(), null);
     }
+    @ExceptionHandler(com.agentflow.web.artifact.ArtifactController.GoneException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> artifactGone(com.agentflow.web.artifact.ArtifactController.GoneException failure) {
+        return response(HttpStatus.GONE, failure.code(), null);
+    }
     @ExceptionHandler(CitationSnapshotCodec.UnavailableException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> citationUnavailable() {
         return response(HttpStatus.SERVICE_UNAVAILABLE, "CITATION_DATA_UNAVAILABLE", null);
@@ -32,6 +36,15 @@ public class RunApiExceptionHandler {
     @ExceptionHandler(RunCoordinator.RunUnavailableException.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> unavailable(RunCoordinator.RunUnavailableException e) {
         return response(HttpStatus.SERVICE_UNAVAILABLE, e.code(), e.taskId());
+    }
+    @ExceptionHandler({org.springframework.dao.DataAccessException.class, jakarta.persistence.PersistenceException.class})
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> dependencyFailure() {
+        return response(HttpStatus.SERVICE_UNAVAILABLE, "PERSISTENCE_UNAVAILABLE", null);
+    }
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    ResponseEntity<RunApiErrorWriter.ErrorResponse> statusFailure(org.springframework.web.server.ResponseStatusException failure) {
+        HttpStatus status = HttpStatus.valueOf(failure.getStatusCode().value());
+        return response(status, status == HttpStatus.UNAUTHORIZED ? "UNAUTHORIZED" : "INVALID_REQUEST", null);
     }
     @ExceptionHandler(Exception.class)
     ResponseEntity<RunApiErrorWriter.ErrorResponse> internal() { return response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", null); }

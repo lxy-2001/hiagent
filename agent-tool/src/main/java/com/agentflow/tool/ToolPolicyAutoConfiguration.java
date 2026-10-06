@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Bean;
 public class ToolPolicyAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(ToolExecutionPolicy.class)
-    ToolExecutionPolicy toolExecutionPolicy(ToolPolicyProperties properties) {
+    ToolExecutionPolicy toolExecutionPolicy(ToolPolicyProperties properties, org.springframework.beans.factory.ObjectProvider<com.agentflow.core.artifact.ArtifactStore> artifacts) {
         var rules=new java.util.LinkedHashMap<String,ToolPolicyDecision>();
         for (var rule:properties.rules()) {
             if (rule.toolName()==null || rule.toolName().isBlank() || rule.toolName().length()>100)
@@ -26,6 +26,7 @@ public class ToolPolicyAutoConfiguration {
             if (rules.putIfAbsent(rule.toolName(),decision)!=null)
                 throw new IllegalArgumentException("duplicate policy tool name");
         }
+        if(artifacts.getIfAvailable()!=null) rules.putIfAbsent("read-artifact",new ToolPolicyDecision(ToolPolicyDecision.Action.ALLOW,RiskLevel.LOW,ToolPolicyDecision.Effect.READ_ONLY,"Read stored artifact",java.util.Set.of()));
         return ToolExecutionPolicy.rules(rules);
     }
 }

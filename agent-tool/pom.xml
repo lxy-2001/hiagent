@@ -15,6 +15,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.agentflow</groupId>
             <artifactId>agent-core</artifactId>
             <version>${project.version}</version>

@@ -24,7 +24,7 @@ import static org.mockito.Mockito.*;
 @SpringBootTest(classes = AgentFlowDemoApplication.class, properties = {
         "spring.datasource.url=jdbc:h2:mem:restart;MODE=MySQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false",
+        "spring.jpa.hibernate.ddl-auto=create-drop", "spring.flyway.enabled=false", "agentflow.harness.enabled=false",
         "agentflow.knowledge.bootstrap.enabled=false",
         "agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32"})
 class RunRestartTest {

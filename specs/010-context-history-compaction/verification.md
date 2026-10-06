@@ -1,8 +1,10 @@
 # H01 Verification / Evidence
 
-日期：2026-10-06。**当前是SDD设计完成、产品待实施的状态。** 当前59项任务均未勾选；Feature保持ACTIVE，不能把下列研究探针或文档校验作为产品测试通过。
+日期：2026-10-07。**当前处于实现后集成验证，Feature保持ACTIVE。** Phase 1–2已有提交；Phase 3门禁、最终全仓验证和交付状态按后续实际记录更新。下列设计阶段的探针与文档检查保留为历史，不替代产品证据。
 
-## 1. 基线与本轮范围
+实施工作树：`C:/Users/25118/.codex/worktrees/hiagent-h01/hiagent`；分支：`codex/010-context-history-compaction`。原`E:/hiagent`工作区及用户已有改动保留；本工作树中的用户`mvnw`改动也不纳入提交。
+
+## 1. 设计阶段基线与范围（历史）
 
 - 实际代码分支：codex/008-starter-demo-delivery；HEAD：fb3de112eb220a743232fdad1af710c092826540。
 - SDD指针：.specify/feature.json → specs/010-context-history-compaction；计划实施分支codex/010-context-history-compaction尚未创建。
@@ -55,7 +57,7 @@ H2_FILE_PROBE_OK migrations=6 reopen=true rowLock=true rollback=true publicTable
 
 Spec Kit的最终analyze为只读，报告在本次会话输出；实施开始前和最终交付前都应重新运行，不能长期复用一次设计检查替代后续检查。
 
-## 4. 产品验证状态
+## 4. 设计阶段产品验证状态（历史）
 
 | 验证项 | 当前状态 | 计划证据入口 |
 |---|---|---|
@@ -71,11 +73,11 @@ Spec Kit的最终analyze为只读，报告在本次会话输出；实施开始�
 | 真实模型效果/缓存收益 | NOT RUN，不属默认门禁 | 用户后续授权才执行 |
 | 阶段提交、Feature推送 | NOT RUN | 全部任务及AGENTS门禁满足后 |
 
-## 5. 每阶段填写格式
+## 5. 原阶段记录格式（历史）
 
 实施时逐Phase追加实际记录：日期/分支/SHA → 任务编号 → 失败测试命令与目标失败原因 → 最小实现路径 → 定向测试与模块门禁的测试数/退出码 → 范围审查/限制 → 阶段提交SHA。真实模型和离线Fixture结果分开，失败不可删去。
 
-当前没有产品验收结论和提交SHA。技术设计决定已写入，不需要重复确认用户已经拍板的行为；若实际兼容测试推翻数据库/协议假设，应先更新SDD后实施。
+该设计阶段尚无产品验收结论和提交SHA。技术设计决定已写入，不需要重复确认用户已经拍板的行为；若实际兼容测试推翻数据库/协议假设，应先更新SDD后实施。
 
 ## 6. 2026-10-06 测试范围复审
 
@@ -97,3 +99,51 @@ Spec Kit的最终analyze为只读，报告在本次会话输出；实施开始�
 LocalStorageFileTest 初次因缺少 local-harness profile 失败；实现后真实 Flyway V1–V6、Hibernate validate、事务提交/回滚、短行锁和关闭重开通过。新增嵌套测试配置曾污染 Demo 扫描，取消其组件注解后复验通过。H2 runtime 仅在 Demo，Starter 未增加数据库依赖。
 
 命令：./mvnw.cmd -pl agent-demo -am test；BUILD SUCCESS，耗时 3:20。临时证据 hiagent-h01-phase1-red.log、hiagent-h01-phase1-green.log、hiagent-h01-phase1-fix.log、hiagent-h01-phase1-gate2.log。无真实模型调用、旧库修改。
+
+
+## 7. Phase 2 契约实现记录
+
+- 既有提交：`b208bb06e729dbebd373a6033586de544b869750`，`feat(010): complete phase 2 - context contracts`；任务T005–T009。新增消息/历史/附件/压缩契约及可配置分词实现，保留Core纯Java和旧调用入口。
+- 初期定向RED见`hiagent-h01-phase2-red.log`、`hiagent-h01-phase2-red2.log`；目标通过记录见`hiagent-h01-phase2-green.log`。随后`hiagent-h01-phase2-gate.log`暴露长参数仍受旧限制，`hiagent-h01-phase2-current.log`暴露后续集成中的新回归；这些失败保留，不将它们记为门禁通过。长参数及新主线修正已纳入Phase 3，最终阶段门禁将重新覆盖这些基础契约。
+
+## 8. Phase 3 定向验证与审查修复
+
+任务范围T010–T053；集成同一DefaultAgentRuntime的可靠历史、工作上下文、检查点、附件、Responses、用量及本地装配。没有增加H02计划工具、H03文件工具、H04终端、桌面壳或通用完成裁判。
+
+| 主验证位置 | 当前已取得的证据 |
+|---|---|
+| 历史/Runtime/缓存/有限补写 | `hiagent-h01-main-green.log`、`hiagent-h01-chain-green3.log`、`hiagent-h01-managed-green.log`等聚焦记录；最终以本阶段模块门禁复核 |
+| 取消、截止、续接与压缩失败用量 | `hiagent-h01-boundaries-green.log`：ContextCompactorTest 11、HarnessRuntimeTest 13、Responses适配20、JpaHistoryStoreTest 6，共50项通过 |
+| Artifact及Run准入事务保护 | `hiagent-h01-artifact-review-red.log`先复现预览元信息常驻内存、活动会话被清理及读取配置冲突；修复后`hiagent-h01-artifact-final-green2.log`中LocalArtifactStoreTest 3、RunFinalTransactionTest 6通过 |
+| 默认本地启动 | 同一`artifact-final-green2`记录中LocalStorageFileTest 2通过：临时H2文件库V1–V7、Hibernate validate、默认Responses/持久上下文装配，无外部数据库或Redis连接 |
+| 压缩输入累计预算 | `hiagent-h01-compaction-input-red.log`：第一次摘要耗尽输入后仍发第二次，预期1次实际2次；修复后`hiagent-h01-compaction-budget-green.log`通过 |
+| 可见摘要与总输出分离 | `hiagent-h01-compaction-ledger-red.log`：预期总输出32768、实际8192；修复后同一`compaction-budget-green`记录通过 |
+
+单次Artifact正文Token计量减去消息格式开销，协议读取上限8192与实际配置限额分别生效；不删除无进展保护。附件预览/墓碑按ID查询数据库，不全量驻留内存。全局清理与新Run准入通过短领取协调，准入保护直到事务完成，数据库和文件I/O不持有该monitor。
+
+## 9. Phase 4 已执行主线（门禁仍待完成）
+
+`HarnessContextFlowTest.offlineHarnessRunsTwiceCompactsTwiceAndReopensWithoutToolReplay`在`hiagent-h01-artifact-final-green2.log`通过；一条显式离线Fixture验证跨Run历史、大结果附件、两次压缩、关闭重开、有效尾部/引用及工具不重放。该次聚焦运行共12项、0失败/0错误/0跳过；它不替代全仓verify、公开HTTP回归、analyze或converge。
+
+所有新模型验证均使用HTTP Mock或显式离线Fixture，没有付费模型请求、旧MySQL迁移或删库。真实模型摘要语义质量、供应商模型可用性与缓存收益未验证，不能由离线结果推断。
+
+### 集中预算与诊断修复验证
+
+`./mvnw.cmd -pl agent-demo -am test -Dtest=ContextCompactorTest,ContextSessionServiceTest,HarnessRuntimeTest,OpenAiResponsesAgentModelClientTest -Dsurefire.failIfNoSpecifiedTests=false`：退出0，BUILD SUCCESS；11+7+13+20=51项，零失败/错误/跳过（`hiagent-h01-compaction-budget-green.log`）。摘要可见目标与总生成额度分别管理；失败摘要已耗尽累计输入时不再开始修正请求；已知真实用量保留，未知用量以明确保守估算扣预算。
+
+最终契约审查发现诊断接口误用默认输出预留。扩展既有ContextHistoryServiceTest账本用例先RED（实际32768、预期100；`hiagent-h01-latest-reserve-red.log`），让Snapshot读取最新请求真实预留/安全余量后GREEN（`hiagent-h01-latest-reserve-green.log`，3项、退出0）。没有请求时仍使用配置；没有增加接口字段或数据库迁移。
+
+### 最终集成修复（2026-10-07）
+
+- 防御性参数拷贝：原ToolSchemaContractTest先失败（新旧对象identity相同），修正ValidationResult保留managed语义并复制参数；`hiagent-h01-validation-copy-green.log`中ToolSchemaContractTest 5、HarnessRuntimeTest 13通过。
+- 阶段回归首次仍失败（`hiagent-h01-phase3-gate-green.log`文件名不代表成功）：Demo 69项中2失败、14错误。定位到测试配置进入组件扫描、旧消费者误启用Harness及V5→V6迁移测试未限定目标版本。改用TestConfiguration、显式禁用旧消费者Harness和限定迁移目标6；旧断言保留。聚焦`hiagent-h01-demo-regressions.log`中13项仅压缩主线失败。
+- 摘要容量：`hiagent-h01-adaptive-summary-red.log`单项先复现CONTEXT_COMPACTION_FAILED；历史加固定总输出预留超过窗口，未发出摘要请求。现按剩余窗口限制总输出，同时独立保留可见摘要目标；请求不可容纳时仍明确失败。`hiagent-h01-adaptive-summary-green.log`中ContextCompactorTest 12、HarnessContextFlowTest 1，共13项，退出0，零失败/错误/跳过；两次压缩和重开主线在当前代码通过。
+
+### Phase 3 最终阶段门禁
+
+- `hiagent-h01-phase3-gate-final.log`：Demo 69项、0失败、6错误；旧Hibernate/create-drop测试误启用Harness但没有V7 JDBC表，保留原断言并为这些旧测试显式禁用Harness。
+- `hiagent-h01-phase3-gate-corrected.log`：Demo 69项、1失败、0错误；数据库超时夹具被默认local-harness配置覆盖。
+- `hiagent-h01-phase3-gate-green-final.log`（名称不代表通过）：Demo 69项、2失败、1错误。test profile排除了旧夹具所需Redis；同次RAG回归出现一次等待终态超时及一次PERSISTENCE_UNAVAILABLE。RAG代码与断言未改，未将这两次失败归因于已确认的根因。
+- RunDatabaseTimeoutTest改用独立timeout-test profile，保持MySQL connectTimeout/socketTimeout及Hikari断言；聚焦`RunDatabaseTimeoutTest,RagConversationEndToEndTest`在`hiagent-h01-focused-timeout-rag.log`中5项通过，0失败/错误/跳过。
+- 最终阶段命令：`./mvnw.cmd -pl agent-demo,agent-eval -am test`，日志`hiagent-h01-phase3-gate-reviewed.log`；退出0、BUILD SUCCESS，9个测试模块共1,019项，0失败、0错误、1项跳过。Demo 69项全部通过，其中原RAG 4项亦通过；前述RAG失败在聚焦和最终门禁均未复现，不声称已证明其根因。结束时间为日志记录的2026-10-07T06:14:48+08:00。
+- 唯一跳过的是原有RealQdrantSmokeTest，按其既有显式真实服务开关运行；本次未增加跳过或弱化既有断言。全仓最终verify另列于Phase 4。

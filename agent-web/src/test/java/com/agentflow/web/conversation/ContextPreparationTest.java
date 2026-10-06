@@ -27,6 +27,11 @@ class ContextPreparationTest {
         exercise("late", 3, "CONTEXT_SOURCE_UNAVAILABLE");
     }
 
+    @Test
+    void harnessBudgetIncludesSessionPreparationAndKeepsItsTenMinuteLimit() { exercise("harness",1,"COMPLETED"); }
+    @Test
+    void contextOpenFailureRetainsItsReasonInsteadOfInternalError() { exercise("history-failure",0,"HISTORY_PERSISTENCE_FAILED"); }
+
     private void exercise(String mode, int seconds, String expectedReason) {
         var tick = new AtomicLong();
         var reads = new AtomicInteger();
@@ -45,7 +50,7 @@ class ContextPreparationTest {
         AgentRuntime runtime = (request, sink, options) -> {
             calls.incrementAndGet();
             assertThat(request.contextSeed()).isSameAs(seed);
-            assertThat(options.budget().maxDuration()).isEqualTo(Duration.ofSeconds(29));
+            assertThat(options.budget().maxDuration()).isEqualTo(Duration.ofSeconds(mode.equals("harness") ? 596 : 29));
             return AgentResult.success("run", "done", List.of(), TokenUsage.empty());
         };
         var persistence = mock(RunPersistence.class);
@@ -71,9 +76,19 @@ class ContextPreparationTest {
         try (var coordinator = new RunCoordinator(source, runtime, persistence, hub, new RunEventProjector(), new RunResultProjector(),
                 executor, RunLifecycleProperties.defaults(), Clock.fixed(now, ZoneOffset.UTC), tick::get,
                 () -> ids.getAndIncrement() == 0 ? "run" : "session")) {
+            if (mode.equals("harness") || mode.equals("history-failure")) {
+                var sessions=mock(com.agentflow.web.context.ContextSessionService.class);
+                var context=mock(ContextSession.class);
+                when(sessions.open(any(),any(),anyList())).thenAnswer(invocation->{
+                    tick.addAndGet(Duration.ofSeconds(3).toNanos());
+                    if(mode.equals("history-failure"))throw new ContextSessionException("HISTORY_PERSISTENCE_FAILED");
+                    return context;
+                });
+                coordinator.configureContextSessions(sessions,new ExecutionBudget(8,Duration.ofMinutes(10),3000000,524288));
+            }
             coordinator.create("owner", "input");
             assertThat(reads.get()).isOne();
-            assertThat(calls.get()).isEqualTo(mode.equals("success") ? 1 : 0);
+            assertThat(calls.get()).isEqualTo((mode.equals("success") || mode.equals("harness")) ? 1 : 0);
             assertThat(finalFact.get().terminationReason().name()).isEqualTo(expectedReason);
             assertThat(finalFact.get().status().name()).isEqualTo(switch (expectedReason) {
                 case "COMPLETED" -> "SUCCEEDED";

@@ -16,7 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 
 public class JwtBlacklistFilter extends OncePerRequestFilter {
 
-    private final StringRedisTemplate redisTemplate;
+    private final com.agentflow.web.support.WebRequestStateStore stateStore;
     private final RunApiErrorWriter errors;
 
     public JwtBlacklistFilter(StringRedisTemplate redisTemplate) {
@@ -24,7 +24,11 @@ public class JwtBlacklistFilter extends OncePerRequestFilter {
     }
 
     public JwtBlacklistFilter(StringRedisTemplate redisTemplate, RunApiErrorWriter errors) {
-        this.redisTemplate = redisTemplate;
+        this(new com.agentflow.web.support.RedisWebRequestStateStore(redisTemplate), errors);
+    }
+
+    public JwtBlacklistFilter(com.agentflow.web.support.WebRequestStateStore stateStore, RunApiErrorWriter errors) {
+        this.stateStore = stateStore;
         this.errors = errors;
     }
 
@@ -35,10 +39,9 @@ public class JwtBlacklistFilter extends OncePerRequestFilter {
         if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt && jwt.getId() != null) {
             Boolean blacklisted;
             try {
-                blacklisted = redisTemplate.hasKey("auth:blacklist:" + jwt.getId());
+                blacklisted = stateStore.isAccessRevoked(jwt.getId());
             } catch (RuntimeException dependencyFailure) {
-                if (isRunOrSessionPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
-                throw dependencyFailure;
+                errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return;
             }
             if (Boolean.TRUE.equals(blacklisted)) {
                 SecurityContextHolder.clearContext();
@@ -54,6 +57,7 @@ public class JwtBlacklistFilter extends OncePerRequestFilter {
         return request.getRequestURI().equals("/api/agent/tasks")
                 || request.getRequestURI().startsWith("/api/agent/tasks/")
                 || request.getRequestURI().equals("/api/agent/sessions")
-                || request.getRequestURI().startsWith("/api/agent/sessions/");
+                || request.getRequestURI().startsWith("/api/agent/sessions/")
+                || request.getRequestURI().startsWith("/api/agent/artifacts/");
     }
 }

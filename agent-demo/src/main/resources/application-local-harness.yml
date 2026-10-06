@@ -15,6 +15,11 @@ spring:
     enabled: true
 agentflow:
   harness:
-    enabled: false
+    enabled: ${AGENTFLOW_HARNESS_ENABLED:true}
+    model:
+      protocol: responses
+      name: ${AGENTFLOW_HARNESS_MODEL:gpt-6.1-sol}
+      base-url: ${AGENTFLOW_HARNESS_BASE_URL:https://api.openai.com/v1}
+      api-key: ${AGENTFLOW_HARNESS_API_KEY:${OPENAI_API_KEY:}}
     storage:
       data-root: ${LOCALAPPDATA:${user.home}}/HiAgent

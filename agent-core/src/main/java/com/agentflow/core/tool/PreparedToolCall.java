@@ -17,7 +17,7 @@ public record PreparedToolCall(String runId, String sessionId, String ownerId, S
                 || !registration.enabled() || !registration.definition().schema().validate(call.arguments()).valid())
             throw new IllegalArgumentException("invalid prepared binding");
         if (!registration.definitionVersion().equals(toolDefinitionVersion)
-                || !ToolArgumentDigest.digest(call.arguments()).equals(argumentsDigest))
+                || !digest(call.arguments()).equals(argumentsDigest))
             throw new IllegalArgumentException("invalid prepared fingerprint");
         createdAt = createdAt.truncatedTo(ChronoUnit.MILLIS);
     }
@@ -25,6 +25,16 @@ public record PreparedToolCall(String runId, String sessionId, String ownerId, S
             ToolRegistration registration,ToolCall call,Instant createdAt) {
         return new PreparedToolCall(runId,sessionId,ownerId,call.callId(),registration,call,
                 registration.definitionVersion(),ToolArgumentDigest.digest(call.arguments()),createdAt);
+    }
+    public static PreparedToolCall prepareManaged(String runId, String sessionId, String ownerId,
+            ToolRegistration registration, ToolCall call, Instant createdAt) {
+        ToolCall managed = call.arguments().isManaged() ? call : new ToolCall(call.callId(), call.name(),
+                ToolArguments.managed(call.arguments().values()));
+        return new PreparedToolCall(runId, sessionId, ownerId, managed.callId(), registration, managed,
+                registration.definitionVersion(), ToolArgumentDigest.digestManaged(managed.arguments()), createdAt);
+    }
+    private static String digest(ToolArguments arguments) {
+        return arguments.isManaged() ? ToolArgumentDigest.digestManaged(arguments) : ToolArgumentDigest.digest(arguments);
     }
     @Override public String toString() { return "PreparedToolCall[callId=" + callId + "]"; }
 }

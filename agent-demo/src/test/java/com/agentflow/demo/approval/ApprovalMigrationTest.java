@@ -13,7 +13,7 @@ class ApprovalMigrationTest {
         Flyway.configure().dataSource(ds).target("5").load().migrate();
         var jdbc = new JdbcTemplate(ds);
         jdbc.update("insert into agent_task(id,session_id,user_id,user_input,status,created_at,updated_at,turn_sequence) values('old','s','u','question','QUEUED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP,1)");
-        assertThat(Flyway.configure().dataSource(ds).load().migrate().targetSchemaVersion).isEqualTo("6");
+        assertThat(Flyway.configure().dataSource(ds).target("6").load().migrate().targetSchemaVersion).isEqualTo("6");
         assertThat(jdbc.queryForObject("select status from agent_task where id='old'", String.class)).isEqualTo("QUEUED");
         String insert = "insert into agent_tool_invocation(id,task_id,call_id,owner_id,tool_name,definition_version,policy_version,arguments_digest,risk,policy_action,effect,created_at,dispatch_count,outcome) values(?, 'old','call','u','local',?,?,?,'LOW','ALLOW','READ_ONLY',CURRENT_TIMESTAMP,0,'NOT_DISPATCHED')";
         jdbc.update(insert, "a", "a".repeat(64), "b".repeat(64), "c".repeat(64));

@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /** Fixed-order registry lookup, schema validation, execution and result normalization. */
 public final class DefaultToolExecutor implements ToolExecutor {
-    private static final ToolResultNormalizer SAFETY_NORMALIZER = new DefaultToolResultNormalizer();
+    private static final DefaultToolResultNormalizer SAFETY_NORMALIZER = new DefaultToolResultNormalizer();
     private final ToolRegistry registry;
     private final ToolResultNormalizer normalizer;
 
@@ -44,13 +44,15 @@ public final class DefaultToolExecutor implements ToolExecutor {
             return ToolResult.failure(call.name(), call.callId(), "TOOL_ERROR",
                     "tool execution failed");
         }
-        ToolResult normalized = normalizer.normalize(call, raw);
+        ToolResult normalized = context.managedOutput()
+                ? normalizer.normalizeManaged(call, raw) : normalizer.normalize(call, raw);
         if (raw != null && raw.retrievalPayload() != null && normalized != null
                 && normalized.status() == ToolResultStatus.SUCCESS
                 && !raw.retrievalPayload().equals(normalized.retrievalPayload())) {
             return ToolResult.failure(call.name(), call.callId(), "TOOL_RESULT_INVALID",
                     "normalizer changed retrieval evidence");
         }
-        return SAFETY_NORMALIZER.normalize(call, normalized);
+        return context.managedOutput() ? SAFETY_NORMALIZER.normalizeManaged(call, normalized)
+                : SAFETY_NORMALIZER.normalize(call, normalized);
     }
 }

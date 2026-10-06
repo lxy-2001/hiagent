@@ -25,6 +25,18 @@ class PersistentContextSourceTest {
     @Autowired PersistentContextSource source;
     @Autowired JdbcTemplate jdbc;
 
+    @Autowired jakarta.persistence.EntityManager entityManager;
+
+    @Test
+    void harnessDoesNotDuplicateTheCanonicalHistoryWithSuccessTurnPairs() {
+        turn("canonical", 1, "SUCCEEDED", "previous question", "previous answer");
+        current("canonical", 2);
+        var harness = new PersistentContextSource(entityManager, new ContextTextPolicy(), true);
+        var seed = harness.load(new ContextSource.Query("owner", "canonical", "canonical-2"), Duration.ofSeconds(2), CancellationSignal.NONE);
+        assertThat(seed.turns()).isEmpty();
+        assertThat(seed.historyThroughTurn()).isEqualTo(1);
+    }
+
     @Test
     void usesOnlyLatestTwentySuccessFactsAndIncludesIncompleteRecording() {
         for (int i = 1; i <= 25; i++) turn("history", i, i == 24 ? "FAILED" : "SUCCEEDED", "q" + i, "a" + i);

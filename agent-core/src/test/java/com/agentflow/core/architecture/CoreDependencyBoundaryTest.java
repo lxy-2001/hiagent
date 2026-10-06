@@ -44,6 +44,9 @@ class CoreDependencyBoundaryTest {
                         .or(equivalentTo(java.security.NoSuchAlgorithmException.class))
                         .or(equivalentTo(java.nio.charset.StandardCharsets.class))
                         .or(equivalentTo(java.nio.charset.Charset.class))
+                        // H01 loads only its packaged prompt; IO/network packages remain disallowed.
+                        .or(equivalentTo(java.io.InputStream.class))
+                        .or(equivalentTo(java.io.IOException.class))
                         .or(equivalentTo(java.text.Normalizer.class))
                         .or(equivalentTo(java.text.Normalizer.Form.class)));
     }

@@ -1,10 +1,10 @@
 # Implementation Plan: 010 / H01 上下文与会话历史升级
 
-**Branch**: 计划实施分支 codex/010-context-history-compaction，尚未创建；本轮文档工作仍在 codex/008-starter-demo-delivery。
+**Branch**: codex/010-context-history-compaction；隔离工作树实施，原工作区保持。
 **Date**: 2026-10-06
 **Spec**: [spec.md](spec.md)
 **Input**: 已澄清的31项FR、5个用户故事与8项成功标准。
-**Status**: SDD设计及任务已生成，待实施；产品实现、验收及Feature推送均未开始。
+**Status**: Phase 1–3 实现与阶段门禁已通过；Phase 4 全仓验证与交付进行中。
 
 ## Summary
 
@@ -46,9 +46,9 @@ PASS仅指设计符合约束，不代表实现或测试已通过。
 
 ### Documentation
 
-plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.md；contracts/包含history-runtime.md、responses-adapter.md、artifact-storage.md、configuration.md及openapi.yaml；prompts/context-compaction-v1.md为待实现的摘要Prompt。
+plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.md；contracts/包含history-runtime.md、responses-adapter.md、artifact-storage.md、configuration.md及openapi.yaml；prompts/context-compaction-v1.md与Core资源同版本的摘要Prompt。
 
-### Source Code（既有模块；新增类均为设计目标）
+### Source Code（既有模块；当前实现）
 
 | 模块 | 主要路径与职责 |
 |---|---|
@@ -64,16 +64,12 @@ plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.
 
 ### 实施阶段
 
-1. 本地文件库与基线（4项）。
-2. 纯Java契约与计数适配（5项）。
-3. US1：可靠历史和跨Run恢复、本地Web依赖适配（11项）。
-4. US3：附件、范围读取和两级容量（8项）。
-5. US2：容量处理和压缩检查点（8项）。
-6. US5：有限补写、异常恢复与生命周期（7项）。
-7. US4：Responses、真实用量和完整装配（10项）。
-8. 端到端验收与交付门禁（6项）。
+1. 本地文件库与基线：T001–T004，提交a90ef97。
+2. 纯Java契约与计数适配：T005–T009，提交b208bb0。
+3. 完整上下文管线：T010–T053，按US1 → US3 → US2 → US5 → US4依赖次序完成；覆盖可靠历史、附件、压缩、有限补写及Responses装配。
+4. 一条端到端验收与交付门禁：T054–T059。
 
-共59项，均未实施。US3先于US2提供引用与可用状态；前期采用确定性模型验证行为，US4完成生产适配。完整Demo默认配置在Phase 7接通，早期阶段不暴露半成品Harness。
+共59项。2026-10-07将原Phase 3–7合并为一个集成提交边界，原因是共享Runtime、迁移和恢复/装配文件；范围、任务编号、故事顺序和验收标准不变。最终完整装配在提交前统一验证，端到端测试独立归入Phase 4。
 
 ## Design Decisions
 
@@ -95,7 +91,7 @@ plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.
 - **本地Web依赖**：现有JWT撤销、限流和登录刷新提示写入依赖Redis。Harness模式用H2保存撤销记录、有界内存保存限流计数，refresh token继续以原数据库表为准；保留JWT/所有权/退出语义及120次每分钟限制，不以关闭过滤器解决依赖。旧非Harness路径保留Redis适配。
 - **Responses**：新默认走Responses；旧ChatModelClient/EmbeddingClient及其agentflow.model配置保持；Harness使用独立agentflow.harness.model配置。发送完整有效窗口，store=false，不用previous_response_id重新带回已压缩历史。必要opaque续接项由适配器保存，Core仅传引用、不读取内部推理。
 - **分词**：JTokkit留agent-llm，编码显式配置。估算非计费事实；内容按hash/编码版本缓存计数，规则、工具JSON及长参数均计入。保留安全余量并报告估算来源，不偷偷退回旧64消息/262144字节硬限制。
-- **预算**：替换Harness路径中RunCoordinator硬编码4096/2048累计限额，单次输出取32,768与累计剩余额度较小值。默认Run输入3,000,000、输出524,288 Token，10分钟，沿用8次决策；摘要计入同一时间/用量，H02再调整循环策略。旧Core静态默认保留；Harness不再被Web旧120秒上限截断。
+- **预算**：替换Harness路径中RunCoordinator硬编码4096/2048累计限额，单次输出取32,768与累计剩余额度较小值。默认Run输入3,000,000、输出524,288 Token，10分钟，沿用8次决策；摘要计入同一时间/用量；摘要可见目标与总生成额度分开，总生成额度同时受摘要请求剩余窗口限制，H02再调整循环策略。旧Core静态默认保留；Harness不再被Web旧120秒上限截断。
 - **装配**：Harness启用时必须有持久HistoryStore、ArtifactStore、CompactionModel和TokenEstimator，缺失则启动失败。显式瞬态库模式可以运行但不能声称持久化；精确自动配置、自定义Bean退让，不扩大扫描。
 - **兼容**：任务/步骤/SSE/审批和认证保持，新增消息分页、上下文诊断、附件读取、会话touch和删除接口。新终止原因同步Core/Web枚举及消费者，旧值不改名。回归RAG、确认记忆和审批，不重构其功能。
 
@@ -111,7 +107,7 @@ plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.
 | LocalArtifactStoreTest + ReadArtifactToolTest | 正文范围、限额/LRU、活动保护及工具归属；只保留一个短并发场景 |
 | ContextHistoryApiTest + LocalWebDependencyTest | 公开接口及本地真实认证/撤销/限流，不把这些边界再次搬进E2E |
 | BoundedPersistenceRetryTest + 原Run事务/恢复测试 | 有限补写、提交确认丢失、终态通知顺序；原有取消/SSE/资源释放测试继续复用 |
-| Responses适配测试 + HarnessAutoConfigurationTest | HTTP Mock协议、usage缺失/子项、精确装配/退让；不复制旧chat/RAG/MCP套件 |
+| Responses适配测试 + LocalStorageFileTest/既有自动配置测试 | HTTP Mock协议、usage缺失/子项、精确装配/退让；不复制旧chat/RAG/MCP套件 |
 | HarnessContextFlowTest | 唯一完整主线：跨Run→大输出→两次压缩→关闭重开→有效上下文及引用；不重复故障矩阵 |
 
 文件持久化用临时H2文件库和临时内容目录，重启以关闭重开数据源/重建服务验证；故障在存储边界注入。容量测试使用小额可配置配额，默认GiB数值只检查配置和long边界。不进行压力/浸泡、真实磁盘写满、硬件断电、逐指令杀进程测试；不从这些离线测试推断真实模型摘要质量。
@@ -120,4 +116,4 @@ plan.md、research.md、data-model.md、quickstart.md、tasks.md、verification.
 
 ## Complexity Tracking
 
-无宪法例外。端口对应真实替换边界：历史、附件I/O、摘要模型及provider续接存储；不建通用工作流引擎、消息总线或一类一接口。本文件中的新类型尚未实现。
+无宪法例外。端口对应真实替换边界：历史、附件I/O、摘要模型及provider续接存储；不建通用工作流引擎、消息总线或一类一接口。实现路径见上表；未完成验证的状态以verification和tasks为准。

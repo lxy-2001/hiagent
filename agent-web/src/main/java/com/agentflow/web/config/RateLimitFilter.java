@@ -17,7 +17,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final int LIMIT_PER_MINUTE = 120;
 
-    private final StringRedisTemplate redisTemplate;
+    private final com.agentflow.web.support.WebRequestStateStore stateStore;
     private final RunApiErrorWriter errors;
 
     public RateLimitFilter(StringRedisTemplate redisTemplate) {
@@ -25,7 +25,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     public RateLimitFilter(StringRedisTemplate redisTemplate, RunApiErrorWriter errors) {
-        this.redisTemplate = redisTemplate;
+        this(new com.agentflow.web.support.RedisWebRequestStateStore(redisTemplate), errors);
+    }
+
+    public RateLimitFilter(com.agentflow.web.support.WebRequestStateStore stateStore, RunApiErrorWriter errors) {
+        this.stateStore = stateStore;
         this.errors = errors;
     }
 
@@ -39,11 +43,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String key = "rate:" + clientIp(request) + ":" + Instant.now().getEpochSecond() / 60;
         Long count;
         try {
-            count = redisTemplate.opsForValue().increment(key);
-            if (count != null && count == 1) redisTemplate.expire(key, Duration.ofMinutes(2));
+            count = stateStore.incrementRate(key, Instant.now().plus(Duration.ofMinutes(2)));
         } catch (RuntimeException dependencyFailure) {
-            if (isRunOrSessionPath(request)) { errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return; }
-            throw dependencyFailure;
+            errors.write(response, 503, "DEPENDENCY_UNAVAILABLE", null); return;
         }
         if (count != null && count > LIMIT_PER_MINUTE) {
             if (isRunOrSessionPath(request)) errors.write(response, 429, "RATE_LIMITED", null);
@@ -57,7 +59,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return request.getRequestURI().equals("/api/agent/tasks")
                 || request.getRequestURI().startsWith("/api/agent/tasks/")
                 || request.getRequestURI().equals("/api/agent/sessions")
-                || request.getRequestURI().startsWith("/api/agent/sessions/");
+                || request.getRequestURI().startsWith("/api/agent/sessions/")
+                || request.getRequestURI().startsWith("/api/agent/artifacts/");
     }
 
     private String clientIp(HttpServletRequest request) {

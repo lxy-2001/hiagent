@@ -33,7 +33,7 @@ import static org.mockito.Mockito.*;
         "spring.datasource.url=jdbc:h2:mem:conversation-e2e;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver", "spring.datasource.username=sa", "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=none", "spring.flyway.enabled=true",
-        "agentflow.knowledge.bootstrap.enabled=false", "agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32"})
+        "agentflow.harness.enabled=false", "agentflow.knowledge.bootstrap.enabled=false", "agentflow.security.jwt.secret=test-only-jwt-secret-which-is-long-enough-32"})
 class ConversationEndToEndTest {
     @LocalServerPort int port;
     @Autowired JwtService jwt;

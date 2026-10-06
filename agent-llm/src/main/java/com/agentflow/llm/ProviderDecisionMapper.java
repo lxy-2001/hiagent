@@ -169,7 +169,7 @@ public final class ProviderDecisionMapper {
         return Map.of("type", "function", "function", function);
     }
 
-    private static Map<String, Object> schemaMap(ToolSchema schema) {
+    static Map<String, Object> schemaMap(ToolSchema schema) {
         Map<String, Object> properties = new LinkedHashMap<>();
         for (Map.Entry<String, ParameterSpec> entry : schema.properties().entrySet()) {
             ParameterSpec spec = entry.getValue();

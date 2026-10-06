@@ -36,7 +36,17 @@ import tools.jackson.databind.ObjectMapper;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, StringRedisTemplate redisTemplate,
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean(com.agentflow.web.support.WebRequestStateStore.class)
+    com.agentflow.web.support.WebRequestStateStore webRequestStateStore(org.springframework.core.env.Environment environment,
+            org.springframework.beans.factory.ObjectProvider<org.springframework.jdbc.core.JdbcTemplate> jdbc,
+            org.springframework.beans.factory.ObjectProvider<StringRedisTemplate> redis) {
+        if (environment.getProperty("agentflow.harness.enabled", Boolean.class, false))
+            return new com.agentflow.web.support.LocalWebRequestStateStore(jdbc.getObject(), java.time.Clock.systemUTC());
+        return new com.agentflow.web.support.RedisWebRequestStateStore(redis.getObject());
+    }
+
+    @Bean
+    SecurityFilterChain securityFilterChain(HttpSecurity http, com.agentflow.web.support.WebRequestStateStore stateStore,
                                             ObjectMapper objectMapper) throws Exception {
         RunApiErrorWriter errors = new RunApiErrorWriter(objectMapper);
         http.csrf(AbstractHttpConfigurer::disable)
@@ -50,13 +60,14 @@ public class SecurityConfig {
                             if (request.getRequestURI().equals("/api/agent/tasks")
                                     || request.getRequestURI().startsWith("/api/agent/tasks/")
                                     || request.getRequestURI().equals("/api/agent/sessions")
-                                    || request.getRequestURI().startsWith("/api/agent/sessions/")) {
+                                    || request.getRequestURI().startsWith("/api/agent/sessions/")
+                                    || request.getRequestURI().startsWith("/api/agent/artifacts/")) {
                                 errors.write(response, 401, "UNAUTHORIZED", null);
                             } else response.sendError(401);
                         })
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-                .addFilterBefore(new RateLimitFilter(redisTemplate, errors), UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new JwtBlacklistFilter(redisTemplate, errors), BearerTokenAuthenticationFilter.class);
+                .addFilterBefore(new RateLimitFilter(stateStore, errors), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new JwtBlacklistFilter(stateStore, errors), BearerTokenAuthenticationFilter.class);
         return http.build();
     }
 

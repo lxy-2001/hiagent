@@ -63,6 +63,19 @@ class ToolResultNormalizerTest {
         assertFalse(result.output().contains("bearer-secret"));
     }
 
+    @Test
+    void truncatesManagedOutputAtUtf8BoundaryWithoutChangingItsExecutionStatus() {
+        int prefixBytes = (int) DefaultToolResultNormalizer.MAX_MANAGED_OUTPUT_BYTES - 1;
+        String output = "a".repeat(prefixBytes) + "😀";
+        ToolResult result = normalizer.normalizeManaged(call, ToolResult.success("echo", output));
+
+        assertEquals(ToolResultStatus.SUCCESS, result.status());
+        assertTrue(result.truncated());
+        assertEquals(prefixBytes, result.output().length());
+        assertEquals('a', result.output().charAt(result.output().length() - 1));
+        assertEquals("call-1", result.callId());
+    }
+
     private static void assertFailure(ToolResult result, String code) {
         assertEquals(ToolResultStatus.FAILED, result.status());
         assertEquals(code, result.errorCode());

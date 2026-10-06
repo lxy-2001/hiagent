@@ -48,6 +48,15 @@ public final class AgentExecutionContext {
         return new AgentModelRequest(request, messages(), toolDefinitions, iteration, maxCompletionTokens);
     }
 
+    public void confirmAssistantItems(List<ModelMessage> items) {
+        messages.addAll(List.copyOf(items));
+    }
+
+    public boolean hasToolCall(String callId) {
+        return messages.stream().anyMatch(message -> message.toolCall() != null
+                && message.toolCall().callId().equals(callId));
+    }
+
     public void confirmToolCall(ToolCall call) {
         Objects.requireNonNull(call, "call must not be null");
         messages.add(ModelMessage.assistantToolCall(call));

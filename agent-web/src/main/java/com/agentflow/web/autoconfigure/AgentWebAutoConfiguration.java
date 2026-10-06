@@ -48,14 +48,16 @@ import org.springframework.context.annotation.Import;
 import java.time.Clock;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@AutoConfiguration
-@AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class, ConfirmedMemoryEntity.class, ToolInvocationEntity.class})
+@AutoConfiguration(before = {com.agentflow.tool.AgentToolAutoConfiguration.class, com.agentflow.tool.ToolPolicyAutoConfiguration.class})
+@AutoConfigurationPackage(basePackageClasses = {AgentSessionEntity.class, SysUser.class, ConfirmedMemoryEntity.class, ToolInvocationEntity.class, com.agentflow.web.context.HistoryRecordEntity.class})
 @EnableConfigurationProperties(AgentFlowProperties.class)
 @Import({
+        HarnessContextConfiguration.class,
         AgentController.class,
         ApprovalController.class,
         ConfirmedMemoryController.class,
         ConversationController.class,
+        com.agentflow.web.context.ContextHistoryController.class,
         AgentTaskService.class,
         RunApiExceptionHandler.class,
         AuthController.class,
@@ -139,6 +141,20 @@ public class AgentWebAutoConfiguration {
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name="agentflow.harness.enabled",havingValue="true")
+    @ConditionalOnMissingBean
+    com.agentflow.web.context.JpaHistoryStore jpaHistoryStore(AgentSessionRepository sessions, EntityManager manager,ObjectMapper mapper) {
+        return new com.agentflow.web.context.JpaHistoryStore(sessions,manager,mapper);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    com.agentflow.web.context.ContextHistoryService contextHistoryService(EntityManager em, AgentSessionRepository sessions, ContextTextPolicy policy, RunCoordinator coordinator, org.springframework.core.env.Environment environment, ObjectMapper mapper, org.springframework.beans.factory.ObjectProvider<com.agentflow.web.context.ModelCallLedger> ledger) {
+        var service = new com.agentflow.web.context.ContextHistoryService(em, sessions, policy, coordinator, environment, mapper, Clock.systemUTC());
+        ledger.ifAvailable(service::configureLedger);
+        return service;
+    }
+    @Bean
     @ConditionalOnMissingBean
     RunPersistence runPersistence(AgentSessionRepository sessions, AgentTaskRepository tasks,
                                   AgentStepRepository steps, EntityManager entityManager) {
@@ -147,14 +163,14 @@ public class AgentWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    ConversationService conversationService(EntityManager em, AgentSessionRepository sessions, ContextTextPolicy policy, RunCoordinator coordinator) {
-        return new ConversationService(em, sessions, policy, coordinator);
+    ConversationService conversationService(EntityManager em, AgentSessionRepository sessions, ContextTextPolicy policy, RunCoordinator coordinator, org.springframework.core.env.Environment env) {
+        return new ConversationService(em, sessions, policy, coordinator, env.getProperty("agentflow.harness.enabled", Boolean.class, false));
     }
 
     @Bean
     @ConditionalOnMissingBean
-    ConfirmedMemoryService confirmedMemoryService(AgentSessionRepository sessions, ConfirmedMemoryRepository memories, ContextTextPolicy textPolicy) {
-        return new ConfirmedMemoryService(sessions, memories, textPolicy);
+    ConfirmedMemoryService confirmedMemoryService(AgentSessionRepository sessions, ConfirmedMemoryRepository memories, ContextTextPolicy textPolicy, org.springframework.core.env.Environment env) {
+        return new ConfirmedMemoryService(sessions, memories, textPolicy, env.getProperty("agentflow.harness.enabled", Boolean.class, false));
     }
 
     @Bean
@@ -165,8 +181,8 @@ public class AgentWebAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ContextSource.class)
-    PersistentContextSource persistentContextSource(EntityManager entityManager, ContextTextPolicy textPolicy) {
-        return new PersistentContextSource(entityManager, textPolicy);
+    PersistentContextSource persistentContextSource(EntityManager entityManager, ContextTextPolicy textPolicy, org.springframework.core.env.Environment environment) {
+        return new PersistentContextSource(entityManager, textPolicy, environment.getProperty("agentflow.harness.enabled", Boolean.class, false));
     }
 
     @Bean
@@ -188,12 +204,21 @@ public class AgentWebAutoConfiguration {
                                   BoundedRunExecutor executor, RunLifecycleProperties properties,
                                   ConversationProperties conversationProperties, ApprovalService approvalService,
                                   org.springframework.core.env.Environment environment,
-                                  org.springframework.beans.factory.ObjectProvider<com.agentflow.core.approval.ApprovalGate> applicationGate) {
+                                  org.springframework.beans.factory.ObjectProvider<com.agentflow.core.approval.ApprovalGate> applicationGate,
+                                  org.springframework.beans.factory.ObjectProvider<com.agentflow.web.context.ContextSessionService> contextSessions) {
         RunCoordinator coordinator = new RunCoordinator(contextSource, runtime, persistence, hub, eventProjector, resultProjector, executor,
                 properties, Clock.systemUTC(), System::nanoTime, Ids::newId, conversationProperties);
         coordinator.configureApprovals(approvalService, org.springframework.boot.convert.DurationStyle.detectAndParse(
                 environment.getProperty("agentflow.approval.ttl", "30s")));
         applicationGate.ifAvailable(coordinator::configureApprovalGate);
+        contextSessions.ifAvailable(sessions -> {
+            var duration=org.springframework.boot.convert.DurationStyle.detectAndParse(environment.getProperty("agentflow.harness.run.max-duration", "10m"));
+            if(duration.isNegative()||duration.isZero()||duration.compareTo(java.time.Duration.ofHours(1))>0) throw new IllegalArgumentException("Harness max-duration must be >0 and <=1h");
+            coordinator.configureContextSessions(sessions,new com.agentflow.core.runtime.ExecutionBudget(
+                environment.getProperty("agentflow.harness.run.max-iterations",Integer.class,8),duration,
+                environment.getProperty("agentflow.harness.run.max-input-tokens",Integer.class,3000000),
+                environment.getProperty("agentflow.harness.run.max-output-tokens",Integer.class,524288)));
+        });
         coordinator.recoverInterrupted();
         return coordinator;
     }

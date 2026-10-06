@@ -68,6 +68,24 @@ class ConversationQueryTest {
         assertThatThrownBy(() -> service.turns("stranger", "query", "0", null, 20)).isInstanceOf(RunCoordinator.RunNotFoundException.class);
     }
 
+    @Test void hidesDeletingSessionFromExistingListDetailAndTurnsBeforePhysicalCleanup() {
+        Instant now = Instant.parse("2026-01-02T00:00:00Z");
+        sessions.saveAndFlush(new AgentSessionEntity("delete-visible", "deletion-owner", "retained", now));
+        sessions.saveAndFlush(new AgentSessionEntity("delete-pending", "deletion-owner", "hidden", now.plusSeconds(1)));
+        tasks.saveAndFlush(new AgentTaskEntity("delete-run", "delete-pending", "deletion-owner", "old input", "SUCCEEDED", now, 1));
+        jdbc.update("insert into agent_session_context(session_id,last_record_sequence,context_revision,last_used_at,deleted_at) values(?,0,0,?,?)",
+                "delete-pending", now, now.plusSeconds(2));
+
+        var page = service.list("deletion-owner", null, 1);
+        assertThat(page.items()).extracting(ConversationService.Conversation::sessionId).containsExactly("delete-visible");
+        assertThat(page.hasMore()).isFalse();
+        assertThat(service.get("deletion-owner", "delete-visible").sessionId()).isEqualTo("delete-visible");
+        assertThatThrownBy(() -> service.get("deletion-owner", "delete-pending"))
+                .isInstanceOf(RunCoordinator.RunNotFoundException.class);
+        assertThatThrownBy(() -> service.turns("deletion-owner", "delete-pending", "0", null, 20))
+                .isInstanceOf(RunCoordinator.RunNotFoundException.class);
+        assertThat(tasks.findById("delete-run")).isPresent();
+    }
     private void turn(long sequence, String status, String input, String answer) {
         String id = "query-" + sequence;
         tasks.saveAndFlush(new AgentTaskEntity(id, "query", "owner", input, status, Instant.now(), sequence));
@@ -76,10 +94,14 @@ class ConversationQueryTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration(exclude = {AgentWebAutoConfiguration.class, com.agentflow.autoconfigure.AgentRuntimeAutoConfiguration.class})
-    @EntityScan(basePackageClasses = AgentTaskEntity.class)
+    @EntityScan(basePackageClasses = {AgentTaskEntity.class, com.agentflow.web.context.SessionContextEntity.class})
     @EnableJpaRepositories(basePackageClasses = AgentTaskRepository.class)
-    @Import({ConversationService.class, ContextTextPolicy.class})
+    @Import(ContextTextPolicy.class)
     static class App {
         @Bean RunCoordinator coordinator() { return mock(RunCoordinator.class); }
+        @Bean ConversationService service(jakarta.persistence.EntityManager em, AgentSessionRepository sessions,
+                                          ContextTextPolicy policy, RunCoordinator coordinator) {
+            return new ConversationService(em, sessions, policy, coordinator, true);
+        }
     }
 }

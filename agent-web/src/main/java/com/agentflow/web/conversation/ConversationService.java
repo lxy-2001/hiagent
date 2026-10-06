@@ -24,13 +24,21 @@ public class ConversationService {
     private final AgentSessionRepository sessions;
     private final ContextTextPolicy policy;
     private final RunCoordinator coordinator;
+    private final boolean harnessEnabled;
     private final ObjectMapper json = new ObjectMapper();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ConversationService(EntityManager em, AgentSessionRepository sessions, ContextTextPolicy policy, RunCoordinator coordinator) {
+        this(em, sessions, policy, coordinator, false);
+    }
+
+    public ConversationService(EntityManager em, AgentSessionRepository sessions, ContextTextPolicy policy,
+                               RunCoordinator coordinator, boolean harnessEnabled) {
         this.em = Objects.requireNonNull(em);
         this.sessions = Objects.requireNonNull(sessions);
         this.policy = Objects.requireNonNull(policy);
         this.coordinator = Objects.requireNonNull(coordinator);
+        this.harnessEnabled = harnessEnabled;
     }
     public record Conversation(String sessionId, String title, Instant createdAt, String lastTurnSequence) { }
     public record ConversationPage(List<Conversation> items, boolean hasMore, String nextBefore) { }
@@ -42,6 +50,7 @@ public class ConversationService {
         validateLimit(limit);
         Cursor cursor = before == null ? null : decode(before);
         var query = em.createQuery("select s from AgentSessionEntity s where s.userId=:owner"
+                + (harnessEnabled ? " and not exists (select c.sessionId from SessionContextEntity c where c.sessionId=s.id and c.deletedAt is not null)" : "")
                 + (cursor == null ? "" : " and (s.createdAt<:time or (s.createdAt=:time and s.id<:id))")
                 + " order by s.createdAt desc, s.id desc", AgentSessionEntity.class).setParameter("owner", owner);
         if (cursor != null) query.setParameter("time", cursor.createdAt()).setParameter("id", cursor.id());
@@ -109,7 +118,10 @@ public class ConversationService {
 
     private AgentSessionEntity owned(String owner, String session) {
         validateSession(session);
-        return sessions.findByIdAndUserId(session, owner).orElseThrow(RunCoordinator.RunNotFoundException::new);
+        AgentSessionEntity entity = sessions.findByIdAndUserId(session, owner)
+                .orElseThrow(RunCoordinator.RunNotFoundException::new);
+        if (harnessEnabled && sessions.deletionMarkerCount(session) != 0) throw new RunCoordinator.RunNotFoundException();
+        return entity;
     }
 
     private Conversation conversation(AgentSessionEntity entity) {

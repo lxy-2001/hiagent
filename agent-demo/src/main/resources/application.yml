@@ -2,6 +2,8 @@ server:
   port: 8080
 
 spring:
+  profiles:
+    default: local-harness
   application:
     name: agent-demo-dev-assistant
   datasource:

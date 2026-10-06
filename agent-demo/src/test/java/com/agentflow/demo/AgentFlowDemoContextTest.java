@@ -150,7 +150,8 @@ class AgentFlowDemoContextTest {
             basePackages = "com.agentflow.demo",
             excludeFilters = {
                     @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
-                            classes = AgentFlowDemoApplication.class)
+                            classes = AgentFlowDemoApplication.class),
+                    @ComponentScan.Filter(type = FilterType.ANNOTATION, classes = TestConfiguration.class)
             })
     @Import(TestExternalBoundaryConfig.class)
     static class TestApplication {

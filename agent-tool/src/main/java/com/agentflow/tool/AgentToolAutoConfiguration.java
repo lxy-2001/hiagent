@@ -12,6 +12,13 @@ import java.util.List;
 public class AgentToolAutoConfiguration {
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnBean(com.agentflow.core.artifact.ArtifactStore.class)
+    @ConditionalOnMissingBean(ReadArtifactTool.class)
+    ReadArtifactTool readArtifactTool(com.agentflow.core.artifact.ArtifactStore store, tools.jackson.databind.ObjectMapper mapper) {
+        return new ReadArtifactTool(store, mapper);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(ToolRegistry.class)
     ToolRegistry toolRegistry(List<AgentTool> tools, List<com.agentflow.core.tool.ToolProvider> providers) {
         if (tools.stream().anyMatch(tool -> tool.definition().name().startsWith("mcp.")))

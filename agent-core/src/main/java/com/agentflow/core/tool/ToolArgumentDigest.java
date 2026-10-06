@@ -15,6 +15,10 @@ public final class ToolArgumentDigest {
         return fingerprint("hiagent-tool-args-v1", arguments.values(), MAX_ARGUMENT_BYTES);
     }
 
+    public static String digestManaged(ToolArguments arguments) {
+        return fingerprint("hiagent-tool-args-v1", arguments.values(), ToolArguments.MAX_MANAGED_BYTES);
+    }
+
     public static String definitionVersion(ToolDefinition definition) {
         Map<String,Object> properties = new TreeMap<>();
         definition.schema().properties().forEach((name, spec) -> {

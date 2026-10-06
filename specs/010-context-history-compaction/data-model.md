@@ -1,6 +1,6 @@
 # H01 数据模型与状态不变量
 
-日期：2026-10-06。本文件定义V7目标模型；尚无对应实现。继续使用现有agent_session、agent_task、agent_step、确认记忆、审批/调用表，不把它们改成消息历史表。
+日期：2026-10-07。本文件对应V7迁移与适配层实体。继续使用现有agent_session、agent_task、agent_step、确认记忆、审批/调用表，不把它们改成消息历史表。
 
 ## 1. 标识、顺序与归属
 
@@ -19,7 +19,7 @@
 | agent_context_checkpoint | id、session_id、revision、base_checkpoint_id、covered_through_sequence、summary、summary_tokens、source_history_tokens、retained_history_tokens、tail_start_sequence、model_request_key、prompt_version、model_profile_hash、created_at；unique(session,revision) | 已提交摘要和覆盖范围；旧消息不删除 |
 | agent_context_model_call | id、session_id、run_id、request_key、purpose、status、provider/model、input_tokens、output_tokens、cached_input_tokens、reasoning_tokens、usage_source、estimated_input_tokens、output_reserve_tokens、safety_tokens、estimate_source、source_history_tokens(nullable)、retained_history_tokens(nullable)、failure_code、started_at、finished_at；unique(run,request_key) | 主决策/摘要调用用量，每请求一次；未知列NULL |
 | agent_artifact | id、owner_id、session_id、run_id、kind、state、relative_path、saved_bytes、original_bytes(nullable)、sha256、preview、truncated、redacted、created_at、last_accessed_at、deleted_at | 附件与可用状态；(session,last_accessed,id)索引；不暴露物理路径 |
-| agent_responses_continuation | id、owner_id、session_id、run_id、provider/model、payload、payload_bytes、reasoning_token_hint、created_at | provider opaque续接信息；仅LLM适配器可解码，不返回公共接口 |
+| agent_responses_continuation | id、owner_id、session_id、run_id、request_key、payload_hash、provider/model、payload、payload_bytes、reasoning_token_hint、created_at；unique(run,request_key) | provider opaque续接信息；仅LLM适配器可解码，不返回公共接口 |
 | auth_access_revocation | jti PK、expires_at；到期索引 | 本地模式持久保存访问令牌撤销，值不含原始Token；到期有界清理 |
 
 正文使用可流式/受限读取的CLOB/TEXT，先检查payload_bytes和本轮预算再加载；避免JPA一次查询把整段会话CLOB全部实体化。外键/删除顺序须验证，不设置跨大表级联一把删除。
